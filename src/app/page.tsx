@@ -1,100 +1,174 @@
-import Image from "next/image";
+import Link from "next/link";
+import { apuntesMock } from "@/lib/mock-data";
 
-export default function Home() {
+function StarIcon() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <svg className="h-4 w-4 fill-amber-400" viewBox="0 0 20 20">
+      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+    </svg>
+  );
+}
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+const features = [
+  {
+    title: "Marketplace verificado",
+    description:
+      "Comprá y vendé apuntes con confianza. Cada material es revisado por la comunidad.",
+    icon: (
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
+      </svg>
+    ),
+  },
+  {
+    title: "Lector seguro",
+    description:
+      "Leé los apuntes directamente en la plataforma con protección anti-piratería integrada.",
+    icon: (
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+      </svg>
+    ),
+  },
+  {
+    title: "Sistema de puntaje",
+    description:
+      "Reseñas y calificaciones reales. Encontrá los mejores apuntes para cada materia.",
+    icon: (
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
+      </svg>
+    ),
+  },
+];
+
+export default function LandingPage() {
+  return (
+    <div className="min-h-screen">
+      {/* Hero */}
+      <section className="mx-auto max-w-6xl px-4 pb-20 pt-24 text-center md:pt-32">
+        <h1 className="font-display text-4xl font-bold leading-tight tracking-tight text-foreground md:text-6xl">
+          Comprá y vendé apuntes
+          <br />
+          <span className="text-accent-600">universitarios.</span>
+        </h1>
+        <p className="mx-auto mt-6 max-w-xl text-lg text-gray-500">
+          Calidad garantizada. Accedé a resúmenes, guías de estudio y material
+          verificado por la comunidad estudiantil.
+        </p>
+        <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <Link
+            href="/register"
+            className="rounded-lg bg-accent-600 px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-700"
           >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            Empezar gratis
+          </Link>
+          <Link
+            href="/explorar"
+            className="rounded-lg border border-gray-300 px-8 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-gray-50"
           >
-            Read our docs
-          </a>
+            Explorar apuntes
+          </Link>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+      </section>
+
+      {/* Features */}
+      <section className="border-t border-gray-200 bg-white py-20">
+        <div className="mx-auto max-w-6xl px-4">
+          <h2 className="text-center font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+            Todo lo que necesitás para estudiar mejor
+          </h2>
+          <div className="mt-12 grid gap-8 md:grid-cols-3">
+            {features.map((feature) => (
+              <div key={feature.title} className="rounded-xl border border-gray-100 bg-gray-50/50 p-6">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-100 text-accent-700">
+                  {feature.icon}
+                </div>
+                <h3 className="mt-4 font-display text-lg font-semibold text-foreground">
+                  {feature.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-gray-500">
+                  {feature.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Apuntes destacados */}
+      <section className="py-20">
+        <div className="mx-auto max-w-6xl px-4">
+          <h2 className="text-center font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+            Apuntes destacados
+          </h2>
+          <div className="mt-12 grid gap-6 md:grid-cols-3">
+            {apuntesMock.map((apunte) => (
+              <Link
+                key={apunte.id}
+                href={`/lector/${apunte.id}`}
+                className="group rounded-xl border border-gray-200 bg-white p-5 transition-shadow hover:shadow-md"
+              >
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <span>{apunte.universidad}</span>
+                  <span>·</span>
+                  <span>{apunte.materia}</span>
+                </div>
+                <h3 className="mt-2 font-display text-base font-semibold text-foreground group-hover:text-accent-600">
+                  {apunte.titulo}
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">por {apunte.autor}</p>
+                <div className="mt-4 flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <StarIcon />
+                    <span className="text-sm font-medium text-foreground">
+                      {apunte.puntaje}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      ({apunte.totalReseñas})
+                    </span>
+                  </div>
+                  <span className="text-sm font-bold text-accent-700">
+                    ${apunte.precio} {apunte.moneda}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA final */}
+      <section className="border-t border-gray-200 bg-white py-20">
+        <div className="mx-auto max-w-2xl px-4 text-center">
+          <h2 className="font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+            ¿Tenés apuntes que pueden ayudar a otros?
+          </h2>
+          <p className="mt-4 text-gray-500">
+            Subí tu material, poné tu precio y empezá a generar ingresos mientras
+            ayudás a otros estudiantes.
+          </p>
+          <Link
+            href="/register"
+            className="mt-8 inline-block rounded-lg bg-accent-600 px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-700"
+          >
+            Crear cuenta gratis
+          </Link>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-gray-200 py-8">
+        <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-4 text-center text-sm text-gray-400 md:flex-row md:justify-between">
+          <span>
+            © 2026 apuntes<span className="font-semibold text-gray-500">HUB</span>. Todos los derechos reservados.
+          </span>
+          <div className="flex gap-6">
+            <Link href="#" className="hover:text-gray-600">Términos</Link>
+            <Link href="#" className="hover:text-gray-600">Privacidad</Link>
+            <Link href="#" className="hover:text-gray-600">Contacto</Link>
+          </div>
+        </div>
       </footer>
     </div>
   );

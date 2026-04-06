@@ -1,0 +1,105 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 4 0 R 5 0 R] /Count 3 >>
+endobj
+
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]
+   /Contents 6 0 R /Resources << /Font << /F1 9 0 R >> >> >>
+endobj
+
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]
+   /Contents 7 0 R /Resources << /Font << /F1 9 0 R >> >> >>
+endobj
+
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]
+   /Contents 8 0 R /Resources << /Font << /F1 9 0 R >> >> >>
+endobj
+
+6 0 obj
+<< /Length 184 >>
+stream
+BT
+/F1 28 Tf
+100 700 Td
+(Derecho Constitucional) Tj
+0 -40 Td
+/F1 16 Tf
+(Unidad 3 - Resumen) Tj
+0 -60 Td
+/F1 12 Tf
+(Autora: Maria Gonzalez) Tj
+0 -20 Td
+(Universidad de Buenos Aires) Tj
+ET
+endstream
+endobj
+
+7 0 obj
+<< /Length 244 >>
+stream
+BT
+/F1 18 Tf
+72 740 Td
+(Capitulo 1: Supremacia Constitucional) Tj
+0 -40 Td
+/F1 12 Tf
+(La supremacia constitucional es el principio) Tj
+0 -20 Td
+(que establece que la Constitucion Nacional) Tj
+0 -20 Td
+(es la norma juridica de mayor jerarquia) Tj
+0 -20 Td
+(en el ordenamiento legal argentino.) Tj
+ET
+endstream
+endobj
+
+8 0 obj
+<< /Length 230 >>
+stream
+BT
+/F1 18 Tf
+72 740 Td
+(Capitulo 2: Control de Constitucionalidad) Tj
+0 -40 Td
+/F1 12 Tf
+(El control de constitucionalidad en Argentina) Tj
+0 -20 Td
+(es difuso y judicial. Cualquier juez puede) Tj
+0 -20 Td
+(declarar la inconstitucionalidad de una norma) Tj
+0 -20 Td
+(en el caso concreto sometido a su decision.) Tj
+ET
+endstream
+endobj
+
+9 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+
+xref
+0 10
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000125 00000 n 
+0000000266 00000 n 
+0000000407 00000 n 
+0000000548 00000 n 
+0000000784 00000 n 
+0000001080 00000 n 
+0000001362 00000 n 
+
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+1433
+%%EOF
