@@ -4,7 +4,11 @@
 
 :root {
   --background: #fafafa;
-  --foreground: #1a1a1a;
+  --foreground: #111827;
+  --accent-100: #e0e7ff;
+  --accent-500: #6366f1;
+  --accent-600: #4f46e5;
+  --accent-700: #4338ca;
 }
 
 body {
@@ -12,15 +16,17 @@ body {
   background: var(--background);
 }
 
-/* Anti-piratería: deshabilitar selección en el visor de PDF */
-.pdf-viewer-container {
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
+* {
+  box-sizing: border-box;
 }
 
-.pdf-viewer-container canvas {
-  pointer-events: none;
+html {
+  scroll-behavior: smooth;
+}
+
+/* Anti-impresión: ocultar el visor al imprimir */
+@media print {
+  .pdf-viewer-container {
+    display: none !important;
+  }
 }

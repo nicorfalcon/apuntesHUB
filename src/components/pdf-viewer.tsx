@@ -1,12 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Document, Page, pdfjs } from "react-pdf";
-import "react-pdf/dist/Page/AnnotationLayer.css";
-import "react-pdf/dist/Page/TextLayer.css";
-
-// Worker de PDF.js — necesario para react-pdf
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+import { useEffect, useRef, useState } from "react";
 
 interface PdfViewerProps {
   apunteId: string;
@@ -14,34 +8,18 @@ interface PdfViewerProps {
 }
 
 export function PdfViewer({ apunteId, userEmail }: PdfViewerProps) {
-  const [numPages, setNumPages] = useState<number>(0);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
 
-  // Cargar PDF como blob desde la API (no se expone URL directa)
-  useEffect(() => {
-    async function loadPdf() {
-      try {
-        const res = await fetch(`/api/pdf/${apunteId}`);
-        if (!res.ok) throw new Error("No se pudo cargar el PDF");
-        const buffer = await res.arrayBuffer();
-        setPdfData(buffer);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Error desconocido");
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadPdf();
-  }, [apunteId]);
-
-  // Anti-piratería: bloquear Ctrl+P (imprimir) y Ctrl+S (guardar)
+  // ANTI-PIRATERÍA: bloquear Ctrl+P, Ctrl+S, Ctrl+U, F12
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && (e.key === "p" || e.key === "s")) {
+      const blocked =
+        (e.ctrlKey || e.metaKey) &&
+        ["p", "s", "u"].includes(e.key.toLowerCase());
+      const isF12 = e.key === "F12";
+      if (blocked || isF12) {
         e.preventDefault();
         e.stopPropagation();
       }
@@ -50,102 +28,89 @@ export function PdfViewer({ apunteId, userEmail }: PdfViewerProps) {
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, []);
 
-  // Anti-piratería: bloquear clic derecho sobre el visor
+  // ANTI-PIRATERÍA: bloquear clic derecho en el contenedor
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    function handleContextMenu(e: MouseEvent) {
-      e.preventDefault();
-    }
-    container.addEventListener("contextmenu", handleContextMenu);
-    return () => container.removeEventListener("contextmenu", handleContextMenu);
+    const el = containerRef.current;
+    if (!el) return;
+    const prevent = (e: MouseEvent) => e.preventDefault();
+    el.addEventListener("contextmenu", prevent);
+    return () => el.removeEventListener("contextmenu", prevent);
   }, []);
-
-  const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
-    setNumPages(numPages);
-  }, []);
-
-  const goToPrev = () => setPageNumber((p) => Math.max(1, p - 1));
-  const goToNext = () => setPageNumber((p) => Math.min(numPages, p + 1));
-
-  if (loading) {
-    return (
-      <div className="flex h-96 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-600 border-t-transparent" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex h-96 items-center justify-center text-sm text-red-500">
-        {error}
-      </div>
-    );
-  }
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      {/* Controles de navegación */}
-      <div className="flex items-center gap-4 rounded-lg border border-gray-200 bg-white px-4 py-2">
-        <button
-          onClick={goToPrev}
-          disabled={pageNumber <= 1}
-          className="rounded px-3 py-1 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-30"
-        >
-          ← Anterior
-        </button>
-        <span className="text-sm text-gray-500">
-          Página <span className="font-semibold text-foreground">{pageNumber}</span> de{" "}
-          <span className="font-semibold text-foreground">{numPages}</span>
-        </span>
-        <button
-          onClick={goToNext}
-          disabled={pageNumber >= numPages}
-          className="rounded px-3 py-1 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-30"
-        >
-          Siguiente →
-        </button>
-      </div>
-
-      {/* Visor del PDF con protecciones anti-piratería */}
+    <div className="flex flex-col items-center gap-4 w-full">
+      {/* Contenedor del visor con protecciones */}
       <div
         ref={containerRef}
-        className="pdf-viewer-container relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
+        className="relative w-full rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden"
+        style={{
+          userSelect: "none",
+          WebkitUserSelect: "none",
+        }}
       >
-        {/* Watermark dinámico superpuesto */}
-        <div className="pointer-events-none absolute inset-0 z-10 flex flex-wrap items-center justify-center gap-16 overflow-hidden p-8">
-          {Array.from({ length: 6 }).map((_, i) => (
+        {/* WATERMARK dinámico con email del usuario */}
+        <div
+          className="pointer-events-none absolute inset-0 z-20 overflow-hidden"
+          aria-hidden="true"
+        >
+          {Array.from({ length: 12 }).map((_, i) => (
             <span
               key={i}
-              className="whitespace-nowrap text-lg font-semibold text-gray-300/40 md:text-xl"
-              style={{ transform: `rotate(-30deg)` }}
+              className="absolute whitespace-nowrap text-sm font-semibold text-gray-400/30 select-none"
+              style={{
+                top: `${(i % 4) * 25 + 5}%`,
+                left: `${Math.floor(i / 4) * 33 + 2}%`,
+                transform: "rotate(-35deg)",
+                fontSize: "13px",
+                letterSpacing: "0.05em",
+              }}
             >
               {userEmail}
             </span>
           ))}
         </div>
 
-        {pdfData && (
-          <Document
-            file={{ data: pdfData }}
-            onLoadSuccess={onDocumentLoadSuccess}
-            loading={
-              <div className="flex h-96 w-full items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-600 border-t-transparent" />
-              </div>
-            }
-          >
-            <Page
-              pageNumber={pageNumber}
-              width={Math.min(700, typeof window !== "undefined" ? window.innerWidth - 80 : 700)}
-              renderTextLayer={false}
-              renderAnnotationLayer={false}
-            />
-          </Document>
+        {/* Overlay transparente que bloquea interacción directa con el iframe */}
+        <div
+          className="absolute inset-0 z-10"
+          style={{ background: "transparent" }}
+          onContextMenu={(e) => e.preventDefault()}
+        />
+
+        {/* Spinner mientras carga */}
+        {!loaded && !error && (
+          <div className="flex h-[75vh] items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-600 border-t-transparent" />
+          </div>
         )}
+
+        {/* Error state */}
+        {error && (
+          <div className="flex h-[75vh] items-center justify-center text-sm text-red-500">
+            No se pudo cargar el documento.
+          </div>
+        )}
+
+        {/* Iframe — carga el PDF desde la API, nunca URL directa */}
+        <iframe
+          src={`/api/pdf/${apunteId}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+          className="w-full"
+          style={{
+            height: "75vh",
+            display: loaded ? "block" : "none",
+            border: "none",
+          }}
+          onLoad={() => setLoaded(true)}
+          onError={() => setError(true)}
+          title="Visor de apunte"
+          sandbox="allow-same-origin allow-scripts"
+        />
       </div>
+
+      {/* Nota de protección */}
+      <p className="text-xs text-gray-400 text-center">
+        Este documento está protegido. Queda prohibida su reproducción o distribución.
+      </p>
     </div>
   );
 }
