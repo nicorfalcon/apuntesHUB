@@ -9,11 +9,11 @@ import "react-pdf/dist/Page/TextLayer.css";
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface PdfViewerProps {
-  apunteId: string;
+  url: string;
   userEmail: string;
 }
 
-export function PdfViewer({ apunteId, userEmail }: PdfViewerProps) {
+export function PdfViewer({ url, userEmail }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState(1);
   const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
@@ -21,11 +21,11 @@ export function PdfViewer({ apunteId, userEmail }: PdfViewerProps) {
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Cargar PDF como blob desde la API (no se expone URL directa)
+  // Cargar PDF como blob desde la signed URL (no se expone el path del archivo)
   useEffect(() => {
     async function loadPdf() {
       try {
-        const res = await fetch(`/api/pdf/${apunteId}`);
+        const res = await fetch(url);
         if (!res.ok) throw new Error("No se pudo cargar el PDF");
         const buffer = await res.arrayBuffer();
         setPdfData(buffer);
@@ -36,7 +36,7 @@ export function PdfViewer({ apunteId, userEmail }: PdfViewerProps) {
       }
     }
     loadPdf();
-  }, [apunteId]);
+  }, [url]);
 
   // Anti-piratería: bloquear Ctrl+P (imprimir) y Ctrl+S (guardar)
   useEffect(() => {

@@ -64,7 +64,7 @@ export default function LandingPage() {
             Empezar gratis
           </Link>
           <Link
-            href="/explorar"
+            href="/browse"
             className="rounded-lg border border-gray-300 px-8 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-gray-50"
           >
             Explorar apuntes
@@ -106,7 +106,7 @@ export default function LandingPage() {
             {apuntesMock.map((apunte) => (
               <Link
                 key={apunte.id}
-                href={`/lector/${apunte.id}`}
+                href="/browse"
                 className="group rounded-xl border border-gray-200 bg-white p-5 transition-shadow hover:shadow-md"
               >
                 <div className="flex items-center gap-2 text-xs text-gray-400">
