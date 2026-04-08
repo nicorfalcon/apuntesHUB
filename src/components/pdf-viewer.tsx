@@ -72,7 +72,7 @@ export function PdfViewer({ apunteId, userEmail }: PdfViewerProps) {
 
         {/* Overlay transparente que bloquea interacción directa con el iframe */}
         <div
-          className="absolute inset-0 z-10"
+          className="absolute inset-0 z-10 pointer-events-none" // <-- Agregamos pointer-events-none
           style={{ background: "transparent" }}
           onContextMenu={(e) => e.preventDefault()}
         />
@@ -103,7 +103,6 @@ export function PdfViewer({ apunteId, userEmail }: PdfViewerProps) {
           onLoad={() => setLoaded(true)}
           onError={() => setError(true)}
           title="Visor de apunte"
-          sandbox="allow-same-origin allow-scripts"
         />
       </div>
 
