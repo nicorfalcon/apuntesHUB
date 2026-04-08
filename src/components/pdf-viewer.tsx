@@ -10,7 +10,7 @@ const PdfViewerClient = dynamic(
     loading: () => (
       <div className="flex flex-col items-center gap-4 w-full">
         <div className="w-full h-[80vh] bg-gray-100 border border-gray-200 rounded-lg shadow-inner flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
+          <div role="status" aria-label="Cargando visor seguro" className="flex flex-col items-center gap-3">
             <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full" />
             <p className="text-sm text-gray-500">Cargando visor seguro...</p>
           </div>
