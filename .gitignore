@@ -3,6 +3,8 @@
 # dependencies
 .next/
 /node_modules
+node_modules/
+apps/web/node_modules/
 /.pnp
 .pnp.js
 .yarn/install-state.gz

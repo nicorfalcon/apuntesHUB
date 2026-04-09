@@ -2,8 +2,13 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
-import "react-pdf/dist/Page/AnnotationLayer.css";
-import "react-pdf/dist/Page/TextLayer.css";
+import "react-pdf/dist/esm/Page/AnnotationLayer.css";
+import "react-pdf/dist/esm/Page/TextLayer.css";
+
+// Configurar worker a nivel de módulo, fuera del componente.
+// El worker se sirve como archivo estático desde /public/ para que webpack
+// no lo bundle.
+pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
 interface PdfViewerProps {
   url: string;
@@ -13,38 +18,18 @@ interface PdfViewerProps {
 export function PdfViewer({ url, userEmail }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState(1);
-  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(700);
+  const [containerWidth, setContainerWidth] = useState<number | undefined>(undefined);
 
-  // Configurar worker de pdfjs solo en el cliente
-  useEffect(() => {
-    pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-  }, []);
-
-  // Cargar PDF como blob desde la signed URL (no se expone el path del archivo)
-  useEffect(() => {
-    async function loadPdf() {
-      try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("No se pudo cargar el PDF");
-        const buffer = await res.arrayBuffer();
-        setPdfData(buffer);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Error desconocido");
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadPdf();
-  }, [url]);
-
-  // Anti-piratería: bloquear Ctrl+P (imprimir) y Ctrl+S (guardar)
+  // Anti-piratería: bloquear Ctrl+P, Ctrl+S, Ctrl+U y F12
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && (e.key === "p" || e.key === "s")) {
+      const blockedCombo =
+        (e.ctrlKey || e.metaKey) &&
+        ["p", "s", "u"].includes(e.key.toLowerCase());
+      if (blockedCombo || e.key === "F12") {
         e.preventDefault();
         e.stopPropagation();
       }
@@ -71,7 +56,7 @@ export function PdfViewer({ url, userEmail }: PdfViewerProps) {
     if (!container) return;
 
     const observer = new ResizeObserver(([entry]) => {
-      setContainerWidth(Math.min(700, entry.contentRect.width));
+      setContainerWidth(entry.contentRect.width);
     });
     observer.observe(container);
     return () => observer.disconnect();
@@ -79,29 +64,36 @@ export function PdfViewer({ url, userEmail }: PdfViewerProps) {
 
   const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
+    setError(null);
+  }, []);
+
+  const onDocumentLoadError = useCallback((err: Error) => {
+    setError(err.message || "Error al cargar el PDF");
   }, []);
 
   const goToPrev = () => setPageNumber((p) => Math.max(1, p - 1));
   const goToNext = () => setPageNumber((p) => Math.min(numPages, p + 1));
 
-  if (loading) {
-    return (
-      <div className="flex h-96 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-600 border-t-transparent" />
-      </div>
-    );
-  }
-
   if (error) {
     return (
-      <div className="flex h-96 items-center justify-center text-sm text-red-500">
-        {error}
+      <div className="flex h-96 flex-col items-center justify-center gap-3">
+        <p className="text-sm text-red-500">{error}</p>
+        <button
+          onClick={() => {
+            setError(null);
+            setPageNumber(1);
+            setRetryKey((k) => k + 1);
+          }}
+          className="rounded-lg bg-accent-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-700"
+        >
+          Reintentar
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex w-full flex-col items-center gap-4">
       {/* Controles de navegación */}
       <div className="flex items-center gap-4 rounded-lg border border-gray-200 bg-white px-4 py-2">
         <button
@@ -127,39 +119,47 @@ export function PdfViewer({ url, userEmail }: PdfViewerProps) {
       {/* Visor del PDF con protecciones anti-piratería */}
       <div
         ref={containerRef}
-        className="pdf-viewer-container relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
+        className="pdf-viewer-container relative w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
       >
-        {/* Watermark dinámico superpuesto */}
-        <div className="pointer-events-none absolute inset-0 z-10 flex flex-wrap items-center justify-center gap-16 overflow-hidden p-8">
-          {Array.from({ length: 6 }).map((_, i) => (
+        {/* Watermark dinámico superpuesto — 12 instancias con mix-blend-multiply para mayor cobertura */}
+        <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden mix-blend-multiply opacity-40">
+          {Array.from({ length: 12 }).map((_, i) => (
             <span
               key={i}
-              className="whitespace-nowrap text-lg font-semibold text-gray-300/40 md:text-xl"
-              style={{ transform: `rotate(-30deg)` }}
+              className="absolute whitespace-nowrap text-lg font-bold text-gray-400 select-none"
+              style={{
+                top: `${(i % 4) * 25 + 5}%`,
+                left: `${Math.floor(i / 4) * 34}%`,
+                transform: "rotate(-35deg)",
+              }}
             >
               {userEmail}
             </span>
           ))}
         </div>
 
-        {pdfData && (
-          <Document
-            file={{ data: pdfData }}
-            onLoadSuccess={onDocumentLoadSuccess}
-            loading={
-              <div className="flex h-96 w-full items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-600 border-t-transparent" />
-              </div>
-            }
-          >
-            <Page
-              pageNumber={pageNumber}
-              width={containerWidth}
-              renderTextLayer={false}
-              renderAnnotationLayer={false}
-            />
-          </Document>
-        )}
+        {/* pdfjs maneja la descarga internamente — pasar la URL directamente
+            evita el "Cannot perform Construct on a detached ArrayBuffer" que
+            ocurre cuando React StrictMode re-ejecuta un efecto y el ArrayBuffer
+            pre-descargado ya fue consumido/transferido por pdfjs. */}
+        <Document
+          key={retryKey}
+          file={url}
+          onLoadSuccess={onDocumentLoadSuccess}
+          onLoadError={onDocumentLoadError}
+          loading={
+            <div className="flex h-96 w-full items-center justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-600 border-t-transparent" />
+            </div>
+          }
+        >
+          <Page
+            pageNumber={pageNumber}
+            width={containerWidth}
+            renderTextLayer={false}
+            renderAnnotationLayer={false}
+          />
+        </Document>
       </div>
     </div>
   );

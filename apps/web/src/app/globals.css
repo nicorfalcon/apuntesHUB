@@ -24,3 +24,10 @@ body {
 .pdf-viewer-container canvas {
   pointer-events: none;
 }
+
+/* Anti-piratería: ocultar el visor al imprimir */
+@media print {
+  .pdf-viewer-container {
+    display: none !important;
+  }
+}
