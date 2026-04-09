@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -107,11 +108,12 @@ export function Navbar() {
                 aria-label="Menú de usuario"
               >
                 {profile?.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <Image
                     src={profile.avatar_url}
-                    alt={profile.display_name}
-                    className="h-8 w-8 rounded-full object-cover"
+                    alt={profile.display_name ?? "Avatar"}
+                    width={32}
+                    height={32}
+                    className="rounded-full object-cover"
                   />
                 ) : (
                   initials

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/database.types";
 
@@ -20,7 +22,6 @@ export function ProfileForm({ userId, profile }: ProfileFormProps) {
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
@@ -30,7 +31,6 @@ export function ProfileForm({ userId, profile }: ProfileFormProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setSuccess(false);
     setLoading(true);
 
     const supabase = createClient();
@@ -63,8 +63,9 @@ export function ProfileForm({ userId, profile }: ProfileFormProps) {
 
     if (error) {
       setError(error.message);
+      toast.error("No se pudo guardar el perfil.");
     } else {
-      setSuccess(true);
+      toast.success("Perfil actualizado correctamente.");
       router.refresh();
     }
     setLoading(false);
@@ -77,11 +78,12 @@ export function ProfileForm({ userId, profile }: ProfileFormProps) {
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Avatar actual */}
       {profile?.avatar_url && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <Image
           src={profile.avatar_url}
           alt="Avatar"
-          className="h-16 w-16 rounded-full object-cover"
+          width={64}
+          height={64}
+          className="rounded-full object-cover"
         />
       )}
 
@@ -139,7 +141,6 @@ export function ProfileForm({ userId, profile }: ProfileFormProps) {
       </div>
 
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-      {success && <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">Perfil actualizado correctamente.</p>}
 
       <button
         type="submit"

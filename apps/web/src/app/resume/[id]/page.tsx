@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { StarRating } from "@/components/ui/star-rating";
@@ -67,12 +68,14 @@ export default async function ResumePage({
         <div className="flex-1 space-y-8">
           {/* Preview */}
           {resumeWithSeller.preview_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={resumeWithSeller.preview_url}
-              alt={`Preview de ${resumeWithSeller.title}`}
-              className="w-full rounded-xl border border-gray-200 object-cover"
-            />
+            <div className="relative h-80 w-full overflow-hidden rounded-xl border border-gray-200">
+              <Image
+                src={resumeWithSeller.preview_url}
+                alt={`Preview de ${resumeWithSeller.title}`}
+                fill
+                className="object-cover"
+              />
+            </div>
           ) : (
             <div className="flex h-48 w-full items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50">
               <p className="text-sm text-gray-400">Sin preview disponible</p>

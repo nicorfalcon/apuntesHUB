@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ReviewButton } from "./review-button";
@@ -51,11 +52,12 @@ export default async function MisComprasPage() {
                 className="flex items-start gap-4 rounded-xl border border-gray-200 bg-white p-5"
               >
                 {resume?.preview_url && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <Image
                     src={resume.preview_url}
                     alt={resume.title}
-                    className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                    width={64}
+                    height={64}
+                    className="shrink-0 rounded-lg object-cover"
                   />
                 )}
                 <div className="min-w-0 flex-1">

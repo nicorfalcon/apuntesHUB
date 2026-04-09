@@ -5,9 +5,6 @@ import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
-// Worker de PDF.js — necesario para react-pdf
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-
 interface PdfViewerProps {
   url: string;
   userEmail: string;
@@ -20,6 +17,12 @@ export function PdfViewer({ url, userEmail }: PdfViewerProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(700);
+
+  // Configurar worker de pdfjs solo en el cliente
+  useEffect(() => {
+    pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+  }, []);
 
   // Cargar PDF como blob desde la signed URL (no se expone el path del archivo)
   useEffect(() => {
@@ -60,6 +63,18 @@ export function PdfViewer({ url, userEmail }: PdfViewerProps) {
     }
     container.addEventListener("contextmenu", handleContextMenu);
     return () => container.removeEventListener("contextmenu", handleContextMenu);
+  }, []);
+
+  // Ancho responsive via ResizeObserver
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      setContainerWidth(Math.min(700, entry.contentRect.width));
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
   }, []);
 
   const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
@@ -139,7 +154,7 @@ export function PdfViewer({ url, userEmail }: PdfViewerProps) {
           >
             <Page
               pageNumber={pageNumber}
-              width={Math.min(700, typeof window !== "undefined" ? window.innerWidth - 80 : 700)}
+              width={containerWidth}
               renderTextLayer={false}
               renderAnnotationLayer={false}
             />

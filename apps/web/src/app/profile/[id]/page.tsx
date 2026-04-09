@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { StarRating } from "@/components/ui/star-rating";
 import { ResumeCard } from "@/components/resume/resume-card";
@@ -45,11 +46,12 @@ export default async function PerfilPublicoPage({
       <div className="flex items-start gap-5">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-accent-100 text-xl font-bold text-accent-700">
           {profile.avatar_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={profile.avatar_url}
               alt={profile.display_name}
-              className="h-16 w-16 rounded-full object-cover"
+              width={64}
+              height={64}
+              className="rounded-full object-cover"
             />
           ) : (
             initials

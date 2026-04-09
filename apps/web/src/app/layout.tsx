@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { Toaster } from "sonner";
 import "./globals.css";
 import { Navbar } from "@/components/layout/navbar";
 
@@ -25,6 +26,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} font-body antialiased`}>
         <Navbar />
         <main>{children}</main>
+        <Toaster richColors position="bottom-right" />
       </body>
     </html>
   );

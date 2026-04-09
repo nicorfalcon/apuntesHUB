@@ -1,7 +1,19 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/server";
-import { PdfViewer } from "@/components/ui/pdf-viewer";
+
+const PdfViewer = dynamic(
+  () => import("@/components/ui/pdf-viewer").then((m) => ({ default: m.PdfViewer })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-96 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-600 border-t-transparent" />
+      </div>
+    ),
+  }
+);
 
 export default async function ViewPurchasePage({
   params,

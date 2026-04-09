@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import type { Resume } from "@/lib/database.types";
 
@@ -106,6 +107,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
       return;
     }
 
+    toast.success(isEdit ? "Apunte actualizado correctamente." : "Apunte publicado correctamente.");
     router.push("/sell/dashboard");
     router.refresh();
   }
