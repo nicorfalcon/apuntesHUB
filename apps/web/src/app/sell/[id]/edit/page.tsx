@@ -26,15 +26,17 @@ export default async function EditarApuntePage({
   if (!resume) notFound();
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
-      <h1 className="text-2xl font-bold tracking-tight text-foreground">
-        Editar apunte
-      </h1>
-      <p className="mt-1 text-sm text-gray-500">
-        Modificá los datos de tu resumen.
-      </p>
-      <div className="mt-8">
-        <ResumeForm userId={user.id} initial={resume} />
+    <div className="min-h-screen bg-[#f5f4f0]">
+      <div className="mx-auto max-w-2xl px-4 py-12 font-sora">
+        <h1 className="font-instrument text-3xl tracking-tight text-foreground">
+          Editar apunte
+        </h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Modificá los datos de tu resumen.
+        </p>
+        <div className="mt-8">
+          <ResumeForm userId={user.id} initial={resume} />
+        </div>
       </div>
     </div>
   );

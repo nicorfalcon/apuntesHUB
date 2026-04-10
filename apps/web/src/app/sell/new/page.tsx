@@ -11,15 +11,17 @@ export default async function NuevoApuntePage() {
   if (!user) redirect("/login?redirect=/sell/new");
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
-      <h1 className="text-2xl font-bold tracking-tight text-foreground">
-        Publicar apunte
-      </h1>
-      <p className="mt-1 text-sm text-gray-500">
-        Completá los datos de tu resumen y subí el archivo PDF.
-      </p>
-      <div className="mt-8">
-        <ResumeForm userId={user.id} />
+    <div className="min-h-screen bg-[#f5f4f0]">
+      <div className="mx-auto max-w-2xl px-4 py-12 font-sora">
+        <h1 className="font-body text-3xl font-bold tracking-tight text-foreground">
+          Publicar apunte
+        </h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Completá los datos de tu resumen y subí el archivo PDF.
+        </p>
+        <div className="mt-8">
+          <ResumeForm userId={user.id} />
+        </div>
       </div>
     </div>
   );
