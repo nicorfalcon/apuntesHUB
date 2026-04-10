@@ -3,7 +3,7 @@ import localFont from "next/font/local";
 import { Sora, Instrument_Serif } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
-import { Navbar } from "@/components/layout/navbar";
+import { NavbarWrapper } from "@/components/layout/navbar-wrapper";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -38,7 +38,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={`${geistSans.variable} ${sora.variable} ${instrumentSerif.variable} font-body antialiased`}>
-        <Navbar />
+        <NavbarWrapper />
         <main>{children}</main>
         <Toaster richColors position="bottom-right" />
       </body>
