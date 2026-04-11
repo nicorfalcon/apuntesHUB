@@ -270,24 +270,12 @@ export function ViewerLayout({
             className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-foreground"
           >
             <ArrowLeftIcon />
-            Mis compras
+            Mis apuntes
           </Link>
         </div>
 
-        <div className="hidden items-center gap-1 md:flex">
-          {[
-            { href: "/browse", label: "Explorar" },
-            { href: "/sell/new", label: "Subir apunte" },
-          ].map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className="rounded-lg px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100 hover:text-foreground"
-            >
-              {label}
-            </Link>
-          ))}
-          <div className="ml-2 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-accent-600 to-accent-800 text-xs font-semibold text-white">
+        <div className="hidden items-center md:flex">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-accent-600 to-accent-800 text-xs font-semibold text-white">
             {userAvatarUrl ? (
               <Image
                 src={userAvatarUrl}

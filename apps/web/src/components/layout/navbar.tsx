@@ -99,11 +99,13 @@ export function Navbar() {
             </Link>
           ))}
           {user && (
-            <Link
-              href="/sell/new"
-              className="text-sm text-gray-600 transition-colors hover:text-foreground"
-            >
-              Subir apunte
+            <Link href="/my-purchases" className="text-sm text-gray-600 transition-colors hover:text-foreground">
+              Mis apuntes
+            </Link>
+          )}
+          {user && (
+            <Link href="/sell/new" className="text-sm text-gray-600 transition-colors hover:text-foreground">
+              Vender
             </Link>
           )}
         </div>
@@ -141,13 +143,6 @@ export function Navbar() {
                     className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                   >
                     Mi perfil
-                  </Link>
-                  <Link
-                    href="/my-purchases"
-                    onClick={() => setDropdownOpen(false)}
-                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  >
-                    Mis compras
                   </Link>
                   <Link
                     href="/sell/dashboard"
@@ -211,9 +206,9 @@ export function Navbar() {
           {user ? (
             <>
               <Link href="/profile" onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-gray-600">Mi perfil</Link>
-              <Link href="/my-purchases" onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-gray-600">Mis compras</Link>
+              <Link href="/my-purchases" onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-gray-600">Mis apuntes</Link>
               <Link href="/sell/dashboard" onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-gray-600">Panel de ventas</Link>
-              <Link href="/sell/new" onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-gray-600">Subir apunte</Link>
+              <Link href="/sell/new" onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-gray-600">Vender</Link>
               <button
                 onClick={() => { setMenuOpen(false); handleSignOut(); }}
                 className="mt-2 w-full rounded-lg border border-red-200 py-2 text-sm font-medium text-red-600"

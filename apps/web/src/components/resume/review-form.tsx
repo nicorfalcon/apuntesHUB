@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 
 interface ReviewFormProps {
   purchaseId: string;
@@ -26,10 +27,10 @@ export function ReviewForm({ purchaseId, resumeId, sellerId, onClose }: ReviewFo
     setLoading(true);
 
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setError("Sesión expirada."); setLoading(false); return; }
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) { setError("Sesión expirada. Recargá la página."); setLoading(false); return; }
 
-    const { error } = await supabase.from("reviews").insert({
+    const { error: insertError } = await supabase.from("reviews").insert({
       purchase_id: purchaseId,
       reviewer_id: user.id,
       seller_id: sellerId,
@@ -38,26 +39,32 @@ export function ReviewForm({ purchaseId, resumeId, sellerId, onClose }: ReviewFo
       comment: comment.trim() || null,
     });
 
-    if (error) {
-      setError(error.message);
+    if (insertError) {
+      console.error("Review insert error:", insertError);
+      // Duplicate key = la reseña ya existe (primer submit funcionó pero la UI no se actualizó)
+      if (insertError.code === "23505") {
+        toast.info("Ya reseñaste este apunte.");
+        onClose();
+        router.refresh();
+        return;
+      }
+      setError(insertError.message);
       setLoading(false);
       return;
     }
 
+    toast.success("¡Reseña enviada!");
     onClose();
     router.refresh();
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
         <h2 className="text-lg font-bold text-foreground">Dejar reseña</h2>
-        <p className="mt-1 text-sm text-gray-500">
-          Tu opinión ayuda a otros estudiantes a elegir mejor.
-        </p>
+        <p className="mt-1 text-sm text-gray-500">Tu opinión ayuda a otros estudiantes a elegir mejor.</p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-          {/* Estrellas interactivas */}
           <div>
             <p className="text-sm font-medium text-gray-700">Calificación *</p>
             <div className="mt-2 flex gap-1">
@@ -71,9 +78,7 @@ export function ReviewForm({ purchaseId, resumeId, sellerId, onClose }: ReviewFo
                   className="p-0.5 focus:outline-none"
                 >
                   <svg
-                    className={`h-8 w-8 transition-colors ${
-                      star <= (hovered || rating) ? "text-amber-400" : "text-gray-200"
-                    }`}
+                    className={`h-8 w-8 transition-colors ${star <= (hovered || rating) ? "text-amber-400" : "text-gray-200"}`}
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
@@ -85,9 +90,7 @@ export function ReviewForm({ purchaseId, resumeId, sellerId, onClose }: ReviewFo
           </div>
 
           <div>
-            <label htmlFor="comment" className="block text-sm font-medium text-gray-700">
-              Comentario (opcional)
-            </label>
+            <label htmlFor="comment" className="block text-sm font-medium text-gray-700">Comentario (opcional)</label>
             <textarea
               id="comment"
               value={comment}
@@ -99,23 +102,13 @@ export function ReviewForm({ purchaseId, resumeId, sellerId, onClose }: ReviewFo
             />
           </div>
 
-          {error && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
-          )}
+          {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
           <div className="flex gap-3">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 rounded-lg bg-accent-600 py-2.5 text-sm font-semibold text-white hover:bg-accent-700 disabled:opacity-60"
-            >
+            <button type="submit" disabled={loading} className="flex-1 rounded-lg bg-accent-600 py-2.5 text-sm font-semibold text-white hover:bg-accent-700 disabled:opacity-60">
               {loading ? "Enviando..." : "Enviar reseña"}
             </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
+            <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
               Cancelar
             </button>
           </div>

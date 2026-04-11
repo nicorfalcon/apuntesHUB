@@ -147,6 +147,44 @@ export interface Database {
         };
         Update: never;
       };
+      folders: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          color: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          color?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          name?: string;
+          color?: string;
+          updated_at?: string;
+        };
+      };
+      folder_items: {
+        Row: {
+          id: string;
+          folder_id: string;
+          resume_id: string;
+          added_at: string;
+        };
+        Insert: {
+          id?: string;
+          folder_id: string;
+          resume_id: string;
+          added_at?: string;
+        };
+        Update: never;
+      };
     };
     Functions: {
       purchase_resume: {
@@ -181,4 +219,12 @@ export type PurchaseWithResume = Purchase & {
   }) | null;
   // reviews viene de la relación reviews(purchase_id → purchases.id); null cuando no hay reseña
   reviews: { id: string }[] | null;
+};
+
+export type Folder = Database["public"]["Tables"]["folders"]["Row"];
+export type FolderItem = Database["public"]["Tables"]["folder_items"]["Row"];
+export type FolderWithItems = Folder & {
+  folder_items: (FolderItem & {
+    resumes: Pick<Resume, "title" | "subject" | "university" | "preview_url"> | null;
+  })[];
 };
