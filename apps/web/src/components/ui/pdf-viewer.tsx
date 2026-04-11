@@ -10,18 +10,65 @@ import "react-pdf/dist/esm/Page/TextLayer.css";
 // no lo bundle.
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
+export type TocItem = {
+  title: string;
+  page: number;
+  items: TocItem[];
+};
+
+// Resuelve los items del outline de pdfjs a números de página
+async function resolveOutlineItems(nodes: any[], pdfProxy: any): Promise<TocItem[]> {
+  const results: TocItem[] = [];
+  for (const node of nodes) {
+    let pageNum = 1;
+    if (node.dest) {
+      try {
+        let dest = node.dest;
+        if (typeof dest === "string") {
+          dest = await pdfProxy.getDestination(dest);
+        }
+        if (Array.isArray(dest) && dest[0]) {
+          const pageIndex = await pdfProxy.getPageIndex(dest[0]);
+          pageNum = pageIndex + 1;
+        }
+      } catch {
+        // mantiene pageNum = 1 si falla la resolución
+      }
+    }
+    const children =
+      node.items?.length > 0 ? await resolveOutlineItems(node.items, pdfProxy) : [];
+    results.push({ title: node.title ?? "", page: pageNum, items: children });
+  }
+  return results;
+}
+
 interface PdfViewerProps {
   url: string;
   userEmail: string;
+  // Modo controlado: cuando se proveen estos props el toolbar interno se oculta
+  // y la navegación/zoom son manejados por el componente padre.
+  page?: number;
+  onPageChange?: (page: number) => void;
+  zoom?: number;
+  onNumPagesLoad?: (numPages: number) => void;
+  // Callback con el índice (outline) del PDF una vez cargado
+  onOutlineLoad?: (items: TocItem[]) => void;
 }
 
-export function PdfViewer({ url, userEmail }: PdfViewerProps) {
+export function PdfViewer({ url, userEmail, page, onPageChange, zoom, onNumPagesLoad, onOutlineLoad }: PdfViewerProps) {
+  const isControlled = page !== undefined;
+
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number | undefined>(undefined);
+
+  const effectivePage = isControlled ? page! : pageNumber;
+  const effectiveWidth = zoom !== undefined
+    ? Math.round((595 * zoom) / 100)
+    : containerWidth;
 
   // Anti-piratería: bloquear Ctrl+P, Ctrl+S, Ctrl+U y F12
   useEffect(() => {
@@ -62,17 +109,41 @@ export function PdfViewer({ url, userEmail }: PdfViewerProps) {
     return () => observer.disconnect();
   }, []);
 
-  const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
-    setNumPages(numPages);
-    setError(null);
-  }, []);
+  const onDocumentLoadSuccess = useCallback(
+    async (pdfProxy: { numPages: number } & Record<string, any>) => {
+      setNumPages(pdfProxy.numPages);
+      setError(null);
+      onNumPagesLoad?.(pdfProxy.numPages);
+
+      if (onOutlineLoad) {
+        try {
+          const rawOutline = await pdfProxy.getOutline();
+          if (rawOutline && rawOutline.length > 0) {
+            const items = await resolveOutlineItems(rawOutline, pdfProxy);
+            onOutlineLoad(items);
+          } else {
+            onOutlineLoad([]);
+          }
+        } catch {
+          onOutlineLoad([]);
+        }
+      }
+    },
+    [onNumPagesLoad, onOutlineLoad]
+  );
 
   const onDocumentLoadError = useCallback((err: Error) => {
     setError(err.message || "Error al cargar el PDF");
   }, []);
 
-  const goToPrev = () => setPageNumber((p) => Math.max(1, p - 1));
-  const goToNext = () => setPageNumber((p) => Math.min(numPages, p + 1));
+  const goToPrev = () => {
+    if (isControlled) onPageChange?.(Math.max(1, page! - 1));
+    else setPageNumber((p) => Math.max(1, p - 1));
+  };
+  const goToNext = () => {
+    if (isControlled) onPageChange?.(Math.min(numPages, page! + 1));
+    else setPageNumber((p) => Math.min(numPages, p + 1));
+  };
 
   if (error) {
     return (
@@ -93,33 +164,40 @@ export function PdfViewer({ url, userEmail }: PdfViewerProps) {
   }
 
   return (
-    <div className="flex w-full flex-col items-center gap-4">
-      {/* Controles de navegación */}
-      <div className="flex items-center gap-4 rounded-lg border border-gray-200 bg-white px-4 py-2">
-        <button
-          onClick={goToPrev}
-          disabled={pageNumber <= 1}
-          className="rounded px-3 py-1 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-30"
-        >
-          ← Anterior
-        </button>
-        <span className="text-sm text-gray-500">
-          Página <span className="font-semibold text-foreground">{pageNumber}</span> de{" "}
-          <span className="font-semibold text-foreground">{numPages}</span>
-        </span>
-        <button
-          onClick={goToNext}
-          disabled={pageNumber >= numPages}
-          className="rounded px-3 py-1 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-30"
-        >
-          Siguiente →
-        </button>
-      </div>
+    <div className={`flex flex-col items-center gap-4 ${isControlled ? "" : "w-full"}`}>
+      {/* Toolbar interno — solo en modo no controlado */}
+      {!isControlled && (
+        <div className="flex items-center gap-4 rounded-lg border border-gray-200 bg-white px-4 py-2">
+          <button
+            onClick={goToPrev}
+            disabled={pageNumber <= 1}
+            className="rounded px-3 py-1 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-30"
+          >
+            ← Anterior
+          </button>
+          <span className="text-sm text-gray-500">
+            Página <span className="font-semibold text-foreground">{pageNumber}</span> de{" "}
+            <span className="font-semibold text-foreground">{numPages}</span>
+          </span>
+          <button
+            onClick={goToNext}
+            disabled={pageNumber >= numPages}
+            className="rounded px-3 py-1 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-30"
+          >
+            Siguiente →
+          </button>
+        </div>
+      )}
 
       {/* Visor del PDF con protecciones anti-piratería */}
       <div
         ref={containerRef}
-        className="pdf-viewer-container relative w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
+        className={`pdf-viewer-container relative overflow-hidden bg-white ${
+          isControlled
+            ? "rounded shadow-[0_4px_40px_rgba(0,0,0,0.10),0_0_0_1px_rgba(0,0,0,0.04)]"
+            : "w-full rounded-lg border border-gray-200 shadow-sm"
+        }`}
+        style={isControlled && zoom !== undefined ? { width: `${Math.round((595 * zoom) / 100)}px` } : undefined}
       >
         {/* Watermark dinámico superpuesto — 12 instancias con mix-blend-multiply para mayor cobertura */}
         <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden mix-blend-multiply opacity-40">
@@ -154,8 +232,8 @@ export function PdfViewer({ url, userEmail }: PdfViewerProps) {
           }
         >
           <Page
-            pageNumber={pageNumber}
-            width={containerWidth}
+            pageNumber={effectivePage}
+            width={effectiveWidth}
             renderTextLayer={false}
             renderAnnotationLayer={false}
           />

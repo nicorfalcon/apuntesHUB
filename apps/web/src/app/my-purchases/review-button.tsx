@@ -16,9 +16,9 @@ export function ReviewButton({ purchaseId, resumeId, sellerId }: ReviewButtonPro
     <>
       <button
         onClick={() => setOpen(true)}
-        className="rounded-lg border border-accent-200 px-3 py-1.5 text-xs font-medium text-accent-600 hover:bg-accent-50"
+        className="rounded-lg border border-accent-200 px-3 py-2 text-xs font-medium text-accent-600 transition-colors hover:bg-accent-50"
       >
-        Dejar reseña
+        Reseñar
       </button>
       {open && (
         <ReviewForm

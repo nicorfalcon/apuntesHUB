@@ -1,19 +1,26 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import dynamic from "next/dynamic";
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
+import { ViewerLayout } from "@/components/ui/viewer-layout";
 
-const PdfViewer = dynamic(
-  () => import("@/components/ui/pdf-viewer").then((m) => ({ default: m.PdfViewer })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-96 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent-600 border-t-transparent" />
-      </div>
-    ),
-  }
-);
+export async function generateMetadata({
+  params,
+}: {
+  params: { id: string };
+}): Promise<Metadata> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("resumes")
+    .select("title")
+    .eq("id", params.id)
+    .single();
+
+  return {
+    title: data?.title
+      ? `${data.title} — apuntesHUB`
+      : "Ver apunte — apuntesHUB",
+  };
+}
 
 export default async function ViewPurchasePage({
   params,
@@ -21,34 +28,84 @@ export default async function ViewPurchasePage({
   params: { id: string };
 }) {
   const supabase = await createClient();
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) redirect(`/login?redirect=/my-purchases/${params.id}/view`);
 
-  // Validar que el usuario tiene una compra completada para este resume.
-  // La signed URL y el streaming del PDF los maneja /api/pdf/[id] server-side,
-  // evitando CORS al no exponer URLs de Supabase al browser.
+  // Validar compra via RPC — también verifica que el resume existe y está publicado.
+  // La URL firmada y el streaming del PDF los maneja /api/pdf/[id] server-side
+  // para evitar exponer URLs de Supabase al browser.
   const { error: rpcError } = await supabase.rpc("get_resume_download_url", {
     p_resume_id: params.id,
   });
 
-  if (rpcError) {
-    redirect("/my-purchases");
-  }
+  if (rpcError) redirect("/my-purchases");
+
+  // Datos del apunte con el perfil del vendedor
+  const { data: resumeData } = await supabase
+    .from("resumes")
+    .select("*, profiles!seller_id(display_name, avatar_url)")
+    .eq("id", params.id)
+    .single();
+
+  if (!resumeData) redirect("/my-purchases");
+
+  const sellerProfile = resumeData.profiles as {
+    display_name: string;
+    avatar_url: string | null;
+  } | null;
+
+  // Estadísticas de reseñas para este apunte específico
+  const { data: reviewsData } = await supabase
+    .from("reviews")
+    .select("rating")
+    .eq("resume_id", params.id);
+
+  const ratingCount = reviewsData?.length ?? 0;
+  const ratingAvg =
+    ratingCount > 0
+      ? reviewsData!.reduce((sum, r) => sum + r.rating, 0) / ratingCount
+      : 0;
+
+  // Cantidad de apuntes publicados del vendedor
+  const { count: sellerResumeCount } = await supabase
+    .from("resumes")
+    .select("*", { count: "exact", head: true })
+    .eq("seller_id", resumeData.seller_id)
+    .eq("status", "published");
+
+  // Perfil del comprador (para el avatar en el navbar)
+  const { data: userProfile } = await supabase
+    .from("profiles")
+    .select("display_name, avatar_url")
+    .eq("id", user.id)
+    .single();
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
-      <div className="mb-6">
-        <Link
-          href="/my-purchases"
-          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-        >
-          ← Volver a mis compras
-        </Link>
-      </div>
-      <PdfViewer url={`/api/pdf/${params.id}`} userEmail={user.email ?? ""} />
-    </div>
+    <ViewerLayout
+      pdfUrl={`/api/pdf/${params.id}`}
+      userEmail={user.email ?? ""}
+      userDisplayName={userProfile?.display_name ?? user.email ?? ""}
+      userAvatarUrl={userProfile?.avatar_url ?? null}
+      resume={{
+        title: resumeData.title,
+        subject: resumeData.subject,
+        university: resumeData.university,
+        career: resumeData.career,
+        description: resumeData.description,
+        updated_at: resumeData.updated_at,
+      }}
+      seller={{
+        id: resumeData.seller_id,
+        display_name: sellerProfile?.display_name ?? "Vendedor",
+        avatar_url: sellerProfile?.avatar_url ?? null,
+        resume_count: sellerResumeCount ?? 0,
+      }}
+      ratingAvg={ratingAvg}
+      ratingCount={ratingCount}
+    />
   );
 }

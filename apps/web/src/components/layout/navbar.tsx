@@ -76,7 +76,6 @@ export function Navbar() {
     : "?";
 
   const navLinks = [
-    { href: "/", label: "Inicio" },
     { href: "/browse", label: "Explorar" },
   ];
 

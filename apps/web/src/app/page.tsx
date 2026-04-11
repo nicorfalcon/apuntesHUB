@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
@@ -39,6 +40,13 @@ const features = [
 
 export default async function LandingPage() {
   const supabase = await createClient();
+
+  // Si hay sesión activa, la landing no tiene sentido — ir directo a explorar
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) redirect("/browse");
+
   const { data: topResumes } = await supabase
     .from("resumes")
     .select("*, profiles!seller_id(display_name, avatar_url, seller_rating_avg, seller_rating_count)")
