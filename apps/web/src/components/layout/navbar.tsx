@@ -30,7 +30,18 @@ export function Navbar() {
       else setProfile(null);
     });
 
-    return () => subscription.unsubscribe();
+    function handleProfileUpdate() {
+      if (user) loadProfile(user.id, supabase);
+      else supabase.auth.getUser().then(({ data }) => {
+        if (data.user) loadProfile(data.user.id, supabase);
+      });
+    }
+    window.addEventListener("profile-updated", handleProfileUpdate);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("profile-updated", handleProfileUpdate);
+    };
   }, []);
 
   async function loadProfile(userId: string, supabase: ReturnType<typeof createClient>) {
@@ -113,7 +124,7 @@ export function Navbar() {
                     alt={profile.display_name ?? "Avatar"}
                     width={32}
                     height={32}
-                    className="rounded-full object-cover"
+                    className="h-8 w-8 rounded-full object-cover"
                   />
                 ) : (
                   initials

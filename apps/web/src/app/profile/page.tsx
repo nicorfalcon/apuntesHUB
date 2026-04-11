@@ -17,7 +17,7 @@ export default async function ProfilePage() {
     .single();
 
   return (
-    <div className="mx-auto max-w-xl px-4 py-12">
+    <div className="mx-auto max-w-2xl px-4 py-12">
       <h1 className="text-2xl font-bold tracking-tight text-foreground">Mi perfil</h1>
       <p className="mt-1 text-sm text-gray-500">
         Actualizá tu información pública.
