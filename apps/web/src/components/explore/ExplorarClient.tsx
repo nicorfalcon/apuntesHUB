@@ -116,7 +116,7 @@ export default function ExplorarClient({
   };
 
   const filterPanel = (
-    <div>
+    <div className="rounded-xl bg-gray-50 p-4">
       <div className="mb-4 flex items-center justify-between">
         <span className="font-semibold text-gray-900">Filtros</span>
         {activeTags.length > 0 && (
