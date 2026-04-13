@@ -183,7 +183,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
 
   /* ── Shared classes ── */
   const inputClass =
-    "mt-1 w-full rounded-[9px] border border-[0.5px] border-gray-300 bg-[#fafaf8] px-3 py-2.5 text-sm outline-none transition-colors focus:border-[#1D9E75] focus:ring-2 focus:ring-[#1D9E75]/20";
+    "mt-1 w-full rounded-[9px] border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm outline-none transition-colors focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20";
   const labelClass = "block text-sm font-medium text-gray-700";
 
   /* ── Progress bar width ── */
@@ -203,9 +203,9 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
               <div
                 className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold transition-colors duration-300 ${
                   i < currentStep
-                    ? "bg-[#1D9E75] text-white"
+                    ? "bg-accent-600 text-white"
                     : i === currentStep
-                      ? "bg-[#1D9E75] text-white"
+                      ? "bg-accent-600 text-white"
                       : "bg-gray-100 text-gray-400"
                 }`}
               >
@@ -217,7 +217,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
               </div>
               <span
                 className={`text-xs font-medium transition-colors duration-300 ${
-                  i <= currentStep ? "text-[#1D9E75]" : "text-gray-400"
+                  i <= currentStep ? "text-accent-600" : "text-gray-400"
                 }`}
               >
                 {label}
@@ -229,7 +229,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
         {/* Progress bar */}
         <div className="mt-4 h-1 w-full overflow-hidden rounded-full bg-gray-100">
           <div
-            className="h-full rounded-full bg-[#1D9E75] transition-all duration-500 ease-out"
+            className="h-full rounded-full bg-accent-600 transition-all duration-500 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -339,17 +339,17 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                 onClick={() => pdfInputRef.current?.click()}
                 className={`mt-1 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-10 text-center transition-colors duration-200 ${
                   pdfDragActive
-                    ? "border-[#1D9E75] bg-[#1D9E75]/5"
+                    ? "border-accent-500 bg-accent-50"
                     : pdfFile
-                      ? "border-[#1D9E75]/40 bg-[#1D9E75]/5"
-                      : "border-gray-300 bg-[#fafaf8] hover:border-[#1D9E75]/50 hover:bg-[#1D9E75]/5"
+                      ? "border-accent-300 bg-accent-50"
+                      : "border-gray-300 bg-gray-50 hover:border-accent-400 hover:bg-accent-50"
                 }`}
               >
                 {pdfFile ? (
                   <>
                     <FileText
                       size={32}
-                      className="text-[#1D9E75]"
+                      className="text-accent-600"
                       strokeWidth={1.5}
                     />
                     <p className="mt-2 text-sm font-medium text-gray-800">
@@ -411,17 +411,17 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                 onClick={() => previewInputRef.current?.click()}
                 className={`mt-1 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors duration-200 ${
                   previewDragActive
-                    ? "border-[#1D9E75] bg-[#1D9E75]/5"
+                    ? "border-accent-500 bg-accent-50"
                     : previewFile
-                      ? "border-[#1D9E75]/40 bg-[#1D9E75]/5"
-                      : "border-gray-300 bg-[#fafaf8] hover:border-[#1D9E75]/50 hover:bg-[#1D9E75]/5"
+                      ? "border-accent-300 bg-accent-50"
+                      : "border-gray-300 bg-gray-50 hover:border-accent-400 hover:bg-accent-50"
                 }`}
               >
                 {previewFile ? (
                   <>
                     <ImageIcon
                       size={24}
-                      className="text-[#1D9E75]"
+                      className="text-accent-600"
                       strokeWidth={1.5}
                     />
                     <p className="mt-1.5 text-sm font-medium text-gray-800">
@@ -490,7 +490,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                 onClick={() =>
                   setForm((prev) => ({ ...prev, price: "0" }))
                 }
-                className="mt-2 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-[#1D9E75] hover:text-[#1D9E75]"
+                className="mt-2 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-accent-500 hover:text-accent-600"
               >
                 Gratuito
               </button>
@@ -515,7 +515,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
             </div>
 
             {/* Summary card */}
-            <div className="rounded-xl border border-gray-200 bg-[#fafaf8] p-4">
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
                 Resumen
               </h3>
@@ -547,7 +547,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                 <div className="h-px bg-gray-200" />
                 <div className="flex justify-between">
                   <dt className="text-gray-500">Precio</dt>
-                  <dd className="font-semibold text-[#1D9E75]">
+                  <dd className="font-semibold text-accent-600">
                     {form.price === "0"
                       ? "Gratuito"
                       : form.price
@@ -592,7 +592,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
               type="button"
               onClick={nextStep}
               disabled={!canAdvance()}
-              className="rounded-lg bg-[#1D9E75] px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] disabled:opacity-40 disabled:cursor-not-allowed"
+              className="rounded-lg bg-accent-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Continuar
             </button>
@@ -600,7 +600,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
             <button
               type="submit"
               disabled={loading || !form.price}
-              className="rounded-lg bg-[#1D9E75] px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0F6E56] disabled:opacity-40 disabled:cursor-not-allowed"
+              className="rounded-lg bg-accent-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {loading
                 ? "Guardando..."

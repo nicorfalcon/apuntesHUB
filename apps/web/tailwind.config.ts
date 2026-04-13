@@ -26,10 +26,7 @@ const config: Config = {
         },
       },
       fontFamily: {
-        display: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
         body: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
-        sora: ["var(--font-sora)", "system-ui", "sans-serif"],
-        instrument: ["var(--font-instrument-serif)", "Georgia", "serif"],
       },
     },
   },

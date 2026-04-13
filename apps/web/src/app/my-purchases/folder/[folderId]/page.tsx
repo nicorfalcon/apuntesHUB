@@ -96,7 +96,7 @@ export default async function FolderPage({ params }: { params: { folderId: strin
               </svg>
             </div>
             <div>
-              <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">{folder.name}</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">{folder.name}</h1>
               <p className="mt-0.5 text-sm text-gray-500">{purchases.length} {purchases.length === 1 ? "apunte" : "apuntes"}</p>
             </div>
           </div>
@@ -119,7 +119,7 @@ export default async function FolderPage({ params }: { params: { folderId: strin
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {purchases.map((purchase) => {
               const resume = purchase.resumes;
-              const hasReview = (purchase.reviews?.length ?? 0) > 0;
+              const existingReview = purchase.reviews ? { id: purchase.reviews.id } : undefined;
               return (
                 <div key={purchase.id} className="group flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
                   <div className="relative h-44 w-full shrink-0 overflow-hidden bg-gray-50">
@@ -136,7 +136,7 @@ export default async function FolderPage({ params }: { params: { folderId: strin
                   </div>
                   <div className="flex flex-1 flex-col p-4">
                     <div className="flex-1">
-                      <h3 className="line-clamp-2 font-display text-base font-semibold leading-snug text-foreground">{resume?.title ?? "Sin título"}</h3>
+                      <h3 className="line-clamp-2 text-base font-semibold leading-snug text-foreground">{resume?.title ?? "Sin título"}</h3>
                       <p className="mt-1 text-sm text-gray-500">por {resume?.profiles?.display_name ?? "—"}</p>
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         {resume?.subject && <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{resume.subject}</span>}
@@ -151,11 +151,12 @@ export default async function FolderPage({ params }: { params: { folderId: strin
                       <Link href={`/my-purchases/${purchase.resume_id}/view`} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-accent-700">
                         <BookOpenIcon />Ver apunte
                       </Link>
-                      {hasReview ? (
-                        <span className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-400"><CheckIcon />Reseñado</span>
-                      ) : (
-                        <ReviewButton purchaseId={purchase.id} resumeId={purchase.resume_id} sellerId={purchase.seller_id} />
-                      )}
+                      <ReviewButton
+                        purchaseId={purchase.id}
+                        resumeId={purchase.resume_id}
+                        sellerId={purchase.seller_id}
+                        existingReview={existingReview}
+                      />
                       <AddToFolderMenu resumeId={purchase.resume_id} folders={folderList} />
                     </div>
                   </div>

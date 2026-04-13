@@ -58,18 +58,6 @@ export default async function ViewPurchasePage({
     avatar_url: string | null;
   } | null;
 
-  // Estadísticas de reseñas para este apunte específico
-  const { data: reviewsData } = await supabase
-    .from("reviews")
-    .select("rating")
-    .eq("resume_id", params.id);
-
-  const ratingCount = reviewsData?.length ?? 0;
-  const ratingAvg =
-    ratingCount > 0
-      ? reviewsData!.reduce((sum, r) => sum + r.rating, 0) / ratingCount
-      : 0;
-
   // Cantidad de apuntes publicados del vendedor
   const { count: sellerResumeCount } = await supabase
     .from("resumes")
@@ -104,8 +92,8 @@ export default async function ViewPurchasePage({
         avatar_url: sellerProfile?.avatar_url ?? null,
         resume_count: sellerResumeCount ?? 0,
       }}
-      ratingAvg={ratingAvg}
-      ratingCount={ratingCount}
+      ratingAvg={resumeData.rating_avg ?? 0}
+      ratingCount={resumeData.rating_count ?? 0}
     />
   );
 }

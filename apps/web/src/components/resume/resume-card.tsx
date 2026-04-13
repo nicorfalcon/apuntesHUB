@@ -83,8 +83,8 @@ export function ResumeCard({ resume, purchased = false }: ResumeCardProps) {
 
         <div className="mt-2">
           <StarRating
-            rating={seller.seller_rating_avg ?? 0}
-            count={seller.seller_rating_count ?? 0}
+            rating={resume.rating_avg ?? 0}
+            count={resume.rating_count ?? 0}
           />
         </div>
 

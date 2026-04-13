@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { StarRating } from "@/components/ui/star-rating";
 import { DeleteResumeButton } from "./delete-resume-button";
 
 const STATUS_LABELS: Record<string, { label: string; class: string }> = {
@@ -39,29 +38,12 @@ export default async function DashboardPage() {
     ventasPorResume.set(p.resume_id, (ventasPorResume.get(p.resume_id) ?? 0) + 1);
   });
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("seller_rating_avg, seller_rating_count")
-    .eq("id", user.id)
-    .single();
-
   return (
     <div className="mx-auto max-w-5xl px-4 py-12">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Panel de ventas
-          </h1>
-          {profile && (profile.seller_rating_count ?? 0) > 0 && (
-            <div className="mt-1">
-              <StarRating
-                rating={profile.seller_rating_avg ?? 0}
-                count={profile.seller_rating_count ?? 0}
-                size="md"
-              />
-            </div>
-          )}
-        </div>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          Panel de ventas
+        </h1>
         <Link
           href="/sell/new"
           className="rounded-lg bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-700"

@@ -37,7 +37,7 @@ interface PurchaseCardProps {
 
 export function PurchaseCard({ purchase, folders }: PurchaseCardProps) {
   const resume = purchase.resumes;
-  const hasReview = (purchase.reviews?.length ?? 0) > 0;
+  const existingReview = purchase.reviews ? { id: purchase.reviews.id } : undefined;
 
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white transition-shadow duration-200 hover:shadow-lg">
@@ -67,7 +67,7 @@ export function PurchaseCard({ purchase, folders }: PurchaseCardProps) {
       {/* Body */}
       <div className="flex flex-1 flex-col p-4">
         <div className="flex-1">
-          <h3 className="line-clamp-2 font-display text-base font-semibold leading-snug text-foreground">
+          <h3 className="line-clamp-2 text-base font-semibold leading-snug text-foreground">
             {resume?.title ?? "Sin título"}
           </h3>
           <p className="mt-1 text-sm text-gray-500">
@@ -105,18 +105,12 @@ export function PurchaseCard({ purchase, folders }: PurchaseCardProps) {
             Ver apunte
           </Link>
 
-          {hasReview ? (
-            <span className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-400">
-              <CheckIcon />
-              Reseñado
-            </span>
-          ) : (
-            <ReviewButton
-              purchaseId={purchase.id}
-              resumeId={purchase.resume_id}
-              sellerId={purchase.seller_id}
-            />
-          )}
+          <ReviewButton
+            purchaseId={purchase.id}
+            resumeId={purchase.resume_id}
+            sellerId={purchase.seller_id}
+            existingReview={existingReview}
+          />
 
           <AddToFolderMenu resumeId={purchase.resume_id} folders={folders} />
         </div>

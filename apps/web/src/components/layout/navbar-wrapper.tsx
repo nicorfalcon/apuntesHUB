@@ -7,9 +7,11 @@ const AUTH_PATHS = ["/login", "/register"];
 
 export function NavbarWrapper() {
   const pathname = usePathname();
-  // Ocultar en páginas de auth, visor inmersivo y perfil público (tienen su propio navbar)
+  // Ocultar en páginas de auth, visor inmersivo, perfil público y flujo de venta (tienen su propio navbar)
   if (AUTH_PATHS.includes(pathname)) return null;
   if (/^\/my-purchases\/.+\/view$/.test(pathname)) return null;
   if (/^\/profile\/.+$/.test(pathname)) return null;
+  if (pathname === "/sell/new") return null;
+  if (/^\/sell\/.+\/edit$/.test(pathname)) return null;
   return <Navbar />;
 }

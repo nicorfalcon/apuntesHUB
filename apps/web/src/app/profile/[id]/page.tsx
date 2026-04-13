@@ -204,6 +204,9 @@ export default async function PerfilPublicoPage({
                     )}
                     <p className="mt-1.5 text-xs text-gray-400">
                       {new Date(r.created_at).toLocaleDateString("es-AR")}
+                      {r.updated_at && (
+                        <span className="ml-1.5 italic">(editada)</span>
+                      )}
                     </p>
                   </div>
                 );

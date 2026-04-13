@@ -60,7 +60,7 @@ export default async function LandingPage() {
     <div className="min-h-screen">
       {/* Hero */}
       <section className="mx-auto max-w-6xl px-4 pb-20 pt-24 text-center md:pt-32">
-        <h1 className="font-display text-4xl font-bold leading-tight tracking-tight text-foreground md:text-6xl">
+        <h1 className="text-4xl font-bold leading-tight tracking-tight text-foreground md:text-6xl">
           Comprá y vendé apuntes
           <br />
           <span className="text-accent-600">universitarios.</span>
@@ -88,7 +88,7 @@ export default async function LandingPage() {
       {/* Features */}
       <section className="border-t border-gray-200 bg-white py-20">
         <div className="mx-auto max-w-6xl px-4">
-          <h2 className="text-center font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+          <h2 className="text-center text-2xl font-bold tracking-tight text-foreground md:text-3xl">
             Todo lo que necesitás para estudiar mejor
           </h2>
           <div className="mt-12 grid gap-8 md:grid-cols-3">
@@ -97,7 +97,7 @@ export default async function LandingPage() {
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-100 text-accent-700">
                   {feature.icon}
                 </div>
-                <h3 className="mt-4 font-display text-lg font-semibold text-foreground">
+                <h3 className="mt-4 text-lg font-semibold text-foreground">
                   {feature.title}
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-gray-500">
@@ -113,7 +113,7 @@ export default async function LandingPage() {
       {resumes.length > 0 && (
         <section className="py-20">
           <div className="mx-auto max-w-6xl px-4">
-            <h2 className="text-center font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+            <h2 className="text-center text-2xl font-bold tracking-tight text-foreground md:text-3xl">
               Apuntes destacados
             </h2>
             <div className="mt-12 grid gap-6 md:grid-cols-3">
@@ -145,7 +145,7 @@ export default async function LandingPage() {
                       <span>·</span>
                       <span>{resume.subject}</span>
                     </div>
-                    <h3 className="mt-2 line-clamp-2 font-display text-base font-semibold text-foreground group-hover:text-accent-600">
+                    <h3 className="mt-2 line-clamp-2 text-base font-semibold text-foreground group-hover:text-accent-600">
                       {resume.title}
                     </h3>
                     <p className="mt-1 text-sm text-gray-500">por {resume.profiles.display_name}</p>
@@ -169,7 +169,7 @@ export default async function LandingPage() {
       {/* CTA final */}
       <section className="border-t border-gray-200 bg-white py-20">
         <div className="mx-auto max-w-2xl px-4 text-center">
-          <h2 className="font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+          <h2 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
             ¿Tenés apuntes que pueden ayudar a otros?
           </h2>
           <p className="mt-4 text-gray-500">

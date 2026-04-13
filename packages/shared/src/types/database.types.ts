@@ -62,6 +62,8 @@ export interface Database {
           file_url: string | null;
           preview_url: string | null;
           status: "draft" | "published" | "archived";
+          rating_avg: number;
+          rating_count: number;
           created_at: string;
           updated_at: string;
         };
@@ -77,6 +79,8 @@ export interface Database {
           file_url?: string | null;
           preview_url?: string | null;
           status?: "draft" | "published" | "archived";
+          rating_avg?: number;
+          rating_count?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -91,6 +95,8 @@ export interface Database {
           file_url?: string | null;
           preview_url?: string | null;
           status?: "draft" | "published" | "archived";
+          rating_avg?: number;
+          rating_count?: number;
           updated_at?: string;
         };
       };
@@ -134,6 +140,7 @@ export interface Database {
           rating: number;
           comment: string | null;
           created_at: string;
+          updated_at: string | null;
         };
         Insert: {
           id?: string;
@@ -145,7 +152,10 @@ export interface Database {
           comment?: string | null;
           created_at?: string;
         };
-        Update: never;
+        Update: {
+          rating?: number;
+          comment?: string | null;
+        };
       };
       folders: {
         Row: {
@@ -217,8 +227,8 @@ export type PurchaseWithResume = Purchase & {
   resumes: (Pick<Resume, "title" | "subject" | "university" | "preview_url"> & {
     profiles: Pick<Profile, "display_name"> | null;
   }) | null;
-  // reviews viene de la relación reviews(purchase_id → purchases.id); null cuando no hay reseña
-  reviews: { id: string }[] | null;
+  // Supabase retorna objeto (no array) por el UNIQUE constraint en purchase_id
+  reviews: { id: string } | null;
 };
 
 export type Folder = Database["public"]["Tables"]["folders"]["Row"];

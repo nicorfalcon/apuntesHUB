@@ -3,13 +3,14 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import type { Profile } from "@/lib/database.types";
 
 export function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -89,22 +90,31 @@ export function Navbar() {
 
         {/* Links desktop */}
         <div className="hidden items-center gap-6 md:flex">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-sm text-gray-600 transition-colors hover:text-foreground"
-            >
-              {link.label}
-            </Link>
-          ))}
+          {navLinks.map((link) => {
+            const isActive = pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`text-sm font-medium transition-colors ${isActive ? "text-accent-600" : "text-gray-500 hover:text-foreground"}`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
           {user && (
-            <Link href="/my-purchases" className="text-sm text-gray-600 transition-colors hover:text-foreground">
+            <Link
+              href="/my-purchases"
+              className={`text-sm font-medium transition-colors ${pathname.startsWith("/my-purchases") ? "text-accent-600" : "text-gray-500 hover:text-foreground"}`}
+            >
               Mis apuntes
             </Link>
           )}
           {user && (
-            <Link href="/sell/new" className="text-sm text-gray-600 transition-colors hover:text-foreground">
+            <Link
+              href={`/sell/new?from=${encodeURIComponent(pathname)}`}
+              className={`text-sm font-medium transition-colors ${pathname.startsWith("/sell") ? "text-accent-600" : "text-gray-500 hover:text-foreground"}`}
+            >
               Vender
             </Link>
           )}
@@ -151,6 +161,13 @@ export function Navbar() {
                   >
                     Panel de ventas
                   </Link>
+                  <Link
+                    href="/reputation"
+                    onClick={() => setDropdownOpen(false)}
+                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    Reputación
+                  </Link>
                   <button
                     onClick={handleSignOut}
                     className="w-full border-t border-gray-100 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
@@ -193,22 +210,26 @@ export function Navbar() {
       {/* Mobile menu */}
       {menuOpen && (
         <div className="border-t border-gray-100 bg-white px-4 pb-4 md:hidden">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={() => setMenuOpen(false)}
-              className="block py-2 text-sm text-gray-600 transition-colors hover:text-foreground"
-            >
-              {link.label}
-            </Link>
-          ))}
+          {navLinks.map((link) => {
+            const isActive = pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMenuOpen(false)}
+                className={`block py-2 text-sm font-medium transition-colors ${isActive ? "text-accent-600" : "text-gray-600"}`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
           {user ? (
             <>
-              <Link href="/profile" onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-gray-600">Mi perfil</Link>
-              <Link href="/my-purchases" onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-gray-600">Mis apuntes</Link>
-              <Link href="/sell/dashboard" onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-gray-600">Panel de ventas</Link>
-              <Link href="/sell/new" onClick={() => setMenuOpen(false)} className="block py-2 text-sm text-gray-600">Vender</Link>
+              <Link href="/profile" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname === "/profile" ? "text-accent-600" : "text-gray-600"}`}>Mi perfil</Link>
+              <Link href="/my-purchases" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname.startsWith("/my-purchases") ? "text-accent-600" : "text-gray-600"}`}>Mis apuntes</Link>
+              <Link href="/sell/dashboard" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname === "/sell/dashboard" ? "text-accent-600" : "text-gray-600"}`}>Panel de ventas</Link>
+              <Link href="/reputation" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname === "/reputation" ? "text-accent-600" : "text-gray-600"}`}>Reputación</Link>
+              <Link href={`/sell/new?from=${encodeURIComponent(pathname)}`} onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname.startsWith("/sell") ? "text-accent-600" : "text-gray-600"}`}>Vender</Link>
               <button
                 onClick={() => { setMenuOpen(false); handleSignOut(); }}
                 className="mt-2 w-full rounded-lg border border-red-200 py-2 text-sm font-medium text-red-600"

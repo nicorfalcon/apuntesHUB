@@ -138,8 +138,8 @@ export default async function ResumePage({
                 </Link>
                 <div className="mt-0.5">
                   <StarRating
-                    rating={seller.seller_rating_avg ?? 0}
-                    count={seller.seller_rating_count ?? 0}
+                    rating={resumeWithSeller.rating_avg ?? 0}
+                    count={resumeWithSeller.rating_count ?? 0}
                   />
                 </div>
               </div>
@@ -181,7 +181,7 @@ export default async function ResumePage({
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Ya comprado — ver mis compras
+                  Ya comprado — ver mis apuntes
                 </Link>
               ) : (
                 <PurchaseButton
