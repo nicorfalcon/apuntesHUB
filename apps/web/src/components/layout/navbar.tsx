@@ -76,9 +76,9 @@ export function Navbar() {
     ? profile.display_name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
     : "?";
 
-  const navLinks = [
-    { href: "/browse", label: "Explorar" },
-  ];
+  const navLinks = pathname === "/"
+    ? []
+    : [{ href: "/browse", label: "Explorar" }];
 
   return (
     <nav className="sticky top-0 z-50 border-b border-gray-200 bg-white/80 backdrop-blur-md">

@@ -4,11 +4,18 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/esm/Page/AnnotationLayer.css";
 import "react-pdf/dist/esm/Page/TextLayer.css";
+import type { PDFDocumentProxy } from "pdfjs-dist";
 
 // Configurar worker a nivel de módulo, fuera del componente.
 // El worker se sirve como archivo estático desde /public/ para que webpack
 // no lo bundle.
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+
+interface PdfOutlineNode {
+  title: string;
+  dest: string | unknown[] | null;
+  items: PdfOutlineNode[];
+}
 
 export type TocItem = {
   title: string;
@@ -17,18 +24,17 @@ export type TocItem = {
 };
 
 // Resuelve los items del outline de pdfjs a números de página
-async function resolveOutlineItems(nodes: any[], pdfProxy: any): Promise<TocItem[]> {
+async function resolveOutlineItems(nodes: PdfOutlineNode[], pdfProxy: PDFDocumentProxy): Promise<TocItem[]> {
   const results: TocItem[] = [];
   for (const node of nodes) {
     let pageNum = 1;
     if (node.dest) {
       try {
-        let dest = node.dest;
-        if (typeof dest === "string") {
-          dest = await pdfProxy.getDestination(dest);
-        }
-        if (Array.isArray(dest) && dest[0]) {
-          const pageIndex = await pdfProxy.getPageIndex(dest[0]);
+        const dest: unknown[] | null = typeof node.dest === "string"
+          ? await pdfProxy.getDestination(node.dest)
+          : Array.isArray(node.dest) ? node.dest : null;
+        if (dest && dest[0]) {
+          const pageIndex = await pdfProxy.getPageIndex(dest[0] as Parameters<PDFDocumentProxy["getPageIndex"]>[0]);
           pageNum = pageIndex + 1;
         }
       } catch {
@@ -110,7 +116,7 @@ export function PdfViewer({ url, userEmail, page, onPageChange, zoom, onNumPages
   }, []);
 
   const onDocumentLoadSuccess = useCallback(
-    async (pdfProxy: { numPages: number } & Record<string, any>) => {
+    async (pdfProxy: PDFDocumentProxy) => {
       setNumPages(pdfProxy.numPages);
       setError(null);
       onNumPagesLoad?.(pdfProxy.numPages);
@@ -119,7 +125,7 @@ export function PdfViewer({ url, userEmail, page, onPageChange, zoom, onNumPages
         try {
           const rawOutline = await pdfProxy.getOutline();
           if (rawOutline && rawOutline.length > 0) {
-            const items = await resolveOutlineItems(rawOutline, pdfProxy);
+            const items = await resolveOutlineItems(rawOutline as PdfOutlineNode[], pdfProxy);
             onOutlineLoad(items);
           } else {
             onOutlineLoad([]);
