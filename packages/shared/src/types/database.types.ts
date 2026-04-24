@@ -111,6 +111,7 @@ export interface Database {
           seller_amount: number;
           status: "pending" | "completed" | "refunded" | "failed";
           payment_id: string | null;
+          mp_preference_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -123,11 +124,13 @@ export interface Database {
           seller_amount?: number;
           status?: "pending" | "completed" | "refunded" | "failed";
           payment_id?: string | null;
+          mp_preference_id?: string | null;
           created_at?: string;
         };
         Update: {
           status?: "pending" | "completed" | "refunded" | "failed";
           payment_id?: string | null;
+          mp_preference_id?: string | null;
         };
       };
       reviews: {
@@ -195,15 +198,53 @@ export interface Database {
         };
         Update: never;
       };
+      seller_mp_credentials: {
+        Row: {
+          id: string;
+          mp_access_token: string;
+          mp_refresh_token: string;
+          mp_public_key: string;
+          mp_user_id: string;
+          mp_token_expires_at: string;
+          connected_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          mp_access_token: string;
+          mp_refresh_token: string;
+          mp_public_key: string;
+          mp_user_id: string;
+          mp_token_expires_at: string;
+          connected_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          mp_access_token?: string;
+          mp_refresh_token?: string;
+          mp_public_key?: string;
+          mp_user_id?: string;
+          mp_token_expires_at?: string;
+          updated_at?: string;
+        };
+      };
     };
     Functions: {
       purchase_resume: {
         Args: { p_resume_id: string };
-        Returns: { purchase_id: string; status: string };
+        Returns: { purchase_id: string; status: string; reused: boolean };
       };
       get_resume_download_url: {
         Args: { p_resume_id: string };
         Returns: { file_url: string; resume_id: string };
+      };
+      complete_purchase: {
+        Args: { p_purchase_id: string; p_payment_id: string };
+        Returns: void;
+      };
+      fail_purchase: {
+        Args: { p_purchase_id: string; p_payment_id: string };
+        Returns: void;
       };
     };
   };
@@ -231,6 +272,7 @@ export type PurchaseWithResume = Purchase & {
   reviews: { id: string } | null;
 };
 
+export type SellerMpCredentials = Database["public"]["Tables"]["seller_mp_credentials"]["Row"];
 export type Folder = Database["public"]["Tables"]["folders"]["Row"];
 export type FolderItem = Database["public"]["Tables"]["folder_items"]["Row"];
 export type FolderWithItems = Folder & {

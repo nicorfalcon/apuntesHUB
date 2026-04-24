@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { DeleteResumeButton } from "./delete-resume-button";
 
 const STATUS_LABELS: Record<string, { label: string; class: string }> = {
@@ -23,12 +24,21 @@ export default async function DashboardPage() {
     .eq("seller_id", user.id)
     .order("created_at", { ascending: false });
 
-  // Ventas e ingresos totales
-  const { data: purchases } = await supabase
-    .from("purchases")
-    .select("amount, seller_amount, resume_id")
-    .eq("seller_id", user.id)
-    .eq("status", "completed");
+  // Ventas e ingresos totales + estado de MP
+  const admin = createAdminClient();
+  const [{ data: purchases }, { data: mpCreds }] = await Promise.all([
+    supabase
+      .from("purchases")
+      .select("amount, seller_amount, resume_id")
+      .eq("seller_id", user.id)
+      .eq("status", "completed"),
+    admin
+      .from("seller_mp_credentials")
+      .select("id")
+      .eq("id", user.id)
+      .single(),
+  ]);
+  const hasMpConnected = !!mpCreds;
 
   const totalVentas = purchases?.length ?? 0;
   const totalIngresos = purchases?.reduce((sum, p) => sum + Number(p.seller_amount), 0) ?? 0;
@@ -52,6 +62,29 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
+      {/* Banner MP no conectado */}
+      {!hasMpConnected && (
+        <div className="mt-6 flex items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 p-4">
+          <svg className="mt-0.5 h-5 w-5 shrink-0 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+          <div>
+            <p className="text-sm font-medium text-yellow-800">
+              Conectá tu cuenta de Mercado Pago para recibir pagos
+            </p>
+            <p className="mt-0.5 text-xs text-yellow-700">
+              Tus apuntes no podrán comprarse hasta que configures Mercado Pago.
+            </p>
+            <Link
+              href="/profile"
+              className="mt-2 inline-block text-xs font-semibold text-yellow-800 underline hover:text-yellow-900"
+            >
+              Ir a mi perfil para conectar
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-gray-200 bg-white p-5">
@@ -67,8 +100,7 @@ export default async function DashboardPage() {
           <p className="mt-1 text-2xl font-bold text-accent-700">
             ${totalIngresos.toLocaleString("es-AR")} ARS
           </p>
-          {/* TODO: Actualizar cuando se active la comisión */}
-          <p className="text-xs text-gray-400">(100% de cada venta)</p>
+          <p className="text-xs text-gray-400">(80% de cada venta - 20% comisión plataforma)</p>
         </div>
       </div>
 

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { StarRating } from "@/components/ui/star-rating";
 import { PurchaseButton } from "./purchase-button";
 import type { ResumeWithSeller, Review, Profile } from "@/lib/database.types";
@@ -29,18 +30,29 @@ export default async function ResumePage({
   const resumeWithSeller = resume as ResumeWithSeller;
   const { profiles: seller } = resumeWithSeller;
 
-  // Verificar si el usuario ya compró este resumen
+  // Verificar si el usuario ya compró o tiene compra pendiente
   let alreadyPurchased = false;
+  let hasPendingPurchase = false;
   if (user) {
-    const { data: purchase } = await supabase
+    const { data: purchases } = await supabase
       .from("purchases")
-      .select("id")
+      .select("id, status")
       .eq("buyer_id", user.id)
       .eq("resume_id", id)
-      .eq("status", "completed")
-      .single();
-    alreadyPurchased = !!purchase;
+      .in("status", ["completed", "pending"]);
+
+    alreadyPurchased = purchases?.some((p) => p.status === "completed") ?? false;
+    hasPendingPurchase = purchases?.some((p) => p.status === "pending") ?? false;
   }
+
+  // Verificar si el vendedor tiene MP conectado (via admin para bypasear RLS)
+  const admin = createAdminClient();
+  const { data: mpCreds } = await admin
+    .from("seller_mp_credentials")
+    .select("id")
+    .eq("id", resumeWithSeller.seller_id)
+    .single();
+  const sellerHasMp = !!mpCreds;
 
   // Reviews de este resumen
   const { data: reviews } = await supabase
@@ -173,6 +185,13 @@ export default async function ResumePage({
                 >
                   Editar apunte
                 </Link>
+              ) : hasPendingPurchase && !alreadyPurchased ? (
+                <PurchaseButton
+                  resumeId={resumeWithSeller.id}
+                  isLoggedIn={!!user}
+                  sellerHasMp={sellerHasMp}
+                  hasPendingPurchase={true}
+                />
               ) : alreadyPurchased ? (
                 <Link
                   href={`/my-purchases`}
@@ -187,6 +206,8 @@ export default async function ResumePage({
                 <PurchaseButton
                   resumeId={resumeWithSeller.id}
                   isLoggedIn={!!user}
+                  sellerHasMp={sellerHasMp}
+                  hasPendingPurchase={false}
                 />
               )}
             </div>
