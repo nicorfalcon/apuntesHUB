@@ -1,13 +1,20 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
+import { Instrument_Serif, Inter } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 import { NavbarWrapper } from "@/components/layout/navbar-wrapper";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+  variable: "--font-instrument-serif",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
@@ -23,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${geistSans.variable} font-body antialiased`}>
+      <body className={`${inter.variable} ${instrumentSerif.variable} font-body antialiased`}>
         <NavbarWrapper />
         <main>{children}</main>
         <Toaster richColors position="bottom-right" />

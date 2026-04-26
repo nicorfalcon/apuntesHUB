@@ -3,18 +3,122 @@
 @tailwind utilities;
 
 :root {
-  --background: #fafafa;
-  --background-rgb: 250, 250, 250;
-  --foreground: #1a1a1a;
-  --muted-foreground: #6b7280;
+  --background: 150 20% 96%;
+  --background-rgb: 244, 247, 245;
+  --foreground: 157 17% 18%;
+  --muted-foreground: 156 10% 42%;
+  --primary: 0 0% 100%;
+  --primary-foreground: 0 0% 4%;
+  --secondary: 0 0% 10%;
+  --muted: 0 0% 10%;
+  --accent: 0 0% 10%;
+  --border: 0 0% 18%;
+  --input: 0 0% 18%;
+  --font-display: 'Instrument Serif', serif;
+  --font-body: 'Inter', sans-serif;
+  --surface-warm: #eef3f0;
+  --surface-warm-rgb: 238, 243, 240;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 72px;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  font-family: var(--font-body);
 }
 
-/* ── Liquid Glass ─────────────────────────────────────────── */
+.landing-page {
+  font-family: var(--font-body);
+}
+
+.landing-page .font-display {
+  font-family: var(--font-body);
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+.landing-page h1,
+.landing-page h2,
+.landing-page h3 {
+  font-family: var(--font-body);
+  font-style: normal;
+}
+
+.landing-page a,
+.landing-page button,
+.landing-page input {
+  transition-duration: 180ms;
+}
+
+.landing-hover-green:hover,
+.landing-hover-green:focus-visible {
+  border-color: rgba(135, 181, 168, 0.9);
+  color: #d9e8e4;
+  box-shadow:
+    0 0 0 1px rgba(135, 181, 168, 0.28),
+    0 12px 36px rgba(59, 101, 88, 0.28),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
+}
+
+/* ── Noise texture overlay ───────────────────────────────── */
+.noise-bg {
+  position: relative;
+}
+.noise-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.3;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 180px 180px;
+  mix-blend-mode: overlay;
+  z-index: 1;
+}
+.noise-bg > * { position: relative; z-index: 2; }
+
+/* ── Hero to content transition ──────────────────────────── */
+.hero-fade-bridge {
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.70) 0%,
+    rgba(38, 56, 51, 0.45) 25%,
+    rgba(59, 101, 88, 0.15) 50%,
+    rgba(var(--background-rgb), 0.7) 75%,
+    rgb(var(--background-rgb)) 100%
+  );
+}
+
+/* ── Section gradient meshes ─────────────────────────────── */
+.mesh-accent-tl {
+  background-image: radial-gradient(
+    ellipse 60% 50% at 10% 20%,
+    rgba(59, 101, 88, 0.06) 0%,
+    transparent 70%
+  );
+}
+.mesh-accent-br {
+  background-image: radial-gradient(
+    ellipse 50% 60% at 85% 80%,
+    rgba(59, 101, 88, 0.05) 0%,
+    transparent 70%
+  );
+}
+.mesh-accent-center {
+  background-image: radial-gradient(
+    ellipse 70% 50% at 50% 50%,
+    rgba(59, 101, 88, 0.07) 0%,
+    transparent 70%
+  );
+}
+
+/* ── Liquid Glass (enhanced) ─────────────────────────────── */
 .liquid-glass {
   background: rgba(255, 255, 255, 0.01);
   background-blend-mode: luminosity;
@@ -24,6 +128,13 @@ body {
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
   position: relative;
   overflow: hidden;
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+.liquid-glass:hover {
+  box-shadow:
+    0 0 0 1px rgba(135, 181, 168, 0.34),
+    0 12px 36px rgba(59, 101, 88, 0.24),
+    inset 0 1px 1px rgba(255, 255, 255, 0.18);
 }
 .liquid-glass::before {
   content: '';
@@ -33,12 +144,12 @@ body {
   padding: 1.4px;
   background: linear-gradient(
     180deg,
-    rgba(0, 0, 0, 0.25) 0%,
-    rgba(0, 0, 0, 0.08) 20%,
-    rgba(0, 0, 0, 0)    40%,
-    rgba(0, 0, 0, 0)    60%,
-    rgba(0, 0, 0, 0.08) 80%,
-    rgba(0, 0, 0, 0.25) 100%
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(255, 255, 255, 0.15) 20%,
+    rgba(255, 255, 255, 0) 40%,
+    rgba(255, 255, 255, 0) 60%,
+    rgba(255, 255, 255, 0.15) 80%,
+    rgba(255, 255, 255, 0.45) 100%
   );
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
@@ -54,6 +165,8 @@ body {
 .animate-fade-rise         { animation: fade-rise 0.8s ease-out both; }
 .animate-fade-rise-delay   { animation: fade-rise 0.8s ease-out 0.2s both; }
 .animate-fade-rise-delay-2 { animation: fade-rise 0.8s ease-out 0.4s both; }
+.animate-fade-rise-delay-3 { animation: fade-rise 0.8s ease-out 0.6s both; }
+.animate-fade-rise-delay-4 { animation: fade-rise 0.8s ease-out 0.8s both; }
 
 /* ── Background overlays using palette variable ───────────── */
 .bg-background-40 { background-color: rgba(var(--background-rgb), 0.4); }
@@ -72,6 +185,34 @@ body {
 .reveal-delay-1 { transition-delay: 0.1s; }
 .reveal-delay-2 { transition-delay: 0.2s; }
 .reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
+.reveal-delay-5 { transition-delay: 0.5s; }
+
+/* ── Reduced motion ──────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .animate-fade-rise,
+  .animate-fade-rise-delay,
+  .animate-fade-rise-delay-2,
+  .animate-fade-rise-delay-3,
+  .animate-fade-rise-delay-4 {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .animate-marquee,
+  .animate-marquee-reverse {
+    animation-play-state: paused;
+  }
+}
 
 /* Anti-piratería: deshabilitar selección en el visor de PDF */
 .pdf-viewer-container {
