@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -10,41 +11,32 @@ interface MpConnectSectionProps {
   oauthUrl: string;
 }
 
-// Logo oficial de Mercado Pago (isologotipo manos)
 function MercadoPagoLogo({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 64 64" className={className} xmlns="http://www.w3.org/2000/svg">
-      <rect width="64" height="64" rx="14" fill="#009EE3" />
-      <g transform="translate(10, 14) scale(0.68)">
-        <path
-          d="M32 8C22.6 8 14.5 13.4 10.8 21.2c-1.2 2.6.8 5.2 3.6 5.2h3.2c1.8 0 3.4-1 4.2-2.6C24 19.4 27.8 17 32 17s8 2.4 10.2 6.8c.8 1.6 2.4 2.6 4.2 2.6h3.2c2.8 0 4.8-2.6 3.6-5.2C49.5 13.4 41.4 8 32 8z"
-          fill="white"
-        />
-        <path
-          d="M47.2 28H16.8c-2.2 0-4 1.8-4 4v12c0 6.6 5.4 12 12 12h14.4c6.6 0 12-5.4 12-12V32c0-2.2-1.8-4-4-4zM28 46c0 1.1-.9 2-2 2h-2c-1.1 0-2-.9-2-2v-2c0-1.1.9-2 2-2h2c1.1 0 2 .9 2 2v2zm0-10c0 1.1-.9 2-2 2h-2c-1.1 0-2-.9-2-2v-2c0-1.1.9-2 2-2h2c1.1 0 2 .9 2 2v2zm12 10c0 1.1-.9 2-2 2h-2c-1.1 0-2-.9-2-2v-2c0-1.1.9-2 2-2h2c1.1 0 2 .9 2 2v2zm0-10c0 1.1-.9 2-2 2h-2c-1.1 0-2-.9-2-2v-2c0-1.1.9-2 2-2h2c1.1 0 2 .9 2 2v2z"
-          fill="white"
-          opacity="0.9"
-        />
-      </g>
-    </svg>
+    <Image
+      src="/images/logo-MP.jpg"
+      alt="Mercado Pago"
+      width={900}
+      height={900}
+      className={className}
+      sizes="44px"
+      priority={false}
+    />
   );
 }
 
-// Logo MP pequeño para botón
-function MercadoPagoLogoSmall({ className }: { className?: string }) {
+function MercadoPagoLogoSmall() {
   return (
-    <svg viewBox="0 0 24 24" className={className} xmlns="http://www.w3.org/2000/svg" fill="none">
-      <circle cx="12" cy="12" r="12" fill="white" fillOpacity="0.2" />
-      <path
-        d="M12 5C9.2 5 6.8 6.8 5.8 9.4c-.4.8.2 1.7 1.1 1.7h1c.6 0 1.1-.3 1.3-.8C10 8.8 10.9 8 12 8s2 .8 2.8 2.3c.2.5.7.8 1.3.8h1c.9 0 1.5-.9 1.1-1.7C17.2 6.8 14.8 5 12 5z"
-        fill="white"
+    <span className="flex h-5 w-5 overflow-hidden rounded-full bg-white">
+      <Image
+        src="/images/logo-MP.jpg"
+        alt=""
+        width={900}
+        height={900}
+        className="h-full w-full object-cover"
+        sizes="20px"
       />
-      <path
-        d="M17.1 12H6.9c-.7 0-1.3.6-1.3 1.3v3.8c0 2.1 1.7 3.9 3.9 3.9h5c2.1 0 3.9-1.7 3.9-3.9v-3.8c-.1-.7-.6-1.3-1.3-1.3z"
-        fill="white"
-        opacity="0.85"
-      />
-    </svg>
+    </span>
   );
 }
 
@@ -121,7 +113,7 @@ export function MpConnectSection({
     <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
       {/* Header con gradiente celeste sutil */}
       <div className="flex items-center gap-4 bg-gradient-to-r from-[#E8F6FD] to-white px-6 py-5">
-        <MercadoPagoLogo className="h-11 w-11 shrink-0 drop-shadow-sm" />
+        <MercadoPagoLogo className="h-11 w-11 shrink-0 rounded-xl object-cover drop-shadow-sm" />
         <div>
           <h3 className="text-base font-semibold text-foreground">Mercado Pago</h3>
           <p className="text-sm text-gray-500">
@@ -202,7 +194,7 @@ export function MpConnectSection({
               href={oauthUrl}
               className="inline-flex items-center gap-2.5 rounded-xl bg-[#009EE3] px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#007BB8] hover:shadow-md"
             >
-              <MercadoPagoLogoSmall className="h-5 w-5" />
+              <MercadoPagoLogoSmall />
               Conectar con Mercado Pago
             </a>
           </div>

@@ -29,9 +29,9 @@ export default async function MisApuntesPage() {
   const folderList = (folders as FolderWithItems[]) ?? [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white">
+      <div>
         <div className="mx-auto max-w-5xl px-4 py-10">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Mis apuntes</h1>
           <p className="mt-1.5 text-sm text-gray-500">Accedé y organizá todos los apuntes que compraste.</p>

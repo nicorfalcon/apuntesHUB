@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ReviewButton } from "./review-button";
-import { AddToFolderMenu } from "./add-to-folder-menu";
+import { useRouter } from "next/navigation";
+import { PurchaseActionsMenu } from "./purchase-actions-menu";
 import type { PurchaseWithResume, FolderWithItems } from "@/lib/database.types";
 
 function BookOpenIcon() {
@@ -38,9 +38,22 @@ interface PurchaseCardProps {
 export function PurchaseCard({ purchase, folders }: PurchaseCardProps) {
   const resume = purchase.resumes;
   const existingReview = purchase.reviews ? { id: purchase.reviews.id } : undefined;
+  const router = useRouter();
+  const viewHref = `/my-purchases/${purchase.resume_id}/view`;
 
   return (
-    <div className="group flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white transition-shadow duration-200 hover:shadow-lg">
+    <article
+      role="link"
+      tabIndex={0}
+      onClick={() => router.push(viewHref)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          router.push(viewHref);
+        }
+      }}
+      className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-accent-600 focus:ring-offset-2"
+    >
       {/* Imagen / placeholder */}
       <div className="relative h-44 w-full shrink-0 overflow-hidden bg-gray-50">
         {resume?.preview_url ? (
@@ -98,23 +111,23 @@ export function PurchaseCard({ purchase, folders }: PurchaseCardProps) {
         {/* Acciones */}
         <div className="mt-3 flex items-center gap-2">
           <Link
-            href={`/my-purchases/${purchase.resume_id}/view`}
+            href={viewHref}
+            onClick={(event) => event.stopPropagation()}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-accent-700"
           >
             <BookOpenIcon />
             Ver apunte
           </Link>
 
-          <ReviewButton
+          <PurchaseActionsMenu
             purchaseId={purchase.id}
             resumeId={purchase.resume_id}
             sellerId={purchase.seller_id}
+            folders={folders}
             existingReview={existingReview}
           />
-
-          <AddToFolderMenu resumeId={purchase.resume_id} folders={folders} />
         </div>
       </div>
-    </div>
+    </article>
   );
 }

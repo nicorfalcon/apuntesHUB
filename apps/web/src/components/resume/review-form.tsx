@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
@@ -27,6 +28,17 @@ export function ReviewForm({ purchaseId, resumeId, sellerId, existingReview, onC
   const [comment, setComment] = useState(existingReview?.comment ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -84,9 +96,9 @@ export function ReviewForm({ purchaseId, resumeId, sellerId, existingReview, onC
     router.refresh();
   }
 
-  return (
+  const modal = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
@@ -161,4 +173,8 @@ export function ReviewForm({ purchaseId, resumeId, sellerId, existingReview, onC
       </div>
     </div>
   );
+
+  if (!mounted) return null;
+
+  return createPortal(modal, document.body);
 }
