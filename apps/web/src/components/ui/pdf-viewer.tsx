@@ -61,7 +61,7 @@ interface PdfViewerProps {
   onOutlineLoad?: (items: TocItem[]) => void;
 }
 
-export function PdfViewer({ url, userEmail, page, onPageChange, zoom, onNumPagesLoad, onOutlineLoad }: PdfViewerProps) {
+function PdfViewer({ url, userEmail, page, onPageChange, zoom, onNumPagesLoad, onOutlineLoad }: PdfViewerProps) {
   const isControlled = page !== undefined;
 
   const [numPages, setNumPages] = useState<number>(0);
@@ -248,3 +248,6 @@ export function PdfViewer({ url, userEmail, page, onPageChange, zoom, onNumPages
     </div>
   );
 }
+
+export { PdfViewer };
+export default PdfViewer;

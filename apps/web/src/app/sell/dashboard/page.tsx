@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { DeleteResumeButton } from "./delete-resume-button";
+import { ResumeActionsMenu } from "./resume-actions-menu";
 
 const STATUS_LABELS: Record<string, { label: string; class: string }> = {
   published: { label: "Publicado", class: "bg-green-100 text-green-700" },
@@ -140,17 +140,11 @@ export default async function DashboardPage() {
                       {resume.subject} · {resume.university} · {ventas} venta{ventas !== 1 ? "s" : ""}
                     </p>
                   </div>
-                  <div className="ml-4 flex shrink-0 items-center gap-3">
+                  <div className="ml-4 flex shrink-0 items-center gap-2">
                     <span className="text-sm font-bold text-accent-700">
                       ${Number(resume.price).toLocaleString("es-AR")}
                     </span>
-                    <Link
-                      href={`/sell/${resume.id}/edit`}
-                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                      Editar
-                    </Link>
-                    <DeleteResumeButton resumeId={resume.id} />
+                    <ResumeActionsMenu resumeId={resume.id} resumeTitle={resume.title} />
                   </div>
                 </div>
               );

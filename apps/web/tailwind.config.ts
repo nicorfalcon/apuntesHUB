@@ -11,6 +11,9 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        muted: {
+          foreground: "var(--muted-foreground)",
+        },
         accent: {
           50: "#f0f5f4",
           100: "#d9e8e4",

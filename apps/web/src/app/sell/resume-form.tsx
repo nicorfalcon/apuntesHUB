@@ -49,6 +49,24 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    // Validar campos requeridos antes de enviar
+    if (!form.title.trim() || !form.subject.trim() || !form.career.trim() || !form.university.trim()) {
+      setError("Completá todos los campos obligatorios (título, materia, carrera y universidad).");
+      setCurrentStep(0);
+      return;
+    }
+    if (!isEdit && !pdfFile) {
+      setError("Seleccioná un archivo PDF.");
+      setCurrentStep(1);
+      return;
+    }
+    if (!form.price && form.price !== "0") {
+      setError("Ingresá un precio.");
+      setCurrentStep(2);
+      return;
+    }
+
     setLoading(true);
 
     const supabase = createClient();
@@ -109,9 +127,10 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
 
     let dbError;
     if (isEdit) {
+      const { id: _id, seller_id: _seller_id, ...updatePayload } = payload;
       const { error } = await supabase
         .from("resumes")
-        .update(payload)
+        .update(updatePayload)
         .eq("id", resumeId);
       dbError = error;
     } else {
@@ -136,6 +155,8 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
 
   /* ── Validation ── */
   function canAdvance(): boolean {
+    // En modo edición los datos ya están cargados, permitir navegar libremente
+    if (isEdit) return true;
     if (currentStep === 0) {
       return !!(
         form.title.trim() &&
@@ -145,7 +166,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
       );
     }
     if (currentStep === 1) {
-      return isEdit || pdfFile !== null;
+      return pdfFile !== null;
     }
     return true;
   }

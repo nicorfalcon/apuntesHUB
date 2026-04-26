@@ -9,7 +9,7 @@ import type { TocItem } from "@/components/ui/pdf-viewer";
 
 // Dynamic import — react-pdf solo funciona en el cliente
 const PdfViewer = dynamic(
-  () => import("@/components/ui/pdf-viewer").then((m) => ({ default: m.PdfViewer })),
+  () => import("@/components/ui/pdf-viewer"),
   {
     ssr: false,
     loading: () => (
