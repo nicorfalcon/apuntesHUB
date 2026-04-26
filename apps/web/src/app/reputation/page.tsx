@@ -13,6 +13,19 @@ type ReviewWithJoins = {
   resumes: { title: string } | null;
 };
 
+function formatRelative(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const day = 86_400_000;
+  const days = Math.floor(diffMs / day);
+  if (days < 1) return "hoy";
+  if (days === 1) return "ayer";
+  if (days < 7) return `hace ${days} días`;
+  if (days < 30) return `hace ${Math.floor(days / 7)} sem`;
+  if (days < 365) return `hace ${Math.floor(days / 30)} meses`;
+  const years = Math.floor(days / 365);
+  return `hace ${years} año${years === 1 ? "" : "s"}`;
+}
+
 export default async function ReputacionPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -47,6 +60,9 @@ export default async function ReputacionPage() {
   }));
 
   const hasReviews = ratingCount > 0;
+  const recommendationRate = hasReviews
+    ? Math.round((reviews.filter((r) => r.rating >= 4).length / reviews.length) * 100)
+    : 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -79,6 +95,8 @@ export default async function ReputacionPage() {
                 </div>
                 <span className="mt-2 text-xs text-gray-400">
                   {ratingCount} {ratingCount === 1 ? "reseña" : "reseñas"}
+                  <span className="mx-1.5 text-gray-300">·</span>
+                  {totalSales} {totalSales === 1 ? "venta" : "ventas"}
                 </span>
               </div>
 
@@ -107,6 +125,13 @@ export default async function ReputacionPage() {
                 })}
               </div>
             </div>
+
+            {recommendationRate > 0 && (
+              <p className="mt-5 border-t border-gray-100 pt-4 text-xs text-gray-500">
+                <span className="font-semibold text-accent-700">{recommendationRate}%</span> de tus
+                compradores te calificaron con 4 o más estrellas.
+              </p>
+            )}
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-14 text-center">
@@ -119,20 +144,13 @@ export default async function ReputacionPage() {
             <p className="mt-1 text-sm text-gray-400">
               Cuando tus compradores dejen reseñas, tu reputación aparecerá acá.
             </p>
+            {totalSales > 0 && (
+              <p className="mt-3 text-xs text-gray-400">
+                Llevás {totalSales} {totalSales === 1 ? "venta" : "ventas"} esperando reseña.
+              </p>
+            )}
           </div>
         )}
-
-        {/* Métricas */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Reseñas</p>
-            <p className="mt-2 text-2xl font-bold text-foreground">{ratingCount}</p>
-          </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Ventas</p>
-            <p className="mt-2 text-2xl font-bold text-foreground">{totalSales}</p>
-          </div>
-        </div>
 
         {/* Lista de reseñas */}
         {reviews.length > 0 && (
@@ -141,41 +159,46 @@ export default async function ReputacionPage() {
               Reseñas recibidas
             </p>
             <div className="space-y-3">
-              {reviews.map((review) => (
-                <div
-                  key={review.id}
-                  className="rounded-xl border border-gray-200 bg-white p-4"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground">
-                        {review.profiles?.display_name ?? "—"}
-                      </p>
-                      <p className="mt-0.5 truncate text-xs text-gray-400">
-                        {review.resumes?.title ?? "—"}
-                      </p>
+              {reviews.map((review) => {
+                const name = review.profiles?.display_name ?? "Anónimo";
+                const initial = name.charAt(0).toUpperCase();
+                return (
+                  <div
+                    key={review.id}
+                    className="rounded-xl border border-gray-200 bg-white p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-50 text-sm font-semibold text-accent-700">
+                        {initial}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground">{name}</p>
+                            <p className="mt-0.5 truncate text-xs text-gray-400">
+                              {review.resumes?.title ?? "—"}
+                            </p>
+                          </div>
+                          <StarRating rating={review.rating} size="sm" />
+                        </div>
+
+                        {review.comment && (
+                          <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                            {review.comment}
+                          </p>
+                        )}
+
+                        <p className="mt-2.5 text-xs text-gray-400">
+                          {formatRelative(review.created_at)}
+                          {review.updated_at && (
+                            <span className="ml-1.5 italic">· editada</span>
+                          )}
+                        </p>
+                      </div>
                     </div>
-                    <StarRating rating={review.rating} size="sm" />
                   </div>
-
-                  {review.comment && (
-                    <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                      {review.comment}
-                    </p>
-                  )}
-
-                  <p className="mt-2.5 text-xs text-gray-400">
-                    {new Date(review.created_at).toLocaleDateString("es-AR", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    })}
-                    {review.updated_at && (
-                      <span className="ml-1.5 italic">· editada</span>
-                    )}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

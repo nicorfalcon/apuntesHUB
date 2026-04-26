@@ -48,6 +48,12 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // Guardia: el submit sólo es válido en el último paso. Esto evita que
+    // un cambio de type del botón ("button" → "submit") en plena
+    // reconciliación de React dispare un envío al avanzar de paso.
+    if (currentStep < STEPS.length - 1) return;
+
     setError(null);
 
     // Validar campos requeridos antes de enviar
@@ -610,6 +616,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
 
           {currentStep < 2 ? (
             <button
+              key="step-next"
               type="button"
               onClick={nextStep}
               disabled={!canAdvance()}
@@ -619,6 +626,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
             </button>
           ) : (
             <button
+              key="step-submit"
               type="submit"
               disabled={loading || !form.price}
               className="rounded-lg bg-accent-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 disabled:opacity-40 disabled:cursor-not-allowed"

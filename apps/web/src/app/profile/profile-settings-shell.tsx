@@ -1,21 +1,18 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import {
-  Bell,
-  CreditCard,
-  FileText,
-  LockKeyhole,
-  UserRound,
-} from "lucide-react";
+import { Bell, CreditCard, LockKeyhole, UserRound } from "lucide-react";
 import { ProfileForm } from "./profile-form";
 import { MpConnectSection } from "./mp-connect-section";
+import { SecuritySection } from "./security-section";
 import type { Profile } from "@/lib/database.types";
 
-type ProfileSection = "profile" | "payments" | "sales" | "security" | "notifications";
+type ProfileSection = "profile" | "payments" | "security" | "notifications";
 
 interface ProfileSettingsShellProps {
   userId: string;
+  userEmail: string;
+  hasPassword: boolean;
   profile: Profile | null;
   hasMpConnected: boolean;
   connectedAt: string | null;
@@ -34,12 +31,6 @@ const sections = [
     label: "Pagos",
     description: "Cobros y Mercado Pago",
     icon: CreditCard,
-  },
-  {
-    id: "sales",
-    label: "Mis ventas",
-    description: "Actividad de vendedor",
-    icon: FileText,
   },
   {
     id: "security",
@@ -82,6 +73,8 @@ function ComingSoonPanel({
 
 export function ProfileSettingsShell({
   userId,
+  userEmail,
+  hasPassword,
   profile,
   hasMpConnected,
   connectedAt,
@@ -144,20 +137,8 @@ export function ProfileSettingsShell({
           </section>
         )}
 
-        {activeSection === "sales" && (
-          <ComingSoonPanel
-            title="Mis ventas"
-            description="Acá vas a poder ver resumen de ventas, apuntes con mejor rendimiento, cobros pendientes y métricas simples de tus publicaciones."
-            backendNote="Por ahora queda como sección visual: todavía no conectamos el backend de estadísticas y movimientos de venta."
-          />
-        )}
-
         {activeSection === "security" && (
-          <ComingSoonPanel
-            title="Seguridad"
-            description="Esta sección puede agrupar datos de cuenta, sesiones activas, cambios de email y controles básicos para proteger tu perfil."
-            backendNote="Por ahora queda como sección visual: todavía no implementamos el backend de seguridad de cuenta."
-          />
+          <SecuritySection email={userEmail} hasPassword={hasPassword} />
         )}
 
         {activeSection === "notifications" && (

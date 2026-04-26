@@ -26,7 +26,7 @@ export const FAQS = [
   },
   {
     q: "¿Cuanto cobra Apuntes Hub si vendo mis apuntes?",
-    a: "Cobramos una comision del 15% por cada venta. El 85% restante va directo a tu cuenta de Mercado Pago. No hay costos fijos ni cuotas mensuales para vender.",
+    a: "Cobramos una comision del 10% por cada venta. El 90% restante va directo a tu cuenta de Mercado Pago. No hay costos fijos ni cuotas mensuales para vender.",
   },
   {
     q: "¿En que universidades estan disponibles?",

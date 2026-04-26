@@ -24,6 +24,8 @@ export default async function ProfilePage() {
 
   const oauthUrl = `https://auth.mercadopago.com.ar/authorization?client_id=${process.env.MP_APP_ID}&response_type=code&platform_id=mp&redirect_uri=${encodeURIComponent(`${process.env.NEXT_PUBLIC_APP_URL}/api/mercadopago/oauth/callback`)}`;
 
+  const hasPassword = (user.identities ?? []).some((i) => i.provider === "email");
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-16">
       <header className="mb-10 lg:ml-72">
@@ -35,6 +37,8 @@ export default async function ProfilePage() {
 
       <ProfileSettingsShell
         userId={user.id}
+        userEmail={user.email ?? ""}
+        hasPassword={hasPassword}
         profile={profile}
         hasMpConnected={!!mpCreds}
         connectedAt={mpCreds?.connected_at ?? null}

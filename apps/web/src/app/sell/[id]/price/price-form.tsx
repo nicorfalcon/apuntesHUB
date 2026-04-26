@@ -102,7 +102,7 @@ export function PriceForm({
           </p>
         )}
         <p className="mt-2 text-xs text-gray-400">
-          Recibís el <span className="font-medium text-accent-700">80%</span> de cada venta. La plataforma retiene un 20% de comisión.
+          Recibís el <span className="font-medium text-accent-700">90%</span> de cada venta. La plataforma retiene un 10% de comisión.
           Precio mínimo recomendado: $500 ARS. Podés publicar gratis ingresando 0.
         </p>
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ScrollReveal } from "./scroll-reveal";
 
-const COMMISSION = 15; // porcentaje que cobra ApuntesHub
+const COMMISSION = 10; // porcentaje que cobra ApuntesHub
 
 export function Sellers() {
   const [price, setPrice] = useState(2000);
@@ -106,6 +106,9 @@ export function Sellers() {
 
               <p className="mt-6 text-xs text-sand-700/50">
                 Si vendes 10 copias al mes = <span className="font-semibold text-sand-900">${(earnings * 10).toLocaleString("es-AR")}/mes</span>
+              </p>
+              <p className="mt-2 text-xs text-sand-700/40">
+                * Mercado Pago descuenta un pequeño porcentaje adicional por procesamiento de la transacción.
               </p>
 
               <Link
