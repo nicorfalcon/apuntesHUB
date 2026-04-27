@@ -1,10 +1,30 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Check, Copy, Eye, EyeOff, KeyRound, LogOut, Sparkles } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Eye,
+  EyeOff,
+  KeyRound,
+  LogOut,
+  Monitor,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { formatRelative } from "@/lib/utils/format-relative";
+import { CLIENT_BRAND_HEADER, getClientBrand } from "@/lib/devices/client-hints";
+
+interface Device {
+  id: string;
+  label: string | null;
+  created_at: string;
+  last_seen_at: string;
+  is_current: boolean;
+}
 
 interface SecuritySectionProps {
   email: string;
@@ -80,7 +100,60 @@ export function SecuritySection({ email, hasPassword }: SecuritySectionProps) {
   const [justGenerated, setJustGenerated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [devices, setDevices] = useState<Device[] | null>(null);
+  const [devicesLoading, setDevicesLoading] = useState(true);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+
   const strength = useMemo(() => evaluateStrength(newPassword), [newPassword]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        // If this browser hides itself behind another's UA (Brave),
+        // re-hit register with the brand hint to refresh the label.
+        // Re-registering an existing device is idempotent.
+        const brand = await getClientBrand();
+        if (brand) {
+          await fetch("/api/auth/devices/register", {
+            method: "POST",
+            headers: { [CLIENT_BRAND_HEADER]: brand },
+          }).catch(() => {});
+        }
+
+        const res = await fetch("/api/auth/devices/list");
+        if (!res.ok) throw new Error("fetch failed");
+        const data = (await res.json()) as { devices: Device[] };
+        if (!cancelled) setDevices(data.devices);
+      } catch {
+        if (!cancelled) setDevices([]);
+      } finally {
+        if (!cancelled) setDevicesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleRevokeDevice(device: Device) {
+    if (device.is_current) return;
+    if (!confirm(`¿Revocar "${device.label ?? "este dispositivo"}"?`)) return;
+    setRevokingId(device.id);
+    const res = await fetch("/api/auth/devices/revoke", {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ device_row_id: device.id }),
+    });
+    if (!res.ok) {
+      toast.error("No se pudo revocar el dispositivo.");
+      setRevokingId(null);
+      return;
+    }
+    setDevices((prev) => prev?.filter((d) => d.id !== device.id) ?? null);
+    toast.success("Dispositivo revocado.");
+    setRevokingId(null);
+  }
 
   async function handleGenerate() {
     const pw = generateSecurePassword(16);
@@ -326,6 +399,69 @@ export function SecuritySection({ email, hasPassword }: SecuritySectionProps) {
             </button>
           </div>
         </form>
+      </section>
+
+      {/* Card: Dispositivos conectados */}
+      <section className="rounded-2xl border border-gray-200/80 bg-white p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="flex items-start gap-4">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-700">
+            <Monitor className="h-5 w-5" strokeWidth={1.8} />
+          </span>
+          <div className="flex-1">
+            <h2 className="text-lg font-bold tracking-tight text-foreground">
+              Dispositivos conectados
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Sólo se permiten 2 dispositivos activos por cuenta. Si querés usar uno nuevo,
+              revocá alguno desde acá.
+            </p>
+
+            <div className="mt-5">
+              {devicesLoading ? (
+                <p className="text-sm text-gray-400">Cargando dispositivos...</p>
+              ) : !devices || devices.length === 0 ? (
+                <p className="text-sm text-gray-400">No hay dispositivos registrados.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {devices.map((d) => (
+                    <li
+                      key={d.id}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-gray-200/80 bg-gray-50/50 px-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium text-foreground">
+                            {d.label ?? "Dispositivo desconocido"}
+                          </span>
+                          {d.is_current && (
+                            <span className="inline-flex rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-semibold text-accent-700 ring-1 ring-inset ring-accent-200/60">
+                              Este dispositivo
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-0.5 text-xs text-gray-400">
+                          Última conexión {formatRelative(d.last_seen_at)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRevokeDevice(d)}
+                        disabled={d.is_current || revokingId === d.id}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:bg-white disabled:hover:text-gray-600"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        {revokingId === d.id ? "Revocando..." : "Revocar"}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-3 text-xs text-gray-400">
+                Al revocar un dispositivo, su sesión se invalida y va a quedar deslogueado en su próxima navegación.
+              </p>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Card: Sesiones */}

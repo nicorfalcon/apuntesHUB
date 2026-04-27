@@ -4,15 +4,21 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { CLIENT_BRAND_HEADER, getClientBrand } from "@/lib/devices/client-hints";
+
+const DEVICE_LIMIT_MESSAGE =
+  "Llegaste al límite de dispositivos conectados. Cerrá sesión en otro desde Perfil > Seguridad para poder ingresar.";
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") ?? "/browse";
+  const initialError =
+    searchParams.get("error") === "device_limit" ? DEVICE_LIMIT_MESSAGE : null;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
   const [loading, setLoading] = useState(false);
 
   async function handleEmailLogin(e: React.FormEvent) {
@@ -25,6 +31,18 @@ export function LoginForm() {
 
     if (error) {
       setError("Email o contraseña incorrectos.");
+      setLoading(false);
+      return;
+    }
+
+    const brand = await getClientBrand();
+    const res = await fetch("/api/auth/devices/register", {
+      method: "POST",
+      headers: brand ? { [CLIENT_BRAND_HEADER]: brand } : undefined,
+    });
+    if (res.status === 403) {
+      await supabase.auth.signOut();
+      setError(DEVICE_LIMIT_MESSAGE);
       setLoading(false);
       return;
     }

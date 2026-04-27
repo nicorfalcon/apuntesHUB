@@ -198,6 +198,37 @@ export interface Database {
         };
         Update: never;
       };
+      user_devices: {
+        Row: {
+          id: string;
+          user_id: string;
+          device_id: string;
+          label: string | null;
+          user_agent: string | null;
+          ip_hash: string | null;
+          session_id: string | null;
+          created_at: string;
+          last_seen_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          device_id: string;
+          label?: string | null;
+          user_agent?: string | null;
+          ip_hash?: string | null;
+          session_id?: string | null;
+          created_at?: string;
+          last_seen_at?: string;
+        };
+        Update: {
+          label?: string | null;
+          user_agent?: string | null;
+          ip_hash?: string | null;
+          session_id?: string | null;
+          last_seen_at?: string;
+        };
+      };
       seller_mp_credentials: {
         Row: {
           id: string;
@@ -246,6 +277,10 @@ export interface Database {
         Args: { p_purchase_id: string; p_payment_id: string };
         Returns: void;
       };
+      revoke_my_session: {
+        Args: { p_session_id: string };
+        Returns: void;
+      };
     };
   };
 }
@@ -273,6 +308,7 @@ export type PurchaseWithResume = Purchase & {
 };
 
 export type SellerMpCredentials = Database["public"]["Tables"]["seller_mp_credentials"]["Row"];
+export type UserDevice = Database["public"]["Tables"]["user_devices"]["Row"];
 export type Folder = Database["public"]["Tables"]["folders"]["Row"];
 export type FolderItem = Database["public"]["Tables"]["folder_items"]["Row"];
 export type FolderWithItems = Folder & {
