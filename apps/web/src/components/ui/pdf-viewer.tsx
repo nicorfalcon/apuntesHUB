@@ -206,7 +206,7 @@ function PdfViewer({ url, userEmail, page, onPageChange, zoom, onNumPagesLoad, o
         style={isControlled && zoom !== undefined ? { width: `${Math.round((595 * zoom) / 100)}px` } : undefined}
       >
         {/* Watermark dinámico superpuesto — 12 instancias con mix-blend-multiply para mayor cobertura */}
-        <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden mix-blend-multiply opacity-40">
+        <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden mix-blend-multiply opacity-[0.05]">
           {Array.from({ length: 12 }).map((_, i) => (
             <span
               key={i}
