@@ -133,6 +133,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
 
     let dbError;
     if (isEdit) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id: _id, seller_id: _seller_id, ...updatePayload } = payload;
       const { error } = await supabase
         .from("resumes")

@@ -80,7 +80,7 @@ export function ConfirmDeleteResumeDialog({
               className="mt-1 text-sm text-gray-500"
             >
               ¿Seguro que querés eliminar{" "}
-              <span className="font-medium text-foreground">"{resumeTitle}"</span>?
+              <span className="font-medium text-foreground">&quot;{resumeTitle}&quot;</span>?
               Dejará de estar disponible en el marketplace. Los usuarios que ya lo
               compraron mantendrán su acceso.
             </p>
