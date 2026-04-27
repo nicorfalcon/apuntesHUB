@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: NextRequest) {
-  // 1. Verificar que el usuario está autenticado
   const supabase = await createClient();
   const {
     data: { user },
@@ -13,20 +12,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
 
-  // 2. Leer el archivo del FormData
-  const formData = await request.formData();
-  const file = formData.get("file") as File | null;
-  const bucket = formData.get("bucket") as string | null;
-  const path = formData.get("path") as string | null;
+  const { bucket, path } = (await request.json()) as {
+    bucket?: string;
+    path?: string;
+  };
 
-  if (!file || !bucket || !path) {
+  if (!bucket || !path) {
     return NextResponse.json(
-      { error: "Faltan campos: file, bucket, path" },
+      { error: "Faltan campos: bucket, path" },
       { status: 400 }
     );
   }
 
-  // 3. Verificar que el path empiece con el userId del usuario autenticado
   if (!path.startsWith(user.id + "/")) {
     return NextResponse.json(
       { error: "No tenés permiso para subir a esta ruta" },
@@ -34,22 +31,25 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 4. Subir usando el admin client (bypassa RLS)
   const admin = createAdminClient();
   const { data, error } = await admin.storage
     .from(bucket)
-    .upload(path, file, { upsert: true });
+    .createSignedUploadUrl(path, { upsert: true });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // 5. Si es el bucket previews, devolver la URL pública
   let publicUrl: string | null = null;
   if (bucket === "previews") {
     const { data: urlData } = admin.storage.from(bucket).getPublicUrl(path);
     publicUrl = urlData.publicUrl;
   }
 
-  return NextResponse.json({ path: data.path, publicUrl });
+  return NextResponse.json({
+    signedUrl: data.signedUrl,
+    token: data.token,
+    path: data.path,
+    publicUrl,
+  });
 }

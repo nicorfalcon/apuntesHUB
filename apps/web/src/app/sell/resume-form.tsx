@@ -81,40 +81,47 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
     let fileUrl = initial?.file_url ?? null;
     let previewUrl = initial?.preview_url ?? null;
 
+    async function uploadDirect(file: File, bucket: "resumes" | "previews") {
+      const path = `${userId}/${resumeId}/${file.name}`;
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bucket, path }),
+      });
+      const meta = await res.json();
+      if (!res.ok) throw new Error(meta.error ?? "No se pudo iniciar la subida");
+
+      const { error: upErr } = await supabase.storage
+        .from(bucket)
+        .uploadToSignedUrl(meta.path, meta.token, file, { upsert: true });
+      if (upErr) throw new Error(upErr.message);
+
+      return { path: meta.path as string, publicUrl: meta.publicUrl as string | null };
+    }
+
     // Subir PDF si se seleccionó
     if (pdfFile) {
-      const path = `${userId}/${resumeId}/${pdfFile.name}`;
-      const body = new FormData();
-      body.append("file", pdfFile);
-      body.append("bucket", "resumes");
-      body.append("path", path);
-
-      const res = await fetch("/api/upload", { method: "POST", body });
-      const result = await res.json();
-      if (!res.ok) {
-        setError("Error al subir el PDF: " + result.error);
+      try {
+        const result = await uploadDirect(pdfFile, "resumes");
+        fileUrl = result.path;
+      } catch (err) {
+        setError("Error al subir el PDF: " + (err as Error).message);
         setLoading(false);
         return;
       }
-      fileUrl = result.path;
     }
 
     // Subir preview si se seleccionó
     if (previewFile) {
-      const path = `${userId}/${resumeId}/${previewFile.name}`;
-      const body = new FormData();
-      body.append("file", previewFile);
-      body.append("bucket", "previews");
-      body.append("path", path);
-
-      const res = await fetch("/api/upload", { method: "POST", body });
-      const result = await res.json();
-      if (!res.ok) {
-        setError("Error al subir la preview: " + result.error);
+      try {
+        const result = await uploadDirect(previewFile, "previews");
+        previewUrl = result.publicUrl;
+      } catch (err) {
+        setError("Error al subir la preview: " + (err as Error).message);
         setLoading(false);
         return;
       }
-      previewUrl = result.publicUrl;
     }
 
     const payload = {
