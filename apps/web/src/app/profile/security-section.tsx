@@ -236,13 +236,19 @@ export function SecuritySection({ email, hasPassword }: SecuritySectionProps) {
   async function handleSignOutEverywhere() {
     if (!confirm("¿Cerrar sesión en todos los dispositivos? Vas a tener que volver a iniciar sesión.")) return;
     setSigningOutAll(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signOut({ scope: "global" });
-    if (error) {
+
+    const res = await fetch("/api/auth/devices/revoke-all", { method: "POST" });
+    if (!res.ok) {
       toast.error("No se pudo cerrar las sesiones.");
       setSigningOutAll(false);
       return;
     }
+
+    // The current device's auth.sessions row was just deleted server-side.
+    // Clear local cookies/tokens too so this tab stops thinking it's signed in.
+    const supabase = createClient();
+    await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+
     toast.success("Sesiones cerradas. Vas a iniciar sesión nuevamente.");
     router.push("/login");
     router.refresh();

@@ -284,6 +284,10 @@ export interface Database {
         Args: { p_session_id: string };
         Returns: void;
       };
+      revoke_all_my_sessions: {
+        Args: Record<string, never>;
+        Returns: void;
+      };
     };
   };
 }
