@@ -66,6 +66,7 @@ export interface Database {
           rating_count: number;
           created_at: string;
           updated_at: string;
+          deleted_at: string | null;
         };
         Insert: {
           id?: string;
@@ -83,6 +84,7 @@ export interface Database {
           rating_count?: number;
           created_at?: string;
           updated_at?: string;
+          deleted_at?: string | null;
         };
         Update: {
           seller_id?: string;
@@ -98,6 +100,7 @@ export interface Database {
           rating_avg?: number;
           rating_count?: number;
           updated_at?: string;
+          deleted_at?: string | null;
         };
       };
       purchases: {

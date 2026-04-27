@@ -26,6 +26,9 @@ export default async function ResumePage({
     .single();
 
   if (!resume) notFound();
+  if ((resume as { deleted_at?: string | null }).deleted_at && user?.id !== (resume as { seller_id: string }).seller_id) {
+    notFound();
+  }
 
   const resumeWithSeller = resume as ResumeWithSeller;
   const { profiles: seller } = resumeWithSeller;

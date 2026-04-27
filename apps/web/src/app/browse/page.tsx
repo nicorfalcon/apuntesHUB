@@ -15,6 +15,7 @@ export default async function ExplorarPage() {
       "*, profiles!seller_id(display_name, avatar_url, seller_rating_avg, seller_rating_count)"
     )
     .eq("status", "published")
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
   let purchasedIds: string[] = [];
