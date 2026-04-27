@@ -68,9 +68,14 @@ export function Pricing() {
         </ScrollReveal>
 
         <ScrollReveal>
-          <h2 className="mt-12 max-w-2xl font-display text-4xl italic leading-tight text-sand-900 md:text-5xl">
-            Simple y transparente.
-          </h2>
+          <div className="mt-12 flex flex-wrap items-center gap-4">
+            <h2 className="font-display text-4xl italic leading-tight text-sand-900 md:text-5xl">
+              Simple y transparente.
+            </h2>
+            <span className="inline-flex items-center rounded-full border border-warm/40 bg-warm/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-warm-dark">
+              Próximamente
+            </span>
+          </div>
           <p className="mt-4 text-base text-sand-800/60">
             Empeza gratis. Escala cuando lo necesites.
           </p>

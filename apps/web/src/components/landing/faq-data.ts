@@ -32,18 +32,6 @@ export const FAQS = [
     a: "Los vendedores pueden actualizar sus apuntes en cualquier momento. Marcamos con un badge \"Actualizado\" los que fueron revisados en el ultimo cuatrimestre. Si un apunte queda desactualizado, lo señalamos.",
   },
   {
-    q: "¿Puedo descargar los apuntes para leerlos sin conexion?",
-    a: "Si. Una vez que compras un apunte, lo podes descargar en PDF y leerlo offline desde cualquier dispositivo. El archivo queda disponible en tu cuenta para siempre.",
-  },
-  {
-    q: "¿Que pasa si subo un apunte y alguien lo plagia?",
-    a: "Tenemos un sistema de deteccion de contenido duplicado. Si detectamos que alguien sube tu material como propio, lo damos de baja y sancionamos la cuenta. Tambien podes reportar plagios desde el panel de vendedor.",
-  },
-  {
-    q: "¿Hay version para profesores o catedras oficiales?",
-    a: "Estamos trabajando en un programa para catedras que quieran distribuir material oficial a traves de la plataforma. Si sos profesor, escribinos a profesores@apunteshub.com.",
-  },
-  {
     q: "¿Tienen app mobile?",
     a: "Por ahora Apuntes Hub funciona como web app optimizada para celular. Podes agregarla a tu pantalla de inicio y usarla como si fuera una app nativa. La app para iOS y Android esta en desarrollo.",
   },

@@ -214,6 +214,7 @@ body {
   }
 }
 
+
 /* Anti-piratería: deshabilitar selección en el visor de PDF */
 .pdf-viewer-container {
   -webkit-user-select: none;

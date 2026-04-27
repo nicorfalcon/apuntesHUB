@@ -2,19 +2,19 @@ import { ScrollReveal } from "./scroll-reveal";
 
 const STEPS = [
   {
-    number: "001",
+    number: "01",
     title: "Busca tu materia",
     description:
       "Filtra por universidad, carrera, materia o profesor. Encontra exactamente lo que necesitas en segundos.",
   },
   {
-    number: "002",
+    number: "02",
     title: "Previsualiza antes de comprar",
     description:
       "Mira las primeras paginas gratis. Chequeá el estilo, la calidad y las valoraciones de otros estudiantes antes de decidir.",
   },
   {
-    number: "003",
+    number: "03",
     title: "Descarga o compra",
     description:
       "Paga seguro con Mercado Pago, descarga al instante y empeza a estudiar. Asi de simple.",
