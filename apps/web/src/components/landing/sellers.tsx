@@ -32,8 +32,8 @@ export function Sellers() {
             <ScrollReveal delay={1}>
               <p className="mt-6 text-base leading-relaxed text-sand-800/60">
                 Esos resumenes que te llevaron horas tienen valor. Subi tu material,
-                ponele el precio que quieras y empeza a ganar cada vez que alguien
-                lo descarga. Vos te quedas con el {100 - COMMISSION}% de cada venta.
+                ponele el precio que quieras y empeza a ganar por cada venta.
+                Vos te quedas con el {100 - COMMISSION}% de cada venta.
               </p>
             </ScrollReveal>
             <ScrollReveal delay={2}>
@@ -42,7 +42,7 @@ export function Sellers() {
                   "Vos elegis el precio de tus apuntes",
                   `Comision transparente: solo el ${COMMISSION}%`,
                   "Cobras directo a tu cuenta de Mercado Pago",
-                  "Dashboard con metricas de ventas y descargas",
+                  "Dashboard con metricas de ventas",
                   "Sin exclusividad: tu material sigue siendo tuyo",
                 ].map((item) => (
                   <div key={item} className="flex items-start gap-2">

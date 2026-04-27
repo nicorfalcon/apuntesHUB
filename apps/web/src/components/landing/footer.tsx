@@ -46,25 +46,6 @@ export function Footer() {
               La plataforma donde estudiantes universitarios comparten, descubren
               y venden los mejores apuntes de su carrera.
             </p>
-
-            {/* Newsletter */}
-            <form
-              onSubmit={(e) => e.preventDefault()}
-              className="mt-6 flex gap-2"
-            >
-              <input
-                type="email"
-                placeholder="tu@email.com"
-                className="flex-1 rounded-lg border border-sand-700 bg-sand-900 px-3 py-2 text-sm text-sand-300 placeholder:text-sand-600 focus:border-warm/50 focus:outline-none"
-                aria-label="Email para newsletter"
-              />
-              <button
-                type="submit"
-                className="rounded-lg bg-sand-800 px-4 py-2 text-sm font-medium text-sand-300 transition-colors hover:bg-sand-700"
-              >
-                Suscribirse
-              </button>
-            </form>
           </div>
 
           {/* Link columns */}

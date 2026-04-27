@@ -26,7 +26,6 @@ const PLANS = [
     description: "Acceso ilimitado para estudiar en serio.",
     features: [
       "Todo lo del plan Free",
-      "Descargas ilimitadas de apuntes",
       "Acceso anticipado a material nuevo",
       "Subir apuntes ilimitados para vender",
       "Filtros avanzados de busqueda",

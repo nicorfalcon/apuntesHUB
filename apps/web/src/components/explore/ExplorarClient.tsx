@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -15,11 +15,13 @@ import type { ResumeWithSeller } from "@/lib/database.types";
 interface ExplorarClientProps {
   resumes: ResumeWithSeller[];
   purchasedIds: string[];
+  initialCareer?: string;
 }
 
 export default function ExplorarClient({
   resumes,
   purchasedIds,
+  initialCareer,
 }: ExplorarClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUniversities, setSelectedUniversities] = useState<Set<string>>(new Set());
@@ -30,6 +32,15 @@ export default function ExplorarClient({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const purchasedSet = useMemo(() => new Set(purchasedIds), [purchasedIds]);
+
+  useEffect(() => {
+    if (!initialCareer) return;
+    const param = initialCareer.toLowerCase();
+    const matched = Array.from(
+      new Set(resumes.map((r) => r.career))
+    ).filter((c) => c.toLowerCase().includes(param));
+    if (matched.length > 0) setSelectedCareers(new Set(matched));
+  }, [initialCareer, resumes]);
 
   const universityCounts = useMemo(() => {
     const map = new Map<string, number>();

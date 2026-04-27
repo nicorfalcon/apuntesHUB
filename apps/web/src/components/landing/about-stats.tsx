@@ -28,7 +28,7 @@ export function AboutStats() {
 
           <ScrollReveal delay={1}>
             <p className="text-base leading-relaxed text-sand-800/60 md:text-lg">
-              Apuntes Hub nacio de una necesidad real: encontrar material de estudio
+              apuntesHUB nacio de una necesidad real: encontrar material de estudio
               de calidad para tu carrera, organizado y verificado por otros estudiantes
               que ya pasaron por ahi. No somos una editorial, somos una comunidad.
               Cada apunte que se sube hace que estudiar sea un poco mas facil para el

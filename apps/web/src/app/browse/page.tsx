@@ -2,7 +2,12 @@ import { createClient } from "@/lib/supabase/server";
 import ExplorarClient from "@/components/explore/ExplorarClient";
 import type { ResumeWithSeller } from "@/lib/database.types";
 
-export default async function ExplorarPage() {
+export default async function ExplorarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ career?: string }>;
+}) {
+  const { career: initialCareer } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -34,6 +39,7 @@ export default async function ExplorarPage() {
     <ExplorarClient
       resumes={(resumes as ResumeWithSeller[]) ?? []}
       purchasedIds={purchasedIds}
+      initialCareer={initialCareer}
     />
   );
 }

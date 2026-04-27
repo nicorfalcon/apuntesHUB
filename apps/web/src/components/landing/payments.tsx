@@ -20,7 +20,7 @@ const FEATURES = [
   {
     icon: RefreshCcw,
     title: "Devolucion garantizada",
-    description: "Si el apunte no coincide con la descripcion, te devolvemos el dinero. Sin preguntas.",
+    description: "Proximamente.",
   },
 ];
 
@@ -71,7 +71,7 @@ export function Payments() {
               const Icon = feature.icon;
               return (
                 <ScrollReveal key={feature.title} delay={(i % 3) as 0 | 1 | 2 | 3}>
-                  <div className="rounded-xl border border-sand-400/50 bg-sand-50 p-5">
+                  <div className="flex h-full flex-col rounded-xl border border-sand-400/50 bg-sand-50 p-5">
                     <Icon className="h-5 w-5 text-warm" strokeWidth={1.5} />
                     <h3 className="mt-3 text-sm font-semibold text-sand-900">
                       {feature.title}

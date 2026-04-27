@@ -15,9 +15,9 @@ const STEPS = [
   },
   {
     number: "03",
-    title: "Descarga o compra",
+    title: "Accedé al instante",
     description:
-      "Paga seguro con Mercado Pago, descarga al instante y empeza a estudiar. Asi de simple.",
+      "Abri el apunte directamente en el navegador con nuestro lector PDF integrado. Sin descargas obligatorias, sin apps adicionales.",
   },
 ];
 
