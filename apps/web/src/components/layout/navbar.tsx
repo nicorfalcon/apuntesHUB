@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import type { User } from "@supabase/supabase-js";
 import type { Profile } from "@/lib/database.types";
 
@@ -81,7 +82,7 @@ export function Navbar() {
     : [{ href: "/browse", label: "Explorar" }];
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-gray-200 bg-white/80 backdrop-blur-md">
+    <nav className="sticky top-0 z-50 border-b border-gray-200 bg-white/80 backdrop-blur-md dark:border-white/10 dark:bg-[#101816]/85">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         {/* Logo */}
         <Link href="/" className="text-xl font-bold tracking-tight text-foreground">
@@ -123,6 +124,9 @@ export function Navbar() {
         {/* Auth + hamburger */}
         <div className="flex items-center gap-3">
           {user ? (
+            <>
+              <ThemeToggle />
+
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen((v) => !v)}
@@ -143,7 +147,7 @@ export function Navbar() {
               </button>
 
               {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 rounded-xl border border-gray-100 bg-white py-1 shadow-lg">
+                <div className="absolute right-0 mt-2 w-48 rounded-xl border border-gray-100 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-[#101816]">
                   <div className="border-b border-gray-100 px-3 py-2">
                     <p className="truncate text-sm font-medium">{profile?.display_name || "Mi cuenta"}</p>
                   </div>
@@ -177,6 +181,7 @@ export function Navbar() {
                 </div>
               )}
             </div>
+            </>
           ) : (
             <div className="hidden items-center gap-2 md:flex">
               <Link
@@ -197,7 +202,7 @@ export function Navbar() {
           {/* Hamburger mobile */}
           <button
             onClick={() => setMenuOpen((v) => !v)}
-            className="flex flex-col gap-1 md:hidden"
+            className="flex h-9 w-9 flex-col items-center justify-center gap-1 rounded-full border border-gray-200 bg-white/70 md:hidden dark:border-white/10 dark:bg-white/10"
             aria-label="Menú"
           >
             <span className={`h-0.5 w-5 bg-foreground transition-transform ${menuOpen ? "translate-y-1.5 rotate-45" : ""}`} />
@@ -209,7 +214,7 @@ export function Navbar() {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="border-t border-gray-100 bg-white px-4 pb-4 md:hidden">
+        <div className="border-t border-gray-100 bg-white px-4 pb-4 md:hidden dark:border-white/10 dark:bg-[#101816]">
           {navLinks.map((link) => {
             const isActive = pathname === link.href;
             return (

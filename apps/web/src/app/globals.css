@@ -18,6 +18,24 @@
   --font-body: 'Inter', sans-serif;
   --surface-warm: #eef3f0;
   --surface-warm-rgb: 238, 243, 240;
+  color-scheme: light;
+}
+
+.dark {
+  --background: 165 18% 8%;
+  --background-rgb: 17, 24, 22;
+  --foreground: 150 20% 91%;
+  --muted-foreground: 156 10% 66%;
+  --primary: 160 13% 12%;
+  --primary-foreground: 150 20% 91%;
+  --secondary: 160 12% 15%;
+  --muted: 160 12% 15%;
+  --accent: 151 28% 70%;
+  --border: 158 12% 24%;
+  --input: 158 12% 24%;
+  --surface-warm: #121a18;
+  --surface-warm-rgb: 18, 26, 24;
+  color-scheme: dark;
 }
 
 html {
@@ -29,6 +47,73 @@ body {
   color: hsl(var(--foreground));
   background: hsl(var(--background));
   font-family: var(--font-body);
+  transition: background-color 220ms ease, color 220ms ease;
+}
+
+body,
+nav,
+aside,
+main,
+section,
+article,
+button,
+a,
+input,
+textarea,
+select {
+  transition-property: background-color, border-color, color, box-shadow, opacity, transform;
+  transition-duration: 220ms;
+  transition-timing-function: ease;
+}
+
+.dark .bg-white {
+  background-color: hsl(160 14% 12%);
+}
+
+.dark .bg-white\/80 {
+  background-color: hsl(160 14% 12% / 0.82);
+}
+
+.dark .bg-white\/85,
+.dark .bg-white\/90 {
+  background-color: hsl(160 14% 12% / 0.88);
+}
+
+.dark .bg-gray-50 {
+  background-color: hsl(160 13% 10%);
+}
+
+.dark .bg-gray-100 {
+  background-color: hsl(160 12% 15%);
+}
+
+.dark .bg-gray-200,
+.dark .bg-stone-200 {
+  background-color: hsl(160 10% 18%);
+}
+
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-300 {
+  border-color: hsl(158 12% 24%);
+}
+
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-gray-700 {
+  color: hsl(var(--foreground));
+}
+
+.dark .text-gray-600,
+.dark .text-gray-500,
+.dark .text-gray-400 {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .shadow-lg,
+.dark .shadow-xl,
+.dark .shadow-sm {
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3);
 }
 
 .landing-page {

@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { StarRating } from "@/components/ui/star-rating";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import type { TocItem } from "@/components/ui/pdf-viewer";
 
 // Dynamic import — react-pdf solo funciona en el cliente
@@ -259,7 +260,7 @@ export function ViewerLayout({
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background font-body">
       {/* ── Navbar del visor ── */}
-      <nav className="flex h-14 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6">
+      <nav className="flex h-14 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 dark:border-white/10 dark:bg-[#101816]">
         <div className="flex items-center gap-4">
           <Link href="/browse" className="text-lg font-bold tracking-tight text-foreground">
             apuntes<span className="text-accent-600">HUB</span>
@@ -274,8 +275,10 @@ export function ViewerLayout({
           </Link>
         </div>
 
-        <div className="hidden items-center md:flex">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-accent-600 to-accent-800 text-xs font-semibold text-white">
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+
+          <div className="hidden h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-accent-600 to-accent-800 text-xs font-semibold text-white md:flex">
             {userAvatarUrl ? (
               <Image
                 src={userAvatarUrl}

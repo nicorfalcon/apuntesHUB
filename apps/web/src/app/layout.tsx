@@ -23,14 +23,25 @@ export const metadata: Metadata = {
     "Marketplace de apuntes universitarios. Comprá y vendé resúmenes, guías y material de estudio con calidad garantizada.",
 };
 
+const themeScript = `
+  try {
+    const theme = localStorage.getItem("apunteshub-theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const resolvedTheme = theme === "dark" || (!theme && prefersDark) ? "dark" : "light";
+    document.documentElement.classList.toggle("dark", resolvedTheme === "dark");
+    document.documentElement.style.colorScheme = resolvedTheme;
+  } catch (_) {}
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <body className={`${inter.variable} ${instrumentSerif.variable} font-body antialiased`}>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <NavbarWrapper />
         <main>{children}</main>
         <Toaster richColors position="bottom-right" />

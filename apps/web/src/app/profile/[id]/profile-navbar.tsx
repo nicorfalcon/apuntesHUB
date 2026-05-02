@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import type { User } from "@supabase/supabase-js";
 import type { Profile } from "@/lib/database.types";
 
@@ -71,7 +72,7 @@ export function ProfileNavbar() {
     : "?";
 
   return (
-    <nav className="sticky top-0 z-50 flex h-14 shrink-0 items-center justify-between border-b border-gray-200 bg-white/80 backdrop-blur-md px-6">
+    <nav className="sticky top-0 z-50 flex h-14 shrink-0 items-center justify-between border-b border-gray-200 bg-white/80 px-6 backdrop-blur-md dark:border-white/10 dark:bg-[#101816]/85">
       {/* Izquierda: logo + separador + back link */}
       <div className="flex items-center gap-4">
         <Link href="/" className="text-lg font-bold tracking-tight text-foreground">
@@ -87,9 +88,12 @@ export function ProfileNavbar() {
         </Link>
       </div>
 
-      {/* Derecha: solo avatar */}
-      <div className="hidden items-center md:flex">
+      {/* Derecha: tema + cuenta */}
+      <div className="flex items-center gap-3">
         {user ? (
+          <>
+            <ThemeToggle />
+
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen((v) => !v)}
@@ -109,7 +113,7 @@ export function ProfileNavbar() {
               )}
             </button>
             {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 rounded-xl border border-gray-100 bg-white py-1 shadow-lg">
+              <div className="absolute right-0 mt-2 w-48 rounded-xl border border-gray-100 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-[#101816]">
                 <div className="border-b border-gray-100 px-3 py-2">
                   <p className="truncate text-sm font-medium">{profile?.display_name || "Mi cuenta"}</p>
                 </div>
@@ -122,8 +126,9 @@ export function ProfileNavbar() {
               </div>
             )}
           </div>
+          </>
         ) : (
-          <div className="ml-2 flex items-center gap-2">
+          <div className="ml-2 hidden items-center gap-2 md:flex">
             <Link href="/login" className="rounded-lg px-4 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100">
               Iniciar sesión
             </Link>
