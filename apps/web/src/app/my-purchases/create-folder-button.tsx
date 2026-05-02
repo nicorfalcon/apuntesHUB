@@ -53,7 +53,7 @@ export function CreateFolderButton({ variant = "default", className = "" }: Crea
       <button
         onClick={() => setOpen(true)}
         className={variant === "ghost"
-          ? `inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-accent-600 hover:bg-accent-50 transition-colors ${className}`
+          ? `inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-accent-600 transition-colors hover:bg-accent-50 dark:text-accent-300 dark:hover:bg-accent-300/10 ${className}`
           : `inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-700 ${className}`
         }
       >
@@ -65,33 +65,33 @@ export function CreateFolderButton({ variant = "default", className = "" }: Crea
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+          <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-[#0f1e1a]">
             <h2 className="text-lg font-bold text-foreground">Nueva carpeta</h2>
-            <p className="mt-1 text-sm text-gray-500">Organizá tus apuntes en carpetas temáticas.</p>
+            <p className="mt-1 text-sm text-gray-500 dark:text-sand-300/75">Organizá tus apuntes en carpetas temáticas.</p>
 
             <form onSubmit={handleCreate} className="mt-5 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Nombre</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-sand-100">Nombre</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ej: Cálculo II, Parciales 2025..."
                   maxLength={50}
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20"
+                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 dark:border-white/15 dark:bg-white/5 dark:text-sand-50 dark:placeholder:text-sand-300/45"
                   autoFocus
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-sand-100">Color</label>
                 <div className="flex flex-wrap gap-2">
                   {FOLDER_COLORS.map((c) => (
                     <button
                       key={c}
                       type="button"
                       onClick={() => setColor(c)}
-                      className={`h-7 w-7 rounded-full transition-transform hover:scale-110 ${color === c ? "ring-2 ring-offset-2 ring-gray-400 scale-110" : ""}`}
+                      className={`h-7 w-7 rounded-full transition-transform hover:scale-110 ${color === c ? "scale-110 ring-2 ring-gray-400 ring-offset-2 dark:ring-sand-200 dark:ring-offset-[#0f1e1a]" : ""}`}
                       style={{ backgroundColor: c }}
                     />
                   ))}
@@ -111,7 +111,7 @@ export function CreateFolderButton({ variant = "default", className = "" }: Crea
                 <button
                   type="button"
                   onClick={() => { setOpen(false); setName(""); setError(null); }}
-                  className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:text-sand-100 dark:hover:bg-white/5"
                 >
                   Cancelar
                 </button>

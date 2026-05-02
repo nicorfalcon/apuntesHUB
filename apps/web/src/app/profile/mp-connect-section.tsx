@@ -110,20 +110,20 @@ export function MpConnectSection({
     : null;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+    <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] dark:border-white/10 dark:bg-[#0f1e1a] dark:hover:shadow-black/30">
       {/* Header con gradiente celeste sutil */}
-      <div className="flex items-center gap-4 bg-gradient-to-r from-[#E8F6FD] to-white px-6 py-5">
+      <div className="flex items-center gap-4 bg-gradient-to-r from-[#E8F6FD] to-white px-6 py-5 dark:from-[#102a33] dark:to-[#0f1e1a]">
         <MercadoPagoLogo className="h-11 w-11 shrink-0 rounded-xl object-cover drop-shadow-sm" />
         <div>
           <h3 className="text-base font-semibold text-foreground">Mercado Pago</h3>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-sand-300/75">
             Conectá tu cuenta para recibir los pagos de tus apuntes.
           </p>
         </div>
       </div>
 
       {/* Separator */}
-      <div className="border-t border-gray-100" />
+      <div className="border-t border-gray-100 dark:border-white/10" />
 
       {/* Body */}
       <div className="px-6 py-5">
@@ -131,17 +131,17 @@ export function MpConnectSection({
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               {/* Badge conectado - pill style con dot animado */}
-              <div className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3.5 py-1.5">
+              <div className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3.5 py-1.5 dark:border-emerald-300/25 dark:bg-emerald-400/10">
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
                   <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
                 </span>
-                <span className="text-sm font-semibold text-green-700">Conectada</span>
+                <span className="text-sm font-semibold text-green-700 dark:text-emerald-200">Conectada</span>
               </div>
               {formattedDate && (
                 <>
-                  <span className="text-gray-300">·</span>
-                  <span className="text-xs text-gray-400">Desde {formattedDate}</span>
+                  <span className="text-gray-300 dark:text-sand-300/35">·</span>
+                  <span className="text-xs text-gray-400 dark:text-sand-300/70">Desde {formattedDate}</span>
                 </>
               )}
             </div>
@@ -150,7 +150,7 @@ export function MpConnectSection({
             <button
               onClick={handleDisconnect}
               disabled={disconnecting}
-              className="text-xs font-medium text-gray-400 transition-colors hover:text-red-500 disabled:opacity-50"
+              className="text-xs font-medium text-gray-400 transition-colors hover:text-red-500 disabled:opacity-50 dark:text-sand-300/65 dark:hover:text-red-300"
             >
               {disconnecting ? (
                 <span className="inline-flex items-center gap-1.5">
@@ -182,11 +182,11 @@ export function MpConnectSection({
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-start gap-2.5 rounded-xl bg-amber-50/60 border border-amber-200/60 px-4 py-3">
+            <div className="flex items-start gap-2.5 rounded-xl border border-amber-200/60 bg-amber-50/60 px-4 py-3 dark:border-amber-300/25 dark:bg-amber-300/10">
               <svg className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
-              <p className="text-sm text-amber-800">
+              <p className="text-sm text-amber-800 dark:text-amber-100">
                 Sin Mercado Pago conectado, los compradores no podrán adquirir tus apuntes.
               </p>
             </div>

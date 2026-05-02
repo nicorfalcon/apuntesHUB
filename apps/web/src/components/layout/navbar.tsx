@@ -82,7 +82,7 @@ export function Navbar() {
     : [{ href: "/browse", label: "Explorar" }];
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-gray-200 bg-white/80 backdrop-blur-md dark:border-white/10 dark:bg-[#101816]/85">
+    <nav className="sticky top-0 z-50 border-b border-gray-200 bg-white/80 backdrop-blur-md dark:border-white/10 dark:bg-[#071713]/90">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         {/* Logo */}
         <Link href="/" className="text-xl font-bold tracking-tight text-foreground">
@@ -97,7 +97,7 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`text-sm font-medium transition-colors ${isActive ? "text-accent-600" : "text-gray-500 hover:text-foreground"}`}
+                className={`text-sm font-medium transition-colors ${isActive ? "text-accent-600 dark:text-accent-300" : "text-gray-500 hover:text-foreground dark:text-sand-300/75 dark:hover:text-sand-50"}`}
               >
                 {link.label}
               </Link>
@@ -106,7 +106,7 @@ export function Navbar() {
           {user && (
             <Link
               href="/my-purchases"
-              className={`text-sm font-medium transition-colors ${pathname.startsWith("/my-purchases") ? "text-accent-600" : "text-gray-500 hover:text-foreground"}`}
+              className={`text-sm font-medium transition-colors ${pathname.startsWith("/my-purchases") ? "text-accent-600 dark:text-accent-300" : "text-gray-500 hover:text-foreground dark:text-sand-300/75 dark:hover:text-sand-50"}`}
             >
               Mis apuntes
             </Link>
@@ -114,7 +114,7 @@ export function Navbar() {
           {user && (
             <Link
               href={`/sell/new?from=${encodeURIComponent(pathname)}`}
-              className={`text-sm font-medium transition-colors ${pathname.startsWith("/sell") ? "text-accent-600" : "text-gray-500 hover:text-foreground"}`}
+              className={`text-sm font-medium transition-colors ${pathname.startsWith("/sell") ? "text-accent-600 dark:text-accent-300" : "text-gray-500 hover:text-foreground dark:text-sand-300/75 dark:hover:text-sand-50"}`}
             >
               Vender
             </Link>
@@ -147,34 +147,34 @@ export function Navbar() {
               </button>
 
               {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 rounded-xl border border-gray-100 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-[#101816]">
-                  <div className="border-b border-gray-100 px-3 py-2">
-                    <p className="truncate text-sm font-medium">{profile?.display_name || "Mi cuenta"}</p>
+                <div className="absolute right-0 mt-2 w-48 overflow-hidden rounded-xl border border-gray-100 bg-white py-1 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#071713] dark:shadow-black/35">
+                  <div className="border-b border-gray-100 px-3 py-2 dark:border-white/10">
+                    <p className="truncate text-sm font-medium text-gray-900 dark:text-sand-50">{profile?.display_name || "Mi cuenta"}</p>
                   </div>
                   <Link
                     href="/profile"
                     onClick={() => setDropdownOpen(false)}
-                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-sand-100 dark:hover:bg-white/10"
                   >
                     Mi perfil
                   </Link>
                   <Link
                     href="/sell/dashboard"
                     onClick={() => setDropdownOpen(false)}
-                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-sand-100 dark:hover:bg-white/10"
                   >
                     Panel de ventas
                   </Link>
                   <Link
                     href="/reputation"
                     onClick={() => setDropdownOpen(false)}
-                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-sand-100 dark:hover:bg-white/10"
                   >
                     Reputación
                   </Link>
                   <button
                     onClick={handleSignOut}
-                    className="w-full border-t border-gray-100 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                    className="w-full border-t border-gray-100 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:border-white/10 dark:text-red-300 dark:hover:bg-red-500/10"
                   >
                     Cerrar sesión
                   </button>
@@ -186,7 +186,7 @@ export function Navbar() {
             <div className="hidden items-center gap-2 md:flex">
               <Link
                 href="/login"
-                className="rounded-lg px-4 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
+                className="rounded-lg px-4 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:text-sand-100 dark:hover:bg-white/10"
               >
                 Iniciar sesión
               </Link>
@@ -214,7 +214,7 @@ export function Navbar() {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="border-t border-gray-100 bg-white px-4 pb-4 md:hidden dark:border-white/10 dark:bg-[#101816]">
+        <div className="border-t border-gray-100 bg-white px-4 pb-4 md:hidden dark:border-white/10 dark:bg-[#071713]">
           {navLinks.map((link) => {
             const isActive = pathname === link.href;
             return (
@@ -222,7 +222,7 @@ export function Navbar() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
-                className={`block py-2 text-sm font-medium transition-colors ${isActive ? "text-accent-600" : "text-gray-600"}`}
+                className={`block py-2 text-sm font-medium transition-colors ${isActive ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}
               >
                 {link.label}
               </Link>
@@ -230,14 +230,14 @@ export function Navbar() {
           })}
           {user ? (
             <>
-              <Link href="/profile" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname === "/profile" ? "text-accent-600" : "text-gray-600"}`}>Mi perfil</Link>
-              <Link href="/my-purchases" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname.startsWith("/my-purchases") ? "text-accent-600" : "text-gray-600"}`}>Mis apuntes</Link>
-              <Link href="/sell/dashboard" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname === "/sell/dashboard" ? "text-accent-600" : "text-gray-600"}`}>Panel de ventas</Link>
-              <Link href="/reputation" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname === "/reputation" ? "text-accent-600" : "text-gray-600"}`}>Reputación</Link>
-              <Link href={`/sell/new?from=${encodeURIComponent(pathname)}`} onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname.startsWith("/sell") ? "text-accent-600" : "text-gray-600"}`}>Vender</Link>
+              <Link href="/profile" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname === "/profile" ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}>Mi perfil</Link>
+              <Link href="/my-purchases" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname.startsWith("/my-purchases") ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}>Mis apuntes</Link>
+              <Link href="/sell/dashboard" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname === "/sell/dashboard" ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}>Panel de ventas</Link>
+              <Link href="/reputation" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname === "/reputation" ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}>Reputación</Link>
+              <Link href={`/sell/new?from=${encodeURIComponent(pathname)}`} onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname.startsWith("/sell") ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}>Vender</Link>
               <button
                 onClick={() => { setMenuOpen(false); handleSignOut(); }}
-                className="mt-2 w-full rounded-lg border border-red-200 py-2 text-sm font-medium text-red-600"
+                className="mt-2 w-full rounded-lg border border-red-200 py-2 text-sm font-medium text-red-600 dark:border-red-400/30 dark:text-red-300"
               >
                 Cerrar sesión
               </button>
@@ -247,7 +247,7 @@ export function Navbar() {
               <Link
                 href="/login"
                 onClick={() => setMenuOpen(false)}
-                className="block py-2 text-sm text-gray-600"
+                className="block py-2 text-sm text-gray-600 dark:text-sand-300/75"
               >
                 Iniciar sesión
               </Link>

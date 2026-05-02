@@ -83,28 +83,28 @@ export function PurchaseActionsMenu({
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-label="Más acciones"
-        className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-50 hover:text-foreground"
+        className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-50 hover:text-foreground dark:border-white/10 dark:text-sand-300/70 dark:hover:bg-white/5 dark:hover:text-sand-50"
       >
         <MoreVertical className="h-4 w-4" />
       </button>
 
       {open && (
-        <div className="absolute bottom-full right-0 z-20 mb-2 w-56 overflow-hidden rounded-xl border border-gray-100 bg-white py-1 shadow-lg">
+        <div className="absolute bottom-full right-0 z-20 mb-2 w-56 overflow-hidden rounded-xl border border-gray-100 bg-white py-1 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#071713] dark:shadow-black/35">
           <button
             type="button"
             onClick={openReview}
             disabled={fetchingReview}
-            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-60"
+            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:text-sand-100 dark:hover:bg-white/5"
           >
             <Star className="h-4 w-4 text-accent-600" />
             <span className="flex-1">{existingReview ? "Editar reseña" : "Reseñar"}</span>
             {fetchingReview && <span className="h-3 w-3 animate-spin rounded-full border-2 border-accent-600 border-t-transparent" />}
           </button>
 
-          <div className="my-1 border-t border-gray-100" />
+          <div className="my-1 border-t border-gray-100 dark:border-white/10" />
 
           {folders.length === 0 ? (
-            <div className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-400">
+            <div className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-400 dark:text-sand-300/65">
               <FolderPlus className="h-4 w-4" />
               Sin carpetas creadas
             </div>
@@ -118,12 +118,12 @@ export function PurchaseActionsMenu({
                   type="button"
                   onClick={() => toggleFolder(folder.id)}
                   disabled={isLoading}
-                  className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-gray-50 disabled:opacity-60"
+                  className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-gray-50 disabled:opacity-60 dark:hover:bg-white/5"
                 >
                   <span className="flex h-6 w-6 items-center justify-center rounded-md" style={{ backgroundColor: folder.color + "24" }}>
                     <FolderPlus className="h-4 w-4" style={{ color: folder.color }} />
                   </span>
-                  <span className={`flex-1 truncate ${inFolder ? "font-medium text-accent-600" : "text-gray-700"}`}>{folder.name}</span>
+                  <span className={`flex-1 truncate ${inFolder ? "font-medium text-accent-600 dark:text-accent-300" : "text-gray-700 dark:text-sand-100"}`}>{folder.name}</span>
                   {inFolder && <Check className="h-4 w-4 text-accent-600" />}
                   {isLoading && <span className="h-3 w-3 animate-spin rounded-full border-2 border-accent-600 border-t-transparent" />}
                 </button>

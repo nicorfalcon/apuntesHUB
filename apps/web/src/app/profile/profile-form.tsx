@@ -95,16 +95,16 @@ export function ProfileForm({ userId, profile }: ProfileFormProps) {
   const avatarSrc = avatarPreview ?? profile?.avatar_url ?? null;
 
   const inputClass =
-    "w-full rounded-xl border border-gray-200/80 bg-white px-3.5 py-2.5 text-sm text-gray-900 outline-none transition-all focus:border-accent-400 focus:ring-2 focus:ring-accent-200/40 placeholder:text-gray-400";
-  const labelClass = "mb-1.5 block text-sm font-medium text-gray-700";
+    "w-full rounded-xl border border-gray-200/80 bg-white px-3.5 py-2.5 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-accent-400 focus:ring-2 focus:ring-accent-200/40 dark:border-white/15 dark:bg-white/5 dark:text-sand-50 dark:placeholder:text-sand-300/45 dark:focus:border-accent-300 dark:focus:ring-accent-300/15";
+  const labelClass = "mb-1.5 block text-sm font-medium text-gray-700 dark:text-sand-100";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* Profile block */}
-      <div className="flex items-center gap-5 rounded-2xl border border-accent-200/60 bg-gradient-to-br from-accent-50 to-white px-6 py-5">
+      <div className="flex items-center gap-5 rounded-2xl border border-accent-200/60 bg-gradient-to-br from-accent-50 to-white px-6 py-5 dark:border-white/10 dark:from-[#153026] dark:to-[#0f1e1a]">
         {/* Avatar with pencil button */}
         <div className="relative shrink-0">
-          <div className="h-[88px] w-[88px] overflow-hidden rounded-full ring-[3px] ring-accent-200/60 ring-offset-2 ring-offset-white">
+          <div className="h-[88px] w-[88px] overflow-hidden rounded-full ring-[3px] ring-accent-200/60 ring-offset-2 ring-offset-white dark:ring-accent-300/35 dark:ring-offset-[#0f1e1a]">
             {avatarSrc ? (
               <Image
                 src={avatarSrc}
@@ -127,7 +127,7 @@ export function ProfileForm({ userId, profile }: ProfileFormProps) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             aria-label="Cambiar foto de perfil"
-            className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border-[3px] border-white bg-[#1B5E45] text-white shadow-md transition-all hover:bg-[#155038] hover:scale-110"
+            className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full border-[3px] border-white bg-[#1B5E45] text-white shadow-md transition-all hover:scale-110 hover:bg-[#155038] dark:border-[#0f1e1a]"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -150,7 +150,7 @@ export function ProfileForm({ userId, profile }: ProfileFormProps) {
 
         {/* Name + badge + member since */}
         <div>
-          <p className="text-lg font-semibold text-gray-900">
+          <p className="text-lg font-semibold text-gray-900 dark:text-sand-50">
             {form.display_name || "Sin nombre"}
           </p>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -161,7 +161,7 @@ export function ProfileForm({ userId, profile }: ProfileFormProps) {
               Verificado
             </span>
             {memberSince && (
-              <span className="text-xs text-gray-400">Miembro desde {memberSince}</span>
+              <span className="text-xs text-gray-400 dark:text-sand-300/65">Miembro desde {memberSince}</span>
             )}
           </div>
         </div>
@@ -244,11 +244,11 @@ export function ProfileForm({ userId, profile }: ProfileFormProps) {
       )}
 
       {/* Footer */}
-      <div className="flex justify-end gap-3 border-t border-gray-100 pt-6">
+      <div className="flex justify-end gap-3 border-t border-gray-100 pt-6 dark:border-white/10">
         <button
           type="button"
           onClick={() => router.back()}
-          className="rounded-xl px-4 py-2.5 text-sm font-medium text-gray-500 transition-colors hover:text-gray-700 hover:bg-gray-100"
+          className="rounded-xl px-4 py-2.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-sand-300/75 dark:hover:bg-white/5 dark:hover:text-sand-50"
         >
           Cancelar
         </button>

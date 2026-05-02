@@ -16,7 +16,7 @@ function BookOpenIcon() {
 
 function DocumentIcon() {
   return (
-    <svg className="h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
+    <svg className="h-12 w-12 text-gray-300 dark:text-sand-300/35" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
     </svg>
   );
@@ -52,10 +52,10 @@ export function PurchaseCard({ purchase, folders }: PurchaseCardProps) {
           router.push(viewHref);
         }
       }}
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-accent-600 focus:ring-offset-2"
+      className="group flex cursor-pointer flex-col rounded-2xl border border-gray-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-accent-600 focus:ring-offset-2 dark:border-white/10 dark:bg-[#0f1e1a] dark:hover:border-accent-300/25 dark:hover:shadow-black/30 dark:focus:ring-accent-300 dark:focus:ring-offset-[#071713]"
     >
       {/* Imagen / placeholder */}
-      <div className="relative h-44 w-full shrink-0 overflow-hidden bg-gray-50">
+      <div className="relative h-44 w-full shrink-0 overflow-hidden rounded-t-2xl bg-gray-50 dark:bg-white/5">
         {resume?.preview_url ? (
           <Image
             src={resume.preview_url}
@@ -83,21 +83,21 @@ export function PurchaseCard({ purchase, folders }: PurchaseCardProps) {
           <h3 className="line-clamp-2 text-base font-semibold leading-snug text-foreground">
             {resume?.title ?? "Sin título"}
           </h3>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-gray-500 dark:text-sand-300/75">
             por {resume?.profiles?.display_name ?? "—"}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {resume?.subject && (
-              <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{resume.subject}</span>
+              <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-white/10 dark:text-sand-200">{resume.subject}</span>
             )}
             {resume?.university && (
-              <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{resume.university}</span>
+              <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-white/10 dark:text-sand-200">{resume.university}</span>
             )}
           </div>
         </div>
 
         {/* Meta */}
-        <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3 text-xs text-gray-400">
+        <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3 text-xs text-gray-400 dark:border-white/10 dark:text-sand-300/65">
           <span>
             {new Date(purchase.created_at).toLocaleDateString("es-AR", {
               day: "numeric", month: "short", year: "numeric",

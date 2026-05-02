@@ -71,7 +71,7 @@ interface Strength {
 }
 
 function evaluateStrength(pw: string): Strength {
-  if (!pw) return { score: 0, label: "Ingresá una contraseña", colorClass: "bg-gray-200" };
+  if (!pw) return { score: 0, label: "Ingresá una contraseña", colorClass: "bg-gray-200 dark:bg-white/10" };
   let score = 0;
   if (pw.length >= 8) score++;
   if (pw.length >= 12) score++;
@@ -255,22 +255,22 @@ export function SecuritySection({ email, hasPassword }: SecuritySectionProps) {
   }
 
   const inputClass =
-    "w-full rounded-xl border border-gray-200/80 bg-white px-3.5 py-2.5 pr-10 text-sm text-gray-900 outline-none transition-all focus:border-accent-400 focus:ring-2 focus:ring-accent-200/40 placeholder:text-gray-400";
-  const labelClass = "mb-1.5 block text-sm font-medium text-gray-700";
+    "w-full rounded-xl border border-gray-200/80 bg-white px-3.5 py-2.5 pr-10 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-accent-400 focus:ring-2 focus:ring-accent-200/40 dark:border-white/15 dark:bg-white/5 dark:text-sand-50 dark:placeholder:text-sand-300/45 dark:focus:border-accent-300 dark:focus:ring-accent-300/15";
+  const labelClass = "mb-1.5 block text-sm font-medium text-gray-700 dark:text-sand-100";
 
   return (
     <div className="space-y-8">
       {/* Card: Contraseña */}
-      <section className="rounded-2xl border border-gray-200/80 bg-white p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+      <section className="rounded-2xl border border-gray-200/80 bg-white p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:border-white/10 dark:bg-[#0f1e1a]">
         <div className="flex items-start gap-4">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-700">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-200">
             <KeyRound className="h-5 w-5" strokeWidth={1.8} />
           </span>
           <div>
             <h2 className="text-lg font-bold tracking-tight text-foreground">
               {hasPassword ? "Cambiar contraseña" : "Establecer contraseña"}
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-gray-500 dark:text-sand-300/75">
               {hasPassword
                 ? "Actualizá tu contraseña periódicamente. Te recomendamos usar una combinación única que no uses en otros sitios."
                 : "Tu cuenta se creó con Google. Si querés también poder ingresar con email y contraseña, establecé una acá."}
@@ -299,7 +299,7 @@ export function SecuritySection({ email, hasPassword }: SecuritySectionProps) {
                   type="button"
                   aria-label={showCurrent ? "Ocultar" : "Mostrar"}
                   onClick={() => setShowCurrent((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-sand-300/60 dark:hover:text-sand-50"
                 >
                   {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -315,7 +315,7 @@ export function SecuritySection({ email, hasPassword }: SecuritySectionProps) {
               <button
                 type="button"
                 onClick={handleGenerate}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent-700 transition-colors hover:text-accent-800"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent-700 transition-colors hover:text-accent-800 dark:text-accent-300 dark:hover:text-accent-200"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 Sugerir segura
@@ -338,7 +338,7 @@ export function SecuritySection({ email, hasPassword }: SecuritySectionProps) {
                     type="button"
                     aria-label="Copiar"
                     onClick={handleCopy}
-                    className="rounded p-1 text-gray-400 hover:text-gray-600"
+                    className="rounded p-1 text-gray-400 hover:text-gray-600 dark:text-sand-300/60 dark:hover:text-sand-50"
                   >
                     {justGenerated ? <Check className="h-4 w-4 text-accent-600" /> : <Copy className="h-4 w-4" />}
                   </button>
@@ -347,7 +347,7 @@ export function SecuritySection({ email, hasPassword }: SecuritySectionProps) {
                   type="button"
                   aria-label={showNew ? "Ocultar" : "Mostrar"}
                   onClick={() => setShowNew((v) => !v)}
-                  className="rounded p-1 text-gray-400 hover:text-gray-600"
+                  className="rounded p-1 text-gray-400 hover:text-gray-600 dark:text-sand-300/60 dark:hover:text-sand-50"
                 >
                   {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -361,12 +361,12 @@ export function SecuritySection({ email, hasPassword }: SecuritySectionProps) {
                   <div
                     key={seg}
                     className={`h-full flex-1 rounded-full transition-colors ${
-                      seg <= strength.score ? strength.colorClass : "bg-gray-200"
+                      seg <= strength.score ? strength.colorClass : "bg-gray-200 dark:bg-white/10"
                     }`}
                   />
                 ))}
               </div>
-              <p className="mt-1.5 text-xs text-gray-500">{strength.label}</p>
+              <p className="mt-1.5 text-xs text-gray-500 dark:text-sand-300/70">{strength.label}</p>
             </div>
           </div>
 
@@ -390,7 +390,7 @@ export function SecuritySection({ email, hasPassword }: SecuritySectionProps) {
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
           )}
 
-          <div className="flex justify-end border-t border-gray-100 pt-5">
+          <div className="flex justify-end border-t border-gray-100 pt-5 dark:border-white/10">
             <button
               type="submit"
               disabled={loading}
@@ -408,31 +408,31 @@ export function SecuritySection({ email, hasPassword }: SecuritySectionProps) {
       </section>
 
       {/* Card: Dispositivos conectados */}
-      <section className="rounded-2xl border border-gray-200/80 bg-white p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+      <section className="rounded-2xl border border-gray-200/80 bg-white p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:border-white/10 dark:bg-[#0f1e1a]">
         <div className="flex items-start gap-4">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-700">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-200">
             <Monitor className="h-5 w-5" strokeWidth={1.8} />
           </span>
           <div className="flex-1">
             <h2 className="text-lg font-bold tracking-tight text-foreground">
               Dispositivos conectados
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-gray-500 dark:text-sand-300/75">
               Sólo se permiten 2 dispositivos activos por cuenta. Si querés usar uno nuevo,
               revocá alguno desde acá.
             </p>
 
             <div className="mt-5">
               {devicesLoading ? (
-                <p className="text-sm text-gray-400">Cargando dispositivos...</p>
+                <p className="text-sm text-gray-400 dark:text-sand-300/65">Cargando dispositivos...</p>
               ) : !devices || devices.length === 0 ? (
-                <p className="text-sm text-gray-400">No hay dispositivos registrados.</p>
+                <p className="text-sm text-gray-400 dark:text-sand-300/65">No hay dispositivos registrados.</p>
               ) : (
                 <ul className="space-y-2">
                   {devices.map((d) => (
                     <li
                       key={d.id}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-gray-200/80 bg-gray-50/50 px-4 py-3"
+                      className="flex items-center justify-between gap-3 rounded-xl border border-gray-200/80 bg-gray-50/50 px-4 py-3 dark:border-white/10 dark:bg-white/5"
                     >
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -440,12 +440,12 @@ export function SecuritySection({ email, hasPassword }: SecuritySectionProps) {
                             {d.label ?? "Dispositivo desconocido"}
                           </span>
                           {d.is_current && (
-                            <span className="inline-flex rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-semibold text-accent-700 ring-1 ring-inset ring-accent-200/60">
+                            <span className="inline-flex rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-semibold text-accent-700 ring-1 ring-inset ring-accent-200/60 dark:bg-accent-300/15 dark:text-accent-200 dark:ring-accent-300/25">
                               Este dispositivo
                             </span>
                           )}
                         </div>
-                        <p className="mt-0.5 text-xs text-gray-400">
+                        <p className="mt-0.5 text-xs text-gray-400 dark:text-sand-300/60">
                           Última conexión {formatRelative(d.last_seen_at)}
                         </p>
                       </div>
@@ -453,7 +453,7 @@ export function SecuritySection({ email, hasPassword }: SecuritySectionProps) {
                         type="button"
                         onClick={() => handleRevokeDevice(d)}
                         disabled={d.is_current || revokingId === d.id}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:bg-white disabled:hover:text-gray-600"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-gray-200 disabled:hover:bg-white disabled:hover:text-gray-600 dark:border-white/10 dark:bg-white/5 dark:text-sand-100 dark:hover:border-red-300/35 dark:hover:bg-red-500/10 dark:hover:text-red-200 dark:disabled:hover:border-white/10 dark:disabled:hover:bg-white/5 dark:disabled:hover:text-sand-100"
                       >
                         <X className="h-3.5 w-3.5" />
                         {revokingId === d.id ? "Revocando..." : "Revocar"}
@@ -462,7 +462,7 @@ export function SecuritySection({ email, hasPassword }: SecuritySectionProps) {
                   ))}
                 </ul>
               )}
-              <p className="mt-3 text-xs text-gray-400">
+              <p className="mt-3 text-xs text-gray-400 dark:text-sand-300/60">
                 Al revocar un dispositivo, su sesión se invalida y va a quedar deslogueado en su próxima navegación.
               </p>
             </div>
@@ -471,16 +471,16 @@ export function SecuritySection({ email, hasPassword }: SecuritySectionProps) {
       </section>
 
       {/* Card: Sesiones */}
-      <section className="rounded-2xl border border-gray-200/80 bg-white p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+      <section className="rounded-2xl border border-gray-200/80 bg-white p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:border-white/10 dark:bg-[#0f1e1a]">
         <div className="flex items-start gap-4">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-700">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-200">
             <LogOut className="h-5 w-5" strokeWidth={1.8} />
           </span>
           <div className="flex-1">
             <h2 className="text-lg font-bold tracking-tight text-foreground">
               Sesiones activas
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-gray-500 dark:text-sand-300/75">
               Si perdiste un dispositivo o sospechás que alguien accedió a tu cuenta, cerrá sesión en
               todos lados. Vas a tener que volver a iniciar sesión en este navegador también.
             </p>
@@ -488,7 +488,7 @@ export function SecuritySection({ email, hasPassword }: SecuritySectionProps) {
               type="button"
               onClick={handleSignOutEverywhere}
               disabled={signingOutAll}
-              className="mt-5 inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60 dark:border-red-300/30 dark:bg-red-500/10 dark:text-red-200 dark:hover:bg-red-500/15"
             >
               <LogOut className="h-4 w-4" />
               {signingOutAll ? "Cerrando sesiones..." : "Cerrar sesión en todos los dispositivos"}

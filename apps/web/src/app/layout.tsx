@@ -3,6 +3,7 @@ import { Instrument_Serif, Inter } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 import { NavbarWrapper } from "@/components/layout/navbar-wrapper";
+import { ThemeRouteGuard } from "@/components/theme/theme-route-guard";
 
 const instrumentSerif = Instrument_Serif({
   subsets: ["latin"],
@@ -25,8 +26,10 @@ export const metadata: Metadata = {
 
 const themeScript = `
   try {
-    const theme = localStorage.getItem("apunteshub-theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const publicLightPaths = ["/", "/login", "/register", "/forgot-password", "/reset-password"];
+    const isPublicLightPath = publicLightPaths.includes(window.location.pathname);
+    const theme = isPublicLightPath ? "light" : localStorage.getItem("apunteshub-theme");
+    const prefersDark = !isPublicLightPath && window.matchMedia("(prefers-color-scheme: dark)").matches;
     const resolvedTheme = theme === "dark" || (!theme && prefersDark) ? "dark" : "light";
     document.documentElement.classList.toggle("dark", resolvedTheme === "dark");
     document.documentElement.style.colorScheme = resolvedTheme;
@@ -42,6 +45,7 @@ export default function RootLayout({
     <html lang="es" suppressHydrationWarning>
       <body className={`${inter.variable} ${instrumentSerif.variable} font-body antialiased`}>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <ThemeRouteGuard />
         <NavbarWrapper />
         <main>{children}</main>
         <Toaster richColors position="bottom-right" />

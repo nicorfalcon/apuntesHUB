@@ -29,12 +29,12 @@ export default async function MisApuntesPage() {
   const folderList = (folders as FolderWithItems[]) ?? [];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <div>
         <div className="mx-auto max-w-5xl px-4 py-10">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Mis apuntes</h1>
-          <p className="mt-1.5 text-sm text-gray-500">Accedé y organizá todos los apuntes que compraste.</p>
+          <p className="mt-1.5 text-sm text-gray-500 dark:text-sand-300/75">Accedé y organizá todos los apuntes que compraste.</p>
         </div>
       </div>
 
@@ -46,8 +46,8 @@ export default async function MisApuntesPage() {
             <CreateFolderButton />
           </div>
           {folderList.length === 0 ? (
-            <div className="rounded-2xl border-2 border-dashed border-gray-200 p-8 text-center">
-              <p className="text-sm text-gray-400">Creá carpetas para organizar tus apuntes por materia o tema.</p>
+            <div className="rounded-2xl border-2 border-dashed border-gray-200 p-8 text-center dark:border-white/15">
+              <p className="text-sm text-gray-400 dark:text-sand-300/65">Creá carpetas para organizar tus apuntes por materia o tema.</p>
               <CreateFolderButton variant="ghost" className="mt-3" />
             </div>
           ) : (
@@ -64,11 +64,11 @@ export default async function MisApuntesPage() {
           <h2 className="mb-4 text-lg font-semibold text-foreground">Todos mis apuntes</h2>
           {list.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <svg className="h-16 w-16 text-gray-200" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
+              <svg className="h-16 w-16 text-gray-200 dark:text-sand-300/30" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007Z" />
               </svg>
               <h3 className="mt-4 text-lg font-semibold text-foreground">Todavía no compraste ningún apunte</h3>
-              <p className="mt-2 max-w-sm text-sm text-gray-500">Explorá el marketplace y encontrá el material que necesitás para tus materias.</p>
+              <p className="mt-2 max-w-sm text-sm text-gray-500 dark:text-sand-300/75">Explorá el marketplace y encontrá el material que necesitás para tus materias.</p>
               <Link href="/browse" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700">
                 Explorar apuntes
               </Link>

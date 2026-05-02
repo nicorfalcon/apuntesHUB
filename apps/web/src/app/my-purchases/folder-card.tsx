@@ -46,12 +46,12 @@ export function FolderCard({ folder }: FolderCardProps) {
 
   return (
     <>
-      <div className="group relative flex flex-col rounded-2xl border border-gray-200 bg-white p-4 transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer">
+      <div className="group relative flex cursor-pointer flex-col rounded-2xl border border-gray-200 bg-white p-4 transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-[#0f1e1a] dark:hover:border-accent-300/25 dark:hover:shadow-black/30">
         {/* Menu contextual */}
         <div className="absolute right-2 top-2 z-10">
           <button
             onClick={(e) => { e.preventDefault(); setMenuOpen((v) => !v); }}
-            className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-100"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 group-hover:opacity-100 dark:text-sand-300/65 dark:hover:bg-white/5 dark:hover:text-sand-50"
           >
             <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
               <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
@@ -59,18 +59,18 @@ export function FolderCard({ folder }: FolderCardProps) {
           </button>
           {menuOpen && (
             <div
-              className="absolute right-0 mt-1 w-40 rounded-xl border border-gray-100 bg-white py-1 shadow-lg"
+              className="absolute right-0 mt-1 w-40 overflow-hidden rounded-xl border border-gray-100 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-[#071713]"
               onMouseLeave={() => setMenuOpen(false)}
             >
               <button
                 onClick={() => { setMenuOpen(false); setEditOpen(true); }}
-                className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 dark:text-sand-100 dark:hover:bg-white/5"
               >
                 Editar
               </button>
               <button
                 onClick={() => { setMenuOpen(false); setDeleteOpen(true); }}
-                className="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                className="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10"
               >
                 Eliminar
               </button>
@@ -87,7 +87,7 @@ export function FolderCard({ folder }: FolderCardProps) {
           </div>
           <div>
             <p className="font-semibold text-sm text-foreground line-clamp-1">{folder.name}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{count} {count === 1 ? "apunte" : "apuntes"}</p>
+            <p className="mt-0.5 text-xs text-gray-400 dark:text-sand-300/65">{count} {count === 1 ? "apunte" : "apuntes"}</p>
           </div>
         </Link>
       </div>
@@ -95,26 +95,26 @@ export function FolderCard({ folder }: FolderCardProps) {
       {/* Modal editar */}
       {editOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={(e) => e.target === e.currentTarget && setEditOpen(false)}>
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+          <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-[#0f1e1a]">
             <h2 className="text-lg font-bold text-foreground">Editar carpeta</h2>
             <form onSubmit={handleEdit} className="mt-5 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Nombre</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-sand-100">Nombre</label>
                 <input
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   maxLength={50}
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20"
+                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 dark:border-white/15 dark:bg-white/5 dark:text-sand-50"
                   autoFocus
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-sand-100">Color</label>
                 <div className="flex flex-wrap gap-2">
                   {FOLDER_COLORS.map((c) => (
                     <button key={c} type="button" onClick={() => setEditColor(c)}
-                      className={`h-7 w-7 rounded-full transition-transform hover:scale-110 ${editColor === c ? "ring-2 ring-offset-2 ring-gray-400 scale-110" : ""}`}
+                      className={`h-7 w-7 rounded-full transition-transform hover:scale-110 ${editColor === c ? "scale-110 ring-2 ring-gray-400 ring-offset-2 dark:ring-sand-200 dark:ring-offset-[#0f1e1a]" : ""}`}
                       style={{ backgroundColor: c }}
                     />
                   ))}
@@ -124,7 +124,7 @@ export function FolderCard({ folder }: FolderCardProps) {
                 <button type="submit" disabled={loading} className="flex-1 rounded-lg bg-accent-600 py-2.5 text-sm font-semibold text-white hover:bg-accent-700 disabled:opacity-60">
                   {loading ? "Guardando..." : "Guardar"}
                 </button>
-                <button type="button" onClick={() => setEditOpen(false)} className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <button type="button" onClick={() => setEditOpen(false)} className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:text-sand-100 dark:hover:bg-white/5">
                   Cancelar
                 </button>
               </div>
@@ -136,14 +136,14 @@ export function FolderCard({ folder }: FolderCardProps) {
       {/* Modal eliminar */}
       {deleteOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={(e) => e.target === e.currentTarget && setDeleteOpen(false)}>
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+          <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-[#0f1e1a]">
             <h2 className="text-lg font-bold text-foreground">¿Eliminar carpeta?</h2>
-            <p className="mt-2 text-sm text-gray-500">Se eliminará la carpeta <strong>&quot;{folder.name}&quot;</strong>. Los apuntes que contiene no se eliminan.</p>
+            <p className="mt-2 text-sm text-gray-500 dark:text-sand-300/75">Se eliminará la carpeta <strong>&quot;{folder.name}&quot;</strong>. Los apuntes que contiene no se eliminan.</p>
             <div className="mt-5 flex gap-3">
               <button onClick={handleDelete} disabled={loading} className="flex-1 rounded-lg bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60">
                 {loading ? "Eliminando..." : "Eliminar"}
               </button>
-              <button onClick={() => setDeleteOpen(false)} className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+              <button onClick={() => setDeleteOpen(false)} className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:text-sand-100 dark:hover:bg-white/5">
                 Cancelar
               </button>
             </div>

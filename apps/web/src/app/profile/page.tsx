@@ -27,10 +27,10 @@ export default async function ProfilePage() {
   const hasPassword = (user.identities ?? []).some((i) => i.provider === "email");
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-16">
+    <div className="mx-auto min-h-screen max-w-6xl px-4 py-16">
       <header className="mb-10 lg:ml-72">
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Mi perfil</h1>
-        <p className="mt-2 text-sm text-gray-400">
+        <p className="mt-2 text-sm text-gray-500 dark:text-sand-300/75">
           Actualizá tu información pública.
         </p>
       </header>

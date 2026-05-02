@@ -101,11 +101,11 @@ export function ReviewForm({ purchaseId, resumeId, sellerId, existingReview, onC
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-[#0f1e1a]">
         <h2 className="text-lg font-bold text-foreground">
           {isEditing ? "Editar reseña" : "Dejar reseña"}
         </h2>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-gray-500 dark:text-sand-300/75">
           {isEditing
             ? "Podés cambiar tu calificación o comentario."
             : "Tu opinión ayuda a otros estudiantes a elegir mejor."}
@@ -113,7 +113,7 @@ export function ReviewForm({ purchaseId, resumeId, sellerId, existingReview, onC
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-5">
           <div>
-            <p className="text-sm font-medium text-gray-700">Calificación *</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-sand-100">Calificación *</p>
             <div className="mt-2 flex gap-1">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
@@ -125,7 +125,7 @@ export function ReviewForm({ purchaseId, resumeId, sellerId, existingReview, onC
                   className="p-0.5 focus:outline-none"
                 >
                   <svg
-                    className={`h-8 w-8 transition-colors ${star <= (hovered || rating) ? "text-amber-400" : "text-gray-200"}`}
+                    className={`h-8 w-8 transition-colors ${star <= (hovered || rating) ? "text-amber-400" : "text-gray-200 dark:text-white/10"}`}
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
@@ -137,7 +137,7 @@ export function ReviewForm({ purchaseId, resumeId, sellerId, existingReview, onC
           </div>
 
           <div>
-            <label htmlFor="comment" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="comment" className="block text-sm font-medium text-gray-700 dark:text-sand-100">
               Comentario (opcional)
             </label>
             <textarea
@@ -147,7 +147,7 @@ export function ReviewForm({ purchaseId, resumeId, sellerId, existingReview, onC
               rows={3}
               maxLength={500}
               placeholder="¿Qué te pareció el apunte?"
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20"
+              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 dark:border-white/15 dark:bg-white/5 dark:text-sand-50 dark:placeholder:text-sand-300/45"
             />
           </div>
 
@@ -164,7 +164,7 @@ export function ReviewForm({ purchaseId, resumeId, sellerId, existingReview, onC
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:text-sand-100 dark:hover:bg-white/5"
             >
               Cancelar
             </button>

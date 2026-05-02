@@ -56,15 +56,15 @@ function ComingSoonPanel({
   backendNote: string;
 }) {
   return (
-    <section className="rounded-2xl border border-gray-200/80 bg-white p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+    <section className="rounded-2xl border border-gray-200/80 bg-white p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:border-white/10 dark:bg-[#0f1e1a]">
       <div className="max-w-xl">
         <p className="inline-flex rounded-full bg-accent-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-accent-700">
           Próximamente
         </p>
         <h2 className="mt-4 text-xl font-bold tracking-tight text-foreground">{title}</h2>
-        <p className="mt-2 text-sm leading-6 text-gray-500">{description}</p>
-        <div className="mt-6 rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3">
-          <p className="text-sm text-gray-500">{backendNote}</p>
+        <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-sand-300/75">{description}</p>
+        <div className="mt-6 rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 dark:border-white/15 dark:bg-white/5">
+          <p className="text-sm text-gray-500 dark:text-sand-300/75">{backendNote}</p>
         </div>
       </div>
     </section>
@@ -84,7 +84,7 @@ export function ProfileSettingsShell({
 
   return (
     <div className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start">
-      <aside className="rounded-2xl border border-gray-200/80 bg-white p-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+      <aside className="rounded-2xl border border-gray-200/80 bg-white p-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:border-white/10 dark:bg-[#0f1e1a]">
         <nav aria-label="Secciones del perfil" className="space-y-1">
           {sections.map((section) => {
             const Icon = section.icon;
@@ -97,13 +97,13 @@ export function ProfileSettingsShell({
                 onClick={() => setActiveSection(section.id)}
                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors ${
                   isActive
-                    ? "bg-accent-50 text-accent-700"
-                    : "text-gray-500 hover:bg-gray-50"
+                    ? "bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-100"
+                    : "text-gray-500 hover:bg-gray-50 dark:text-sand-300/70 dark:hover:bg-white/5 dark:hover:text-sand-50"
                 }`}
               >
                 <span
                   className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                    isActive ? "bg-white text-accent-600 shadow-sm" : "bg-gray-50 text-gray-400"
+                    isActive ? "bg-white text-accent-600 shadow-sm dark:bg-accent-400/15 dark:text-accent-200" : "bg-gray-50 text-gray-400 dark:bg-white/5 dark:text-sand-300/55"
                   }`}
                 >
                   <Icon className="h-4 w-4" strokeWidth={1.8} />
@@ -127,7 +127,7 @@ export function ProfileSettingsShell({
 
         {activeSection === "payments" && (
           <section>
-            <Suspense fallback={<div className="h-36 rounded-2xl border border-gray-200/80 bg-white animate-pulse" />}>
+            <Suspense fallback={<div className="h-36 animate-pulse rounded-2xl border border-gray-200/80 bg-white dark:border-white/10 dark:bg-[#0f1e1a]" />}>
               <MpConnectSection
                 hasMpConnected={hasMpConnected}
                 connectedAt={connectedAt}
