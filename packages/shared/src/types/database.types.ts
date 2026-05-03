@@ -1019,6 +1019,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_course_enrollment: {
+        Args: { p_enrollment_id: string; p_payment_id: string }
+        Returns: undefined
+      }
       complete_purchase: {
         Args: { p_payment_id: string; p_purchase_id: string }
         Returns: undefined
@@ -1029,6 +1033,11 @@ export type Database = {
           p_intent_id: string
           p_user_id: string
         }
+        Returns: undefined
+      }
+      enroll_course: { Args: { p_course_id: string }; Returns: Json }
+      fail_course_enrollment: {
+        Args: { p_enrollment_id: string; p_payment_id: string }
         Returns: undefined
       }
       fail_purchase: {
@@ -1199,13 +1208,11 @@ export type ResumeWithSeller = Resume & {
 }
 
 export type PurchaseWithResume = Purchase & {
-  // Supabase devuelve null en joins cuando el registro relacionado no existe o RLS lo filtra
   resumes:
     | (Pick<Resume, "title" | "subject" | "university" | "preview_url"> & {
         profiles: Pick<Profile, "display_name"> | null
       })
     | null
-  // Supabase retorna objeto (no array) por el UNIQUE constraint en purchase_id
   reviews: { id: string } | null
 }
 

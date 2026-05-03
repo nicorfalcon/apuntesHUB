@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StarRating } from "@/components/ui/star-rating";
+import { EnrollButton } from "@/components/courses/enroll-button";
+import { CourseReviewsSection } from "@/components/courses/course-reviews-section";
 import {
   formatArs,
   formatCourseType,
@@ -100,6 +102,66 @@ export default async function CoursePage({
   const hasAccess = isAuthor || enrollment?.status === "completed";
   const firstModule = course.course_modules[0];
   const coverColor = course.cover_color ?? "#263833";
+
+  // Progreso del alumno: solo se calcula si hay enrollment completed
+  let watchedSeconds = 0;
+  if (enrollment?.status === "completed") {
+    const { data: progressRows } = await supabase
+      .from("course_progress")
+      .select("watched_seconds")
+      .eq("enrollment_id", enrollment.id);
+    watchedSeconds = (progressRows ?? []).reduce(
+      (sum, row) => sum + (row.watched_seconds ?? 0),
+      0
+    );
+  }
+  const progressPct =
+    course.total_duration_seconds > 0
+      ? Math.min(
+          100,
+          Math.round((watchedSeconds / course.total_duration_seconds) * 100)
+        )
+      : 0;
+
+  // Reseñas: lectura pública. Detectamos si el usuario ya dejó una.
+  const { data: reviewRows } = await supabase
+    .from("course_reviews")
+    .select(
+      "id, rating, comment, created_at, reviewer_id, profiles:reviewer_id(display_name, avatar_url)"
+    )
+    .eq("course_id", course.id)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  type ReviewRow = {
+    id: string;
+    rating: number;
+    comment: string | null;
+    created_at: string;
+    reviewer_id: string;
+    profiles:
+      | { display_name: string | null; avatar_url: string | null }
+      | { display_name: string | null; avatar_url: string | null }[]
+      | null;
+  };
+
+  const reviews = ((reviewRows as unknown as ReviewRow[]) ?? []).map((row) => {
+    const profile = Array.isArray(row.profiles) ? row.profiles[0] ?? null : row.profiles;
+    return {
+      id: row.id,
+      rating: row.rating,
+      comment: row.comment,
+      created_at: row.created_at,
+      reviewer_id: row.reviewer_id,
+      profiles: profile,
+    };
+  });
+
+  const hasExistingReview = user
+    ? reviews.some((review) => review.reviewer_id === user.id)
+    : false;
+  const reviewableEnrollmentId =
+    enrollment?.status === "completed" && !isAuthor ? enrollment.id : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -199,6 +261,13 @@ export default async function CoursePage({
                 </div>
               )}
             </section>
+
+            <CourseReviewsSection
+              courseId={course.id}
+              reviews={reviews}
+              reviewableEnrollmentId={reviewableEnrollmentId}
+              hasExistingReview={hasExistingReview}
+            />
           </div>
 
           <aside className="lg:sticky lg:top-20 lg:self-start">
@@ -240,6 +309,21 @@ export default async function CoursePage({
                 </div>
               </div>
 
+              {enrollment?.status === "completed" && !isAuthor && (
+                <div className="mt-6 border-t border-gray-100 pt-5 dark:border-white/10">
+                  <div className="flex items-center justify-between text-xs font-bold uppercase text-muted-foreground">
+                    <span>Tu progreso</span>
+                    <span>{progressPct}%</span>
+                  </div>
+                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
+                    <div
+                      className="h-full rounded-full bg-accent-600 dark:bg-accent-300"
+                      style={{ width: `${progressPct}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="mt-6 border-t border-gray-100 pt-5 dark:border-white/10">
                 {isAuthor ? (
                   <Link
@@ -257,17 +341,13 @@ export default async function CoursePage({
                     <PlayCircle className="h-4 w-4" />
                   </Link>
                 ) : (
-                  <button
-                    type="button"
-                    disabled
-                    className="inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-accent-600 px-4 py-3 text-sm font-bold text-white opacity-65 dark:bg-accent-300 dark:text-[#071713]"
-                  >
-                    Inscripción próximamente
-                  </button>
+                  <EnrollButton
+                    courseId={course.id}
+                    isAuthenticated={Boolean(user)}
+                  />
                 )}
                 <p className="mt-3 text-center text-xs leading-5 text-muted-foreground">
-                  En esta etapa los videos usan módulos de prueba; el pago y
-                  streaming privado se integran después.
+                  Pagás una vez y mantenés acceso permanente a los videos del curso.
                 </p>
               </div>
             </div>
