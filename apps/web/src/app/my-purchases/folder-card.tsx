@@ -81,7 +81,7 @@ export function FolderCard({ folder }: FolderCardProps) {
         <Link href={`/my-purchases/folder/${folder.id}`} className="flex flex-col gap-3">
           {/* Icono carpeta */}
           <div className="flex h-12 w-12 items-center justify-center rounded-xl" style={{ backgroundColor: folder.color + "20" }}>
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke={folder.color}>
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke={folder.color ?? undefined}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v8.25A2.25 2.25 0 004.5 16.5h15a2.25 2.25 0 002.25-2.25V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
             </svg>
           </div>

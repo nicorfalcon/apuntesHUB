@@ -67,7 +67,7 @@ export function AddToFolderMenu({ resumeId, folders }: AddToFolderMenuProps) {
                   className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-gray-50 disabled:opacity-60 dark:hover:bg-white/5"
                 >
                   <span className="flex h-5 w-5 items-center justify-center rounded" style={{ backgroundColor: folder.color + "30" }}>
-                    <svg className="h-3 w-3" fill={folder.color} viewBox="0 0 20 20">
+                    <svg className="h-3 w-3" fill={folder.color ?? undefined} viewBox="0 0 20 20">
                       <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
                     </svg>
                   </span>
