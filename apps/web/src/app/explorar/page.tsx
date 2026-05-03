@@ -1,11 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { ExploreTabs, type ExploreTab } from "@/components/explorar/explore-tabs";
 import type {
+  CourseModule,
+  Profile,
+  RecordedCourse,
   ResumeWithSeller,
   Subject,
   TutorAvailability,
   TutorSubject,
 } from "@/lib/database.types";
+import type { RecordedCourseItem } from "@/components/courses/types";
 import type {
   TutorListItem,
   TutorProfile,
@@ -74,6 +78,31 @@ function buildTutorItems({
   });
 }
 
+type RawCourse = RecordedCourse & {
+  profiles:
+    | Pick<
+        Profile,
+        "id" | "display_name" | "avatar_url" | "university" | "career"
+      >
+    | null;
+  subjects: Pick<Subject, "id" | "name" | "university" | "career"> | null;
+  course_modules:
+    | Pick<
+        CourseModule,
+        "id" | "position" | "title" | "description" | "duration_seconds"
+      >[]
+    | null;
+};
+
+function normalizeCourseItems(courses: RawCourse[] | null): RecordedCourseItem[] {
+  return (courses ?? []).map((course) => ({
+    ...course,
+    course_modules: [...(course.course_modules ?? [])].sort(
+      (a, b) => a.position - b.position
+    ),
+  }));
+}
+
 export default async function ExplorarPage({
   searchParams,
 }: {
@@ -108,18 +137,33 @@ export default async function ExplorarPage({
     .select("*")
     .eq("is_active", true)
     .order("created_at", { ascending: false });
+  const coursesPromise = supabase
+    .from("recorded_courses")
+    .select(
+      "*, profiles!author_id(id, display_name, avatar_url, university, career), subjects(id, name, university, career), course_modules(id, position, title, description, duration_seconds)"
+    )
+    .eq("is_published", true)
+    .is("deleted_at", null)
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false });
 
-  const [{ data: resumes }, { data: purchases }, { data: tutorSubjectRows }] =
-    await Promise.all([
+  const [
+    { data: resumes },
+    { data: purchases },
+    { data: tutorSubjectRows },
+    { data: rawCourses },
+  ] = await Promise.all([
       resumesPromise,
       purchasesPromise,
       tutorSubjectsPromise,
+      coursesPromise,
     ]);
 
   const purchasedIds =
     (purchases as { resume_id: string }[] | null)?.map((purchase) => purchase.resume_id) ??
     [];
   const activeTutorSubjects = (tutorSubjectRows as TutorSubject[] | null) ?? [];
+  const courses = normalizeCourseItems((rawCourses as RawCourse[] | null) ?? []);
   const tutorIds = Array.from(
     new Set(activeTutorSubjects.map((subject) => subject.tutor_id))
   );
@@ -164,6 +208,7 @@ export default async function ExplorarPage({
       activeTab={activeTab}
       resumes={(resumes as ResumeWithSeller[]) ?? []}
       tutors={tutors}
+      courses={courses}
       purchasedIds={purchasedIds}
       initialCareer={initialCareer}
     />

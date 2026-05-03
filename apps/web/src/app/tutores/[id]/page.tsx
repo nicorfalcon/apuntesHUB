@@ -7,7 +7,6 @@ import {
   CalendarDays,
   GraduationCap,
   MapPin,
-  MessageCircle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StarRating } from "@/components/ui/star-rating";
@@ -15,6 +14,7 @@ import {
   formatArs,
   summarizeModalities,
 } from "@/components/tutors/format";
+import { ContactTutorDialog } from "@/components/tutors/contact-tutor-dialog";
 import { TutorProfileSections } from "@/components/tutors/tutor-profile-sections";
 import type {
   Profile,
@@ -215,17 +215,15 @@ export default async function TutorProfilePage({
                 </p>
               </div>
 
-              <button
-                type="button"
-                disabled
-                className="mt-6 inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-full bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white opacity-70 dark:bg-accent-300 dark:text-[#071713]"
-              >
-                <MessageCircle className="h-4 w-4" />
-                Contactar
-              </button>
-              <p className="mt-2 text-center text-xs text-muted-foreground">
-                El formulario de contacto se activa en el siguiente paso.
-              </p>
+              <ContactTutorDialog
+                tutorId={profile.id}
+                tutorName={profile.display_name}
+                subjects={tutorSubjectItems.map((item) => ({
+                  id: item.subject.id,
+                  name: item.subject.name,
+                  hourlyRate: item.hourly_rate_ars,
+                }))}
+              />
             </aside>
           </div>
         </section>

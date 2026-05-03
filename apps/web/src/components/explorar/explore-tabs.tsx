@@ -23,9 +23,17 @@ import {
   type TutorModality,
   type TutorRateRange,
 } from "./particulares-toolbar";
-import { GrabadasToolbar } from "./grabadas-toolbar";
+import {
+  GrabadasToolbar,
+  type CourseDurationFilter,
+  type CourseTypeOption,
+  type CourseTypeFilter,
+} from "./grabadas-toolbar";
 import { TutorList } from "@/components/tutors/tutor-list";
 import type { TutorListItem } from "@/components/tutors/types";
+import { CourseList } from "@/components/courses/course-list";
+import { formatCourseType } from "@/components/courses/format";
+import type { RecordedCourseItem } from "@/components/courses/types";
 
 export type ExploreTab = "apuntes" | "particulares" | "grabadas";
 
@@ -35,6 +43,7 @@ interface ExploreTabsProps {
   activeTab: ExploreTab;
   resumes: ResumeWithSeller[];
   tutors: TutorListItem[];
+  courses: RecordedCourseItem[];
   purchasedIds: string[];
   initialCareer?: string;
 }
@@ -126,6 +135,23 @@ function buildTutorSubjectOptions(tutors: TutorListItem[]): FilterOption[] {
     .sort((a, b) => a.label.localeCompare(b.label, "es"));
 }
 
+function buildCourseTypeOptions(courses: RecordedCourseItem[]): CourseTypeOption[] {
+  const counts = new Map<string, number>();
+  for (const course of courses) {
+    counts.set(course.course_type, (counts.get(course.course_type) ?? 0) + 1);
+  }
+
+  return Array.from(counts.entries())
+    .filter(([value]) =>
+      ["curso_completo", "repaso_final", "resolucion_tps"].includes(value)
+    )
+    .map(([value, count]) => ({
+      value: value as CourseTypeFilter,
+      label: formatCourseType(value),
+      count,
+    }));
+}
+
 function matchesTutorRate(rate: number, range: TutorRateRange) {
   if (range === "all") return true;
   if (range === "under_8000") return rate <= 8000;
@@ -175,6 +201,18 @@ function matchesTutorModalities(
   });
 }
 
+function matchesCourseDuration(
+  totalSeconds: number,
+  duration: CourseDurationFilter
+) {
+  if (duration === "all") return true;
+  if (duration === "under_2h") return totalSeconds <= 2 * 60 * 60;
+  if (duration === "2_6h") {
+    return totalSeconds > 2 * 60 * 60 && totalSeconds <= 6 * 60 * 60;
+  }
+  return totalSeconds > 6 * 60 * 60;
+}
+
 function EmptyState({
   icon,
   title,
@@ -207,6 +245,7 @@ export function ExploreTabs({
   activeTab,
   resumes,
   tutors,
+  courses,
   purchasedIds,
   initialCareer,
 }: ExploreTabsProps) {
@@ -231,6 +270,18 @@ export function ExploreTabs({
   const [tutorAvailability, setTutorAvailability] =
     useState<TutorAvailabilityFilter>("all");
   const [tutorRateRange, setTutorRateRange] = useState<TutorRateRange>("all");
+  const [courseQuery, setCourseQuery] = useState("");
+  const [selectedCourseTypes, setSelectedCourseTypes] = useState<
+    Set<CourseTypeFilter>
+  >(new Set());
+  const [selectedCourseSubjects, setSelectedCourseSubjects] = useState<Set<string>>(
+    new Set()
+  );
+  const [selectedCourseUniversities, setSelectedCourseUniversities] = useState<
+    Set<string>
+  >(new Set());
+  const [courseDuration, setCourseDuration] =
+    useState<CourseDurationFilter>("all");
 
   useEffect(() => {
     if (!initialCareer) return;
@@ -257,6 +308,28 @@ export function ExploreTabs({
   const tutorSubjectOptions = useMemo(
     () => buildTutorSubjectOptions(tutors),
     [tutors]
+  );
+  const courseTypeOptions = useMemo(
+    () => buildCourseTypeOptions(courses),
+    [courses]
+  );
+  const courseSubjectOptions = useMemo(
+    () =>
+      buildOptions(
+        courses
+          .map((course) => course.subjects?.name ?? "")
+          .filter(Boolean)
+      ),
+    [courses]
+  );
+  const courseUniversityOptions = useMemo(
+    () =>
+      buildOptions(
+        courses
+          .map((course) => course.subjects?.university ?? "")
+          .filter(Boolean)
+      ),
+    [courses]
   );
 
   const filteredResumes = useMemo(() => {
@@ -364,6 +437,64 @@ export function ExploreTabs({
     selectedTutorSubjects.size +
     (tutorAvailability === "all" ? 0 : 1) +
     (tutorRateRange === "all" ? 0 : 1);
+  const filteredCourses = useMemo(() => {
+    const normalizedQuery = courseQuery.trim().toLowerCase();
+
+    return courses.filter((course) => {
+      if (
+        selectedCourseTypes.size > 0 &&
+        !selectedCourseTypes.has(course.course_type as CourseTypeFilter)
+      ) {
+        return false;
+      }
+      if (
+        selectedCourseSubjects.size > 0 &&
+        !selectedCourseSubjects.has(course.subjects?.name ?? "")
+      ) {
+        return false;
+      }
+      if (
+        selectedCourseUniversities.size > 0 &&
+        !selectedCourseUniversities.has(course.subjects?.university ?? "")
+      ) {
+        return false;
+      }
+      if (!matchesCourseDuration(course.total_duration_seconds, courseDuration)) {
+        return false;
+      }
+
+      if (normalizedQuery) {
+        const haystack = [
+          course.title,
+          course.description ?? "",
+          course.subjects?.name ?? "",
+          course.subjects?.university ?? "",
+          course.subjects?.career ?? "",
+          course.profiles?.display_name ?? "",
+          formatCourseType(course.course_type),
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        if (!haystack.includes(normalizedQuery)) return false;
+      }
+
+      return true;
+    });
+  }, [
+    courses,
+    courseQuery,
+    selectedCourseTypes,
+    selectedCourseSubjects,
+    selectedCourseUniversities,
+    courseDuration,
+  ]);
+
+  const activeCourseFilterCount =
+    selectedCourseTypes.size +
+    selectedCourseSubjects.size +
+    selectedCourseUniversities.size +
+    (courseDuration === "all" ? 0 : 1);
 
   function clearFilters() {
     setQuery("");
@@ -379,6 +510,14 @@ export function ExploreTabs({
     setSelectedTutorSubjects(new Set());
     setTutorAvailability("all");
     setTutorRateRange("all");
+  }
+
+  function clearCourseFilters() {
+    setCourseQuery("");
+    setSelectedCourseTypes(new Set());
+    setSelectedCourseSubjects(new Set());
+    setSelectedCourseUniversities(new Set());
+    setCourseDuration("all");
   }
 
   function switchTab(nextTab: ExploreTab) {
@@ -398,7 +537,9 @@ export function ExploreTabs({
         } particular${filteredTutors.length === 1 ? "" : "es"} encontrado${
           filteredTutors.length === 1 ? "" : "s"
         }`
-      : "Cursos en grabación";
+      : `${filteredCourses.length} curso${filteredCourses.length === 1 ? "" : "s"} grabado${
+          filteredCourses.length === 1 ? "" : "s"
+        } encontrado${filteredCourses.length === 1 ? "" : "s"}`;
 
   function handleSortSelect(
     event: React.MouseEvent<HTMLButtonElement>,
@@ -493,7 +634,27 @@ export function ExploreTabs({
               onClear={clearTutorFilters}
             />
           ) : (
-            <GrabadasToolbar />
+            <GrabadasToolbar
+              query={courseQuery}
+              onQueryChange={setCourseQuery}
+              types={courseTypeOptions}
+              subjects={courseSubjectOptions}
+              universities={courseUniversityOptions}
+              selectedTypes={selectedCourseTypes}
+              selectedSubjects={selectedCourseSubjects}
+              selectedUniversities={selectedCourseUniversities}
+              duration={courseDuration}
+              activeFilterCount={activeCourseFilterCount}
+              onToggleType={(value) => toggleSetValue(setSelectedCourseTypes, value)}
+              onToggleSubject={(value) =>
+                toggleSetValue(setSelectedCourseSubjects, value)
+              }
+              onToggleUniversity={(value) =>
+                toggleSetValue(setSelectedCourseUniversities, value)
+              }
+              onDurationChange={setCourseDuration}
+              onClear={clearCourseFilters}
+            />
           )}
         </div>
 
@@ -593,11 +754,32 @@ export function ExploreTabs({
               />
             )
           ) : (
-            <EmptyState
-              icon="courses"
-              title="Cursos en grabación"
-              description="Pronto vas a poder comprar clases grabadas y seguir tu progreso módulo por módulo."
-            />
+            filteredCourses.length > 0 ? (
+              <CourseList courses={filteredCourses} />
+            ) : courses.length > 0 ? (
+              <div className="rounded-[28px] border border-dashed border-gray-200 bg-white/70 px-6 py-16 text-center dark:border-white/10 dark:bg-white/[0.03]">
+                <p className="text-3xl font-bold text-foreground">
+                  No encontramos cursos
+                </p>
+                <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
+                  Probá limpiar filtros o buscar por otra materia, universidad
+                  o autor.
+                </p>
+                <button
+                  type="button"
+                  onClick={clearCourseFilters}
+                  className="mt-6 rounded-full bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 dark:bg-accent-300 dark:text-[#071713]"
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+            ) : (
+              <EmptyState
+                icon="courses"
+                title="Todavía no hay cursos grabados"
+                description="Cuando los primeros autores publiquen cursos con módulos, van a aparecer acá con filtros por tipo, duración y materia."
+              />
+            )
           )}
         </div>
       </section>

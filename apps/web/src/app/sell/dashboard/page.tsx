@@ -55,28 +55,28 @@ export default async function DashboardPage() {
         </h1>
         <Link
           href="/sell/new"
-          className="rounded-lg bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-700"
+          className="rounded-lg bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-700 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
         >
-          + Publicar apunte
+          + Nueva publicación
         </Link>
       </div>
 
       {/* Banner MP */}
       {!hasMpConnected && (
-        <div className="mt-6 flex items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 p-4">
-          <svg className="mt-0.5 h-5 w-5 shrink-0 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="mt-6 flex items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-400/25 dark:bg-yellow-400/10">
+          <svg className="mt-0.5 h-5 w-5 shrink-0 text-yellow-600 dark:text-yellow-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
           </svg>
           <div>
-            <p className="text-sm font-medium text-yellow-800">
+            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-100">
               Conectá tu cuenta de Mercado Pago para recibir pagos
             </p>
-            <p className="mt-0.5 text-xs text-yellow-700">
+            <p className="mt-0.5 text-xs text-yellow-700 dark:text-yellow-100/75">
               Tus apuntes no podrán comprarse hasta que configures Mercado Pago.
             </p>
             <Link
               href="/profile"
-              className="mt-2 inline-block text-xs font-semibold text-yellow-800 underline hover:text-yellow-900"
+              className="mt-2 inline-block text-xs font-semibold text-yellow-800 underline hover:text-yellow-900 dark:text-yellow-100 dark:hover:text-white"
             >
               Ir a mi perfil para conectar
             </Link>
@@ -86,20 +86,20 @@ export default async function DashboardPage() {
 
       {/* Stats */}
       <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-gray-200 bg-white p-5">
-          <p className="text-sm text-gray-500">Total apuntes</p>
+        <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
+          <p className="text-sm text-muted-foreground">Total apuntes</p>
           <p className="mt-1 text-2xl font-bold text-foreground">{totalApuntes}</p>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-5">
-          <p className="text-sm text-gray-500">Ventas totales</p>
+        <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
+          <p className="text-sm text-muted-foreground">Ventas totales</p>
           <p className="mt-1 text-2xl font-bold text-foreground">{totalVentas}</p>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-5 col-span-2 sm:col-span-1">
-          <p className="text-sm text-gray-500">Tus ingresos</p>
-          <p className="mt-1 text-2xl font-bold text-accent-700">
+        <div className="col-span-2 rounded-xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03] sm:col-span-1">
+          <p className="text-sm text-muted-foreground">Tus ingresos</p>
+          <p className="mt-1 text-2xl font-bold text-accent-700 dark:text-accent-100">
             ${totalIngresos.toLocaleString("es-AR")} ARS
           </p>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-muted-foreground">
             (90% de cada venta antes de la comisión de Mercado Pago)
           </p>
         </div>
