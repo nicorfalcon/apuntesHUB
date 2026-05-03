@@ -66,7 +66,7 @@ export function PurchaseStatusPoller({ purchaseId }: PurchaseStatusPollerProps) 
           Hubo un problema con tu pago. Podés intentar nuevamente.
         </p>
         <Link
-          href="/browse"
+          href="/explorar"
           className="inline-flex items-center gap-2 rounded-lg bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700"
         >
           Volver a explorar

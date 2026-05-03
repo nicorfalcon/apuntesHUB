@@ -18,7 +18,7 @@ export default async function LandingPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (user) redirect("/browse");
+  if (user) redirect("/explorar");
 
   return (
     <div className="landing-page min-h-screen">

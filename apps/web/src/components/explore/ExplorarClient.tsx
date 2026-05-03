@@ -315,7 +315,7 @@ export default function ExplorarClient({
                 <p className="text-lg">No se encontraron apuntes.</p>
                 <p className="mt-1 text-sm">Intentá con otros filtros.</p>
                 <Link
-                  href="/browse"
+                  href="/explorar"
                   onClick={clearAll}
                   className="mt-4 inline-block text-sm text-accent-600 hover:underline"
                 >

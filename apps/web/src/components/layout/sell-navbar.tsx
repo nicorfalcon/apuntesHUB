@@ -21,7 +21,7 @@ function ArrowLeftIcon() {
 // Mapeo de rutas a nombres legibles
 const PATH_LABELS: Record<string, string> = {
   "/":               "Inicio",
-  "/browse":         "Explorar",
+  "/explorar":       "Explorar",
   "/my-purchases":   "Mis apuntes",
   "/sell/dashboard": "Panel de ventas",
   "/reputation":     "Reputación",

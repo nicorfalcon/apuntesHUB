@@ -6,10 +6,10 @@ const COLUMNS = [
   {
     title: "Producto",
     links: [
-      { label: "Explorar apuntes", href: "/browse" },
+      { label: "Explorar apuntes", href: "/explorar" },
       { label: "Vender apuntes", href: "/register" },
       { label: "Precios", href: "#precios" },
-      { label: "Universidades", href: "/browse" },
+      { label: "Universidades", href: "/explorar" },
     ],
   },
   {

@@ -50,7 +50,7 @@ export default async function CheckoutFailurePage({
             </Link>
           )}
           <Link
-            href="/browse"
+            href="/explorar"
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
           >
             Volver a explorar

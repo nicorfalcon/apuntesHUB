@@ -79,7 +79,7 @@ export function Navbar() {
 
   const navLinks = pathname === "/"
     ? []
-    : [{ href: "/browse", label: "Explorar" }];
+    : [{ href: "/explorar", label: "Explorar" }];
 
   return (
     <nav className="sticky top-0 z-50 border-b border-gray-200 bg-white/80 backdrop-blur-md dark:border-white/10 dark:bg-[#071713]/90">

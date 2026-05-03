@@ -13,7 +13,7 @@ import { registerDevice } from "@/lib/devices/register";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const redirect = searchParams.get("redirect") ?? "/browse";
+  const redirect = searchParams.get("redirect") ?? "/explorar";
 
   if (!code) {
     return NextResponse.redirect(`${origin}/login?error=callback_failed`);

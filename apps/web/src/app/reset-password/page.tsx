@@ -37,7 +37,7 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    router.push("/browse");
+    router.push("/explorar");
     router.refresh();
   }
 

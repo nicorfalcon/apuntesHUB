@@ -72,14 +72,16 @@ export function ResumesList({ resumes, ventasPorResume, ingresosPorResume }: Res
               onClick={() => setFilter(f.id)}
               className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
                 active
-                  ? "bg-accent-50 text-accent-700"
-                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                  ? "bg-accent-50 text-accent-700 dark:bg-accent-300 dark:text-[#071713]"
+                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-700 dark:text-sand-300/75 dark:hover:bg-white/5 dark:hover:text-sand-50"
               }`}
             >
               {f.label}
               <span
                 className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${
-                  active ? "bg-white text-accent-700" : "bg-gray-100 text-gray-500"
+                  active
+                    ? "bg-white text-accent-700 dark:bg-[#071713] dark:text-accent-100"
+                    : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-sand-200"
                 }`}
               >
                 {counts[f.id]}

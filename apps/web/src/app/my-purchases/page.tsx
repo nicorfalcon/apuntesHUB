@@ -69,7 +69,7 @@ export default async function MisApuntesPage() {
               </svg>
               <h3 className="mt-4 text-lg font-semibold text-foreground">Todavía no compraste ningún apunte</h3>
               <p className="mt-2 max-w-sm text-sm text-gray-500 dark:text-sand-300/75">Explorá el marketplace y encontrá el material que necesitás para tus materias.</p>
-              <Link href="/browse" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700">
+              <Link href="/explorar" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700">
                 Explorar apuntes
               </Link>
             </div>

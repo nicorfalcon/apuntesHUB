@@ -262,7 +262,7 @@ export function ViewerLayout({
       {/* ── Navbar del visor ── */}
       <nav className="flex h-14 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 dark:border-white/10 dark:bg-[#101816]">
         <div className="flex items-center gap-4">
-          <Link href="/browse" className="text-lg font-bold tracking-tight text-foreground">
+          <Link href="/explorar" className="text-lg font-bold tracking-tight text-foreground">
             apuntes<span className="text-accent-600">HUB</span>
           </Link>
           <div className="h-5 w-px bg-gray-200" />

@@ -15,7 +15,7 @@ export default function ResumeError({ reset }: { reset: () => void }) {
           Intentar de nuevo
         </button>
         <Link
-          href="/browse"
+          href="/explorar"
           className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           Volver a explorar

@@ -34,7 +34,7 @@ export function HeroSection() {
         <nav className="px-4 py-5 md:px-8">
           <div className="mx-auto flex max-w-7xl flex-row items-center justify-between">
 
-            {/* Logo — identical to /browse navbar */}
+            {/* Logo — identical to /explorar navbar */}
             <Link href="/" className="text-xl font-bold tracking-tight text-white">
               apuntes<span className="text-accent-400">HUB</span>
             </Link>

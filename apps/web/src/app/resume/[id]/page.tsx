@@ -73,7 +73,7 @@ export default async function ResumePage({
       <nav className="mb-6 text-sm text-gray-400">
         <Link href="/" className="hover:text-gray-600">Inicio</Link>
         <span className="mx-2">·</span>
-        <Link href="/browse" className="hover:text-gray-600">Explorar</Link>
+        <Link href="/explorar" className="hover:text-gray-600">Explorar</Link>
         <span className="mx-2">·</span>
         <span className="text-foreground">{resumeWithSeller.title}</span>
       </nav>
