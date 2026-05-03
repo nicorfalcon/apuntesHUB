@@ -1,14 +1,13 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import type { User } from "@supabase/supabase-js";
+import { useEffect } from "react";
 
 const THEME_KEY = "apunteshub-theme";
 const PUBLIC_LIGHT_PATHS = new Set([
   "/",
   "/login",
+  "/login/devices",
   "/register",
   "/forgot-password",
   "/reset-password",
@@ -30,36 +29,17 @@ function setDocumentTheme(theme: Theme) {
 
 export function ThemeRouteGuard() {
   const pathname = usePathname();
-  const [user, setUser] = useState<User | null | undefined>(undefined);
-
-  useEffect(() => {
-    const supabase = createClient();
-
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   useEffect(() => {
     const isPublicLightPath = PUBLIC_LIGHT_PATHS.has(pathname);
 
-    if (isPublicLightPath || user === null) {
+    if (isPublicLightPath) {
       setDocumentTheme("light");
       return;
     }
 
-    if (user) {
-      setDocumentTheme(getPreferredTheme());
-    }
-  }, [pathname, user]);
+    setDocumentTheme(getPreferredTheme());
+  }, [pathname]);
 
   return null;
 }

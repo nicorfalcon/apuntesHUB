@@ -28,6 +28,7 @@ interface RegisterDeviceInput {
   ip: string | null;
   brand?: ClientBrand | null;
   sessionId?: string | null;
+  deviceLabel?: string | null;
 }
 
 /**
@@ -40,7 +41,7 @@ export async function registerDevice(
 ): Promise<RegisterDeviceResult> {
   const admin = createAdminClient();
   const existingId = verifyDeviceId(input.signedCookie);
-  const label = parseUserAgentLabel(input.userAgent, input.brand);
+  const label = input.deviceLabel || parseUserAgentLabel(input.userAgent, input.brand);
   const ipHash = input.ip ? hashIp(input.ip) : null;
   const nowIso = new Date().toISOString();
 

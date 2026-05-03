@@ -39,5 +39,10 @@ yarn-error.log*
 next-env.d.ts
 
 /supabase/.temp/
-/supabase/migrations/
+/supabase/migrations/*
 *.md
+
+!/supabase/migrations/
+!/supabase/migrations/0011_login_intents.sql
+!/docs/
+!/docs/device-login-flow.md

@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { Navbar } from "./navbar";
 
-const AUTH_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"];
+const AUTH_PATHS = ["/login", "/login/devices", "/register", "/forgot-password", "/reset-password"];
 
 export function NavbarWrapper() {
   const pathname = usePathname();

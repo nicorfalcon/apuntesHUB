@@ -17,7 +17,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("user_devices")
-    .select("id, device_id, label, created_at, last_seen_at")
+    .select("id, device_id, label, user_agent, created_at, last_seen_at")
     .eq("user_id", user.id)
     .order("last_seen_at", { ascending: false });
 
@@ -28,6 +28,7 @@ export async function GET() {
   const devices = (data ?? []).map((d) => ({
     id: d.id,
     label: d.label,
+    user_agent: d.user_agent,
     created_at: d.created_at,
     last_seen_at: d.last_seen_at,
     is_current: currentDeviceId !== null && d.device_id === currentDeviceId,

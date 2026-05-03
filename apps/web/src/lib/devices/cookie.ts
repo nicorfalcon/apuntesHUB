@@ -1,8 +1,9 @@
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "crypto";
+import { MAX_DEVICES_PER_USER } from "@/lib/auth/session-limits";
 
 export const DEVICE_COOKIE_NAME = "ah_device";
 export const DEVICE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
-export const DEVICE_LIMIT = 2;
+export const DEVICE_LIMIT = MAX_DEVICES_PER_USER;
 export const DEVICE_INACTIVE_DAYS = 30;
 
 function getSecret(): string {

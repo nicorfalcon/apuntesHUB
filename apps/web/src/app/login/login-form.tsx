@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { CLIENT_BRAND_HEADER, getClientBrand } from "@/lib/devices/client-hints";
+import { useLoginDeviceIntent } from "./login-device-context";
+import type { LoginResponse } from "@/lib/database.types";
 
 const DEVICE_LIMIT_MESSAGE =
   "Llegaste al límite de dispositivos conectados. Cerrá sesión en otro desde Perfil > Seguridad para poder ingresar.";
@@ -15,6 +17,7 @@ export function LoginForm() {
   const redirect = searchParams.get("redirect") ?? "/browse";
   const initialError =
     searchParams.get("error") === "device_limit" ? DEVICE_LIMIT_MESSAGE : null;
+  const { setIntent } = useLoginDeviceIntent();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,23 +29,35 @@ export function LoginForm() {
     setError(null);
     setLoading(true);
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const brand = await getClientBrand();
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(brand ? { [CLIENT_BRAND_HEADER]: brand } : {}),
+      },
+      body: JSON.stringify({ email, password, redirect_to: redirect }),
+    });
+    const data = (await res.json()) as LoginResponse;
 
-    if (error) {
-      setError("Email o contraseña incorrectos.");
+    if (data.status === "session_limit_exceeded") {
+      setIntent({
+        token: data.login_intent_token,
+        sessions: data.active_sessions,
+        recommendedSessionId: data.recommended_session_id,
+        redirectTo: redirect,
+      });
+      router.push("/login/devices");
       setLoading(false);
       return;
     }
 
-    const brand = await getClientBrand();
-    const res = await fetch("/api/auth/devices/register", {
-      method: "POST",
-      headers: brand ? { [CLIENT_BRAND_HEADER]: brand } : undefined,
-    });
-    if (res.status === 403) {
-      await supabase.auth.signOut();
-      setError(DEVICE_LIMIT_MESSAGE);
+    if (!res.ok || data.status !== "ok") {
+      setError(
+        data.status === "error"
+          ? data.message
+          : "No pudimos iniciar sesión. Probá nuevamente."
+      );
       setLoading(false);
       return;
     }

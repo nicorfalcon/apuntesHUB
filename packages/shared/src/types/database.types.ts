@@ -232,6 +232,29 @@ export interface Database {
           last_seen_at?: string;
         };
       };
+      login_intents: {
+        Row: {
+          id: string;
+          user_id: string;
+          pending_session_ciphertext: string;
+          ip_hash: string | null;
+          created_at: string;
+          expires_at: string;
+          consumed_at: string | null;
+        };
+        Insert: {
+          id: string;
+          user_id: string;
+          pending_session_ciphertext: string;
+          ip_hash?: string | null;
+          created_at?: string;
+          expires_at: string;
+          consumed_at?: string | null;
+        };
+        Update: {
+          consumed_at?: string | null;
+        };
+      };
       seller_mp_credentials: {
         Row: {
           id: string;
@@ -286,6 +309,14 @@ export interface Database {
       };
       revoke_all_my_sessions: {
         Args: Record<string, never>;
+        Returns: void;
+      };
+      consume_login_intent_and_revoke_device: {
+        Args: {
+          p_intent_id: string;
+          p_user_id: string;
+          p_device_row_id: string;
+        };
         Returns: void;
       };
     };

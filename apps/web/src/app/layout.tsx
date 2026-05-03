@@ -26,7 +26,7 @@ export const metadata: Metadata = {
 
 const themeScript = `
   try {
-    const publicLightPaths = ["/", "/login", "/register", "/forgot-password", "/reset-password"];
+    const publicLightPaths = ["/", "/login", "/login/devices", "/register", "/forgot-password", "/reset-password"];
     const isPublicLightPath = publicLightPaths.includes(window.location.pathname);
     const theme = isPublicLightPath ? "light" : localStorage.getItem("apunteshub-theme");
     const prefersDark = !isPublicLightPath && window.matchMedia("(prefers-color-scheme: dark)").matches;

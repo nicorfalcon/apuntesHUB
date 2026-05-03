@@ -12,19 +12,13 @@ import {
   LogOut,
   Monitor,
   Sparkles,
-  X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { formatRelative } from "@/lib/utils/format-relative";
 import { CLIENT_BRAND_HEADER, getClientBrand } from "@/lib/devices/client-hints";
+import { SessionCard } from "@/components/sessions/session-card";
+import type { ActiveSession } from "@/lib/database.types";
 
-interface Device {
-  id: string;
-  label: string | null;
-  created_at: string;
-  last_seen_at: string;
-  is_current: boolean;
-}
+type Device = ActiveSession;
 
 interface SecuritySectionProps {
   email: string;
@@ -418,8 +412,8 @@ export function SecuritySection({ email, hasPassword }: SecuritySectionProps) {
               Dispositivos conectados
             </h2>
             <p className="mt-1 text-sm text-gray-500 dark:text-sand-300/75">
-              Sólo se permiten 2 dispositivos activos por cuenta. Si querés usar uno nuevo,
-              revocá alguno desde acá.
+              Gestioná los dispositivos activos de tu cuenta. Si querés usar uno nuevo,
+              podés revocar alguno desde acá.
             </p>
 
             <div className="mt-5">
@@ -430,34 +424,14 @@ export function SecuritySection({ email, hasPassword }: SecuritySectionProps) {
               ) : (
                 <ul className="space-y-2">
                   {devices.map((d) => (
-                    <li
-                      key={d.id}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-gray-200/80 bg-gray-50/50 px-4 py-3 dark:border-white/10 dark:bg-white/5"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-medium text-foreground">
-                            {d.label ?? "Dispositivo desconocido"}
-                          </span>
-                          {d.is_current && (
-                            <span className="inline-flex rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-semibold text-accent-700 ring-1 ring-inset ring-accent-200/60 dark:bg-accent-300/15 dark:text-accent-200 dark:ring-accent-300/25">
-                              Este dispositivo
-                            </span>
-                          )}
-                        </div>
-                        <p className="mt-0.5 text-xs text-gray-400 dark:text-sand-300/60">
-                          Última conexión {formatRelative(d.last_seen_at)}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRevokeDevice(d)}
-                        disabled={d.is_current || revokingId === d.id}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-gray-200 disabled:hover:bg-white disabled:hover:text-gray-600 dark:border-white/10 dark:bg-white/5 dark:text-sand-100 dark:hover:border-red-300/35 dark:hover:bg-red-500/10 dark:hover:text-red-200 dark:disabled:hover:border-white/10 dark:disabled:hover:bg-white/5 dark:disabled:hover:text-sand-100"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                        {revokingId === d.id ? "Revocando..." : "Revocar"}
-                      </button>
+                    <li key={d.id}>
+                      <SessionCard
+                        session={d}
+                        variant="profile"
+                        isLoading={revokingId === d.id}
+                        disabled={revokingId !== null}
+                        onAction={() => handleRevokeDevice(d)}
+                      />
                     </li>
                   ))}
                 </ul>
