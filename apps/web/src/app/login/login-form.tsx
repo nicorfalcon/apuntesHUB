@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { CLIENT_BRAND_HEADER, getClientBrand } from "@/lib/devices/client-hints";
 import { useLoginDeviceIntent } from "./login-device-context";
@@ -21,6 +22,7 @@ export function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(initialError);
   const [loading, setLoading] = useState(false);
 
@@ -139,15 +141,29 @@ export function LoginForm() {
                     ¿Olvidaste tu contraseña?
                   </Link>
                 </div>
-                <input
-                  id="password"
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1.5 w-full rounded-lg border border-[#d1d5db] px-4 py-2.5 text-sm text-[#1a1a1a] outline-none transition-colors focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F]/20"
-                />
+                <div className="relative mt-1.5">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-lg border border-[#d1d5db] px-4 py-2.5 pr-11 text-sm text-[#1a1a1a] outline-none transition-colors focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F]/20"
+                  />
+                  <button
+                    type="button"
+                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    onClick={() => setShowPassword((value) => !value)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 transition-colors hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D6A4F]/25"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               {error && (

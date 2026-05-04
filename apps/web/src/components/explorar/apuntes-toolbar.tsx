@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown, Search, X } from "lucide-react";
+import { closeOtherExploreDropdowns } from "./dropdown-utils";
 
 export interface FilterOption {
   value: string;
@@ -50,7 +51,11 @@ function MultiFilter({
   const selectedCount = selected.size;
 
   return (
-    <details className="group relative">
+    <details
+      className="group relative"
+      data-explore-dropdown
+      onToggle={closeOtherExploreDropdowns}
+    >
       <summary className="flex cursor-pointer list-none items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent-300 hover:bg-accent-50/70 dark:border-white/10 dark:bg-white/5 dark:hover:border-accent-300/35 dark:hover:bg-accent-300/10">
         <span>{label}</span>
         {selectedCount > 0 && (
@@ -109,7 +114,11 @@ function PriceFilter({
   const current = PRICE_OPTIONS.find((option) => option.value === value)?.label ?? "Precio";
 
   return (
-    <details className="group relative">
+    <details
+      className="group relative"
+      data-explore-dropdown
+      onToggle={closeOtherExploreDropdowns}
+    >
       <summary className="flex cursor-pointer list-none items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-accent-300 hover:bg-accent-50/70 dark:border-white/10 dark:bg-white/5 dark:hover:border-accent-300/35 dark:hover:bg-accent-300/10">
         <span>{value === "all" ? "Precio" : current}</span>
         <ChevronDown className="h-4 w-4 text-gray-400 transition-transform group-open:rotate-180" />

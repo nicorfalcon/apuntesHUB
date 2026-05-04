@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { MessageCircle } from "lucide-react";
+import { BookOpen, Library, MessageCircle, PenLine } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import type { Profile } from "@/lib/database.types";
@@ -22,10 +22,15 @@ export function Navbar() {
   useEffect(() => {
     const supabase = createClient();
 
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user);
-      if (data.user) loadProfile(data.user.id, supabase);
-    });
+    function refreshUserProfile() {
+      supabase.auth.getUser().then(({ data }) => {
+        setUser(data.user);
+        if (data.user) loadProfile(data.user.id, supabase);
+        else setProfile(null);
+      });
+    }
+
+    refreshUserProfile();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
@@ -33,17 +38,11 @@ export function Navbar() {
       else setProfile(null);
     });
 
-    function handleProfileUpdate() {
-      if (user) loadProfile(user.id, supabase);
-      else supabase.auth.getUser().then(({ data }) => {
-        if (data.user) loadProfile(data.user.id, supabase);
-      });
-    }
-    window.addEventListener("profile-updated", handleProfileUpdate);
+    window.addEventListener("profile-updated", refreshUserProfile);
 
     return () => {
       subscription.unsubscribe();
-      window.removeEventListener("profile-updated", handleProfileUpdate);
+      window.removeEventListener("profile-updated", refreshUserProfile);
     };
   }, []);
 
@@ -102,211 +101,271 @@ export function Navbar() {
     ? profile.display_name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
     : "?";
 
-  const navLinks = pathname === "/"
+  const navItems = pathname === "/"
     ? []
-    : [{ href: "/explorar", label: "Explorar" }];
+    : [
+        {
+          href: "/explorar",
+          label: "Explorar",
+          icon: BookOpen,
+          active: pathname === "/explorar",
+        },
+        ...(user
+          ? [
+              {
+                href: "/my-purchases",
+                label: "Mi biblioteca",
+                icon: Library,
+                active: pathname.startsWith("/my-purchases"),
+              },
+              {
+                href: `/sell/new?from=${encodeURIComponent(pathname)}`,
+                label: "Vender",
+                icon: PenLine,
+                active: pathname.startsWith("/sell"),
+              },
+            ]
+          : []),
+      ];
+  const messagesActive = pathname.startsWith("/mensajes");
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-gray-200 bg-white/80 backdrop-blur-md dark:border-white/10 dark:bg-[#071713]/90">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        {/* Logo */}
-        <Link href="/" className="text-xl font-bold tracking-tight text-foreground">
+    <nav className="sticky top-0 z-50 border-b border-gray-200/80 bg-white/[0.86] backdrop-blur-xl dark:border-white/10 dark:bg-[#071713]/90">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+        <Link
+          href="/"
+          translate="no"
+          className="shrink-0 rounded-lg text-xl font-bold tracking-tight text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35"
+        >
           apuntes<span className="text-accent-600">HUB</span>
         </Link>
 
-        {/* Links desktop */}
-        <div className="hidden items-center gap-6 md:flex">
-          {navLinks.map((link) => {
-            const isActive = pathname === link.href;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`text-sm font-medium transition-colors ${isActive ? "text-accent-600 dark:text-accent-300" : "text-gray-500 hover:text-foreground dark:text-sand-300/75 dark:hover:text-sand-50"}`}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
-          {user && (
-            <Link
-              href="/my-purchases"
-              className={`text-sm font-medium transition-colors ${pathname.startsWith("/my-purchases") ? "text-accent-600 dark:text-accent-300" : "text-gray-500 hover:text-foreground dark:text-sand-300/75 dark:hover:text-sand-50"}`}
-            >
-              Mi biblioteca
-            </Link>
-          )}
-          {user && (
-            <Link
-              href={`/sell/new?from=${encodeURIComponent(pathname)}`}
-              className={`text-sm font-medium transition-colors ${pathname.startsWith("/sell") ? "text-accent-600 dark:text-accent-300" : "text-gray-500 hover:text-foreground dark:text-sand-300/75 dark:hover:text-sand-50"}`}
-            >
-              Vender
-            </Link>
-          )}
-        </div>
+        {navItems.length > 0 && (
+          <div className="hidden items-center gap-1 rounded-2xl border border-gray-200 bg-[var(--surface-warm)]/70 p-1 dark:border-white/10 dark:bg-white/[0.04] md:flex">
+            {navItems.map((link) => {
+              const Icon = link.icon;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  aria-current={link.active ? "page" : undefined}
+                  className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 active:scale-[0.98] ${
+                    link.active
+                      ? "bg-white text-accent-700 shadow-[0_6px_18px_rgba(38,56,51,0.06)] dark:bg-accent-300/15 dark:text-accent-100 dark:shadow-none"
+                      : "text-gray-600 hover:bg-white/70 hover:text-foreground dark:text-sand-300/75 dark:hover:bg-white/10 dark:hover:text-sand-50"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+                  {link.label}
+                </Link>
+              );
+            })}
+          </div>
+        )}
 
-        {/* Auth + hamburger */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {user ? (
             <>
-            <Link
-              href="/mensajes"
-              aria-label={
-                unreadCount > 0
-                  ? `Mensajes (${unreadCount} sin leer)`
-                  : "Mensajes"
-              }
-              className="relative flex h-9 w-9 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 dark:text-sand-200 dark:hover:bg-white/10"
-            >
-              <MessageCircle className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-white dark:ring-[#071713]">
-                  {unreadCount > 99 ? "99+" : unreadCount}
-                </span>
-              )}
-            </Link>
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={() => setDropdownOpen((v) => !v)}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-600 text-xs font-semibold text-white"
-                aria-label="Menú de usuario"
+              <Link
+                href="/mensajes"
+                aria-current={messagesActive ? "page" : undefined}
+                aria-label={
+                  unreadCount > 0
+                    ? `Mensajes (${unreadCount} sin leer)`
+                    : "Mensajes"
+                }
+                className={`relative inline-flex h-10 w-10 items-center justify-center rounded-xl border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 active:scale-[0.98] ${
+                  messagesActive
+                    ? "border-accent-200 bg-accent-50 text-accent-700 dark:border-accent-300/30 dark:bg-accent-300/15 dark:text-accent-100"
+                    : "border-transparent text-gray-600 hover:border-gray-200 hover:bg-white dark:text-sand-200 dark:hover:border-white/10 dark:hover:bg-white/10"
+                }`}
               >
-                {profile?.avatar_url ? (
-                  <Image
-                    src={profile.avatar_url}
-                    alt={profile.display_name ?? "Avatar"}
-                    width={32}
-                    height={32}
-                    className="h-8 w-8 rounded-full object-cover"
-                  />
-                ) : (
-                  initials
+                <MessageCircle className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
+                {unreadCount > 0 && (
+                  <span className="absolute -right-1 -top-1 flex min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white dark:ring-[#071713]">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
                 )}
-              </button>
+              </Link>
 
-              {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 overflow-hidden rounded-xl border border-gray-100 bg-white py-1 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#071713] dark:shadow-black/35">
-                  <div className="border-b border-gray-100 px-3 py-2 dark:border-white/10">
-                    <p className="truncate text-sm font-medium text-gray-900 dark:text-sand-50">{profile?.display_name || "Mi cuenta"}</p>
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setDropdownOpen((v) => !v)}
+                  aria-expanded={dropdownOpen}
+                  className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-accent-600 text-xs font-bold text-white ring-1 ring-accent-700/10 transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 active:scale-[0.98] dark:bg-accent-300 dark:text-[#071713]"
+                  aria-label="Menú de usuario"
+                >
+                  {profile?.avatar_url ? (
+                    <Image
+                      src={profile.avatar_url}
+                      alt={profile.display_name ?? "Avatar"}
+                      width={40}
+                      height={40}
+                      className="h-10 w-10 object-cover"
+                    />
+                  ) : (
+                    initials
+                  )}
+                </button>
+
+                {dropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl border border-gray-200 bg-white py-1 shadow-[0_18px_46px_rgba(38,56,51,0.12)] dark:border-white/10 dark:bg-[#071713] dark:shadow-black/35">
+                    <div className="border-b border-gray-100 px-3 py-3 dark:border-white/10">
+                      <p className="truncate text-sm font-bold text-gray-900 dark:text-sand-50">
+                        {profile?.display_name || "Mi cuenta"}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Cuenta
+                      </p>
+                    </div>
+                    <Link
+                      href="/profile"
+                      onClick={() => setDropdownOpen(false)}
+                      className="block px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-500/35 dark:text-sand-100 dark:hover:bg-white/10"
+                    >
+                      Mi perfil
+                    </Link>
+                    <Link
+                      href="/my-purchases"
+                      onClick={() => setDropdownOpen(false)}
+                      className="block px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-500/35 dark:text-sand-100 dark:hover:bg-white/10"
+                    >
+                      Mi biblioteca
+                    </Link>
+                    <Link
+                      href="/sell/dashboard"
+                      onClick={() => setDropdownOpen(false)}
+                      className="block px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-500/35 dark:text-sand-100 dark:hover:bg-white/10"
+                    >
+                      Panel de ventas
+                    </Link>
+                    <Link
+                      href="/reputation"
+                      onClick={() => setDropdownOpen(false)}
+                      className="block px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-500/35 dark:text-sand-100 dark:hover:bg-white/10"
+                    >
+                      Reputación
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleSignOut}
+                      className="w-full border-t border-gray-100 px-3 py-2 text-left text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/30 dark:border-white/10 dark:text-red-300 dark:hover:bg-red-500/10"
+                    >
+                      Cerrar sesión
+                    </button>
                   </div>
-                  <Link
-                    href="/profile"
-                    onClick={() => setDropdownOpen(false)}
-                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-sand-100 dark:hover:bg-white/10"
-                  >
-                    Mi perfil
-                  </Link>
-                  <Link
-                    href="/sell/dashboard"
-                    onClick={() => setDropdownOpen(false)}
-                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-sand-100 dark:hover:bg-white/10"
-                  >
-                    Panel de ventas
-                  </Link>
-                  <Link
-                    href="/reputation"
-                    onClick={() => setDropdownOpen(false)}
-                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-sand-100 dark:hover:bg-white/10"
-                  >
-                    Reputación
-                  </Link>
-                  <button
-                    onClick={handleSignOut}
-                    className="w-full border-t border-gray-100 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:border-white/10 dark:text-red-300 dark:hover:bg-red-500/10"
-                  >
-                    Cerrar sesión
-                  </button>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
             </>
           ) : (
             <div className="hidden items-center gap-2 md:flex">
               <Link
                 href="/login"
-                className="rounded-lg px-4 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:text-sand-100 dark:hover:bg-white/10"
+                className="rounded-xl px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 active:scale-[0.98] dark:text-sand-100 dark:hover:bg-white/10"
               >
                 Iniciar sesión
               </Link>
               <Link
                 href="/register"
-                className="rounded-lg bg-accent-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-700"
+                className="rounded-xl bg-accent-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 active:scale-[0.98] dark:bg-accent-300 dark:text-[#071713]"
               >
                 Registrarse
               </Link>
             </div>
           )}
 
-          {/* Hamburger mobile */}
           <button
+            type="button"
             onClick={() => setMenuOpen((v) => !v)}
-            className="flex h-9 w-9 flex-col items-center justify-center gap-1 rounded-full border border-gray-200 bg-white/70 md:hidden dark:border-white/10 dark:bg-white/10"
+            aria-expanded={menuOpen}
+            className="flex h-10 w-10 flex-col items-center justify-center gap-1 rounded-xl border border-gray-200 bg-white/80 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 md:hidden dark:border-white/10 dark:bg-white/10 dark:hover:bg-white/15"
             aria-label="Menú"
           >
-            <span className={`h-0.5 w-5 bg-foreground transition-transform ${menuOpen ? "translate-y-1.5 rotate-45" : ""}`} />
-            <span className={`h-0.5 w-5 bg-foreground transition-opacity ${menuOpen ? "opacity-0" : ""}`} />
-            <span className={`h-0.5 w-5 bg-foreground transition-transform ${menuOpen ? "-translate-y-1.5 -rotate-45" : ""}`} />
+            <span aria-hidden="true" className={`h-0.5 w-5 bg-foreground transition-transform ${menuOpen ? "translate-y-1.5 rotate-45" : ""}`} />
+            <span aria-hidden="true" className={`h-0.5 w-5 bg-foreground transition-opacity ${menuOpen ? "opacity-0" : ""}`} />
+            <span aria-hidden="true" className={`h-0.5 w-5 bg-foreground transition-transform ${menuOpen ? "-translate-y-1.5 -rotate-45" : ""}`} />
           </button>
         </div>
       </div>
 
-      {/* Mobile menu */}
       {menuOpen && (
-        <div className="border-t border-gray-100 bg-white px-4 pb-4 md:hidden dark:border-white/10 dark:bg-[#071713]">
-          {navLinks.map((link) => {
-            const isActive = pathname === link.href;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setMenuOpen(false)}
-                className={`block py-2 text-sm font-medium transition-colors ${isActive ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
-          {user ? (
-            <>
-              <Link href="/mensajes" onClick={() => setMenuOpen(false)} className={`flex items-center justify-between py-2 text-sm font-medium ${pathname.startsWith("/mensajes") ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}>
-                <span>Mensajes</span>
-                {unreadCount > 0 && (
-                  <span className="ml-2 inline-flex min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold leading-none text-white">
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </span>
-                )}
-              </Link>
-              <Link href="/profile" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname === "/profile" ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}>Mi perfil</Link>
-              <Link href="/my-purchases" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname.startsWith("/my-purchases") ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}>Mi biblioteca</Link>
-              <Link href="/sell/dashboard" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname === "/sell/dashboard" ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}>Panel de ventas</Link>
-              <Link href="/reputation" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname === "/reputation" ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}>Reputación</Link>
-              <Link href={`/sell/new?from=${encodeURIComponent(pathname)}`} onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname.startsWith("/sell") ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}>Vender</Link>
-              <button
-                onClick={() => { setMenuOpen(false); handleSignOut(); }}
-                className="mt-2 w-full rounded-lg border border-red-200 py-2 text-sm font-medium text-red-600 dark:border-red-400/30 dark:text-red-300"
-              >
-                Cerrar sesión
-              </button>
-            </>
-          ) : (
-            <>
-              <Link
-                href="/login"
-                onClick={() => setMenuOpen(false)}
-                className="block py-2 text-sm text-gray-600 dark:text-sand-300/75"
-              >
-                Iniciar sesión
-              </Link>
-              <Link
-                href="/register"
-                onClick={() => setMenuOpen(false)}
-                className="mt-2 block w-full rounded-lg bg-accent-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-accent-700"
-              >
-                Registrarse
-              </Link>
-            </>
-          )}
+        <div className="border-t border-gray-100 bg-white md:hidden dark:border-white/10 dark:bg-[#071713]">
+          <div className="mx-auto max-w-6xl px-4 py-3">
+            <div className="grid gap-1">
+              {navItems.map((link) => {
+                const Icon = link.icon;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMenuOpen(false)}
+                    aria-current={link.active ? "page" : undefined}
+                    className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${
+                      link.active
+                        ? "bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-100"
+                        : "text-gray-600 hover:bg-gray-50 dark:text-sand-300/75 dark:hover:bg-white/10"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+                    {link.label}
+                  </Link>
+                );
+              })}
+
+              {user ? (
+                <>
+                  <Link
+                    href="/mensajes"
+                    onClick={() => setMenuOpen(false)}
+                    aria-current={messagesActive ? "page" : undefined}
+                    className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${
+                      messagesActive
+                        ? "bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-100"
+                        : "text-gray-600 hover:bg-gray-50 dark:text-sand-300/75 dark:hover:bg-white/10"
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <MessageCircle className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+                      Mensajes
+                    </span>
+                    {unreadCount > 0 && (
+                      <span className="ml-2 inline-flex min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold leading-none text-white">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    )}
+                  </Link>
+                  <Link href="/profile" onClick={() => setMenuOpen(false)} className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${pathname === "/profile" ? "bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-100" : "text-gray-600 hover:bg-gray-50 dark:text-sand-300/75 dark:hover:bg-white/10"}`}>Mi perfil</Link>
+                  <Link href="/sell/dashboard" onClick={() => setMenuOpen(false)} className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${pathname === "/sell/dashboard" ? "bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-100" : "text-gray-600 hover:bg-gray-50 dark:text-sand-300/75 dark:hover:bg-white/10"}`}>Panel de ventas</Link>
+                  <Link href="/reputation" onClick={() => setMenuOpen(false)} className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${pathname === "/reputation" ? "bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-100" : "text-gray-600 hover:bg-gray-50 dark:text-sand-300/75 dark:hover:bg-white/10"}`}>Reputación</Link>
+                  <button
+                    type="button"
+                    onClick={() => { setMenuOpen(false); handleSignOut(); }}
+                    className="mt-2 w-full rounded-xl border border-red-200 px-3 py-2.5 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 dark:border-red-400/30 dark:text-red-300 dark:hover:bg-red-500/10"
+                  >
+                    Cerrar sesión
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    onClick={() => setMenuOpen(false)}
+                    className="rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 dark:text-sand-300/75 dark:hover:bg-white/10"
+                  >
+                    Iniciar sesión
+                  </Link>
+                  <Link
+                    href="/register"
+                    onClick={() => setMenuOpen(false)}
+                    className="mt-2 block rounded-xl bg-accent-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 dark:bg-accent-300 dark:text-[#071713]"
+                  >
+                    Registrarse
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </nav>

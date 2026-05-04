@@ -34,6 +34,7 @@ import type { TutorListItem } from "@/components/tutors/types";
 import { CourseList } from "@/components/courses/course-list";
 import { formatCourseType } from "@/components/courses/format";
 import type { RecordedCourseItem } from "@/components/courses/types";
+import { closeOtherExploreDropdowns } from "./dropdown-utils";
 
 export type ExploreTab = "apuntes" | "particulares" | "grabadas";
 
@@ -550,7 +551,7 @@ export function ExploreTabs({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" data-explore-dropdown-root>
       <section className="mx-auto w-full max-w-6xl px-4 py-10 md:py-14">
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div>
@@ -665,7 +666,11 @@ export function ExploreTabs({
           {activeTab === "apuntes" && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>Ordenar</span>
-              <details className="group relative">
+              <details
+                className="group relative"
+                data-explore-dropdown
+                onToggle={closeOtherExploreDropdowns}
+              >
                 <summary className="flex cursor-pointer list-none items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-foreground outline-none transition-colors hover:border-accent-300 hover:bg-accent-50/70 focus-visible:ring-2 focus-visible:ring-accent-200/70 dark:border-white/10 dark:bg-[#0f1e1a] dark:hover:border-accent-300/40 dark:hover:bg-accent-300/10 dark:focus-visible:ring-accent-300/20">
                   {SORT_OPTIONS.find((option) => option.value === sort)?.label}
                   <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />

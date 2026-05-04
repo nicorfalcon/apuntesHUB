@@ -1,7 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarDays, MessageCircle } from "lucide-react";
+import {
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  MessageCircle,
+  MessageSquareText,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { MessageReplyForm } from "@/components/messages/message-reply-form";
 import type {
@@ -20,6 +26,30 @@ const STATUS_LABELS: Record<BookingStatus, string> = {
   cancelled: "Cancelada",
 };
 
+const STATUS_STYLES: Record<BookingStatus, string> = {
+  requested:
+    "bg-[#FBF3DB] text-[#956400] ring-[#F1E2B5] dark:bg-yellow-300/[0.12] dark:text-yellow-100 dark:ring-yellow-300/20",
+  confirmed:
+    "bg-[#E1F3FE] text-[#1F6C9F] ring-[#B9DFF5] dark:bg-sky-300/[0.12] dark:text-sky-100 dark:ring-sky-300/20",
+  completed:
+    "bg-[#EDF3EC] text-[#346538] ring-[#D2E3D0] dark:bg-accent-300/[0.12] dark:text-accent-100 dark:ring-accent-300/20",
+  cancelled:
+    "bg-[#FDEBEC] text-[#9F2F2D] ring-[#F5C9CA] dark:bg-red-300/[0.12] dark:text-red-100 dark:ring-red-300/20",
+};
+
+const dateFormatter = new Intl.DateTimeFormat("es-AR", {
+  day: "2-digit",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+const moneyFormatter = new Intl.NumberFormat("es-AR", {
+  style: "currency",
+  currency: "ARS",
+  maximumFractionDigits: 0,
+});
+
 function initials(name: string) {
   return name
     .split(" ")
@@ -30,12 +60,12 @@ function initials(name: string) {
 }
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("es-AR", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return dateFormatter.format(new Date(value));
+}
+
+function formatRate(value: number | null) {
+  if (!value) return null;
+  return `${moneyFormatter.format(value)} / hora`;
 }
 
 export default async function MensajesPage({
@@ -61,21 +91,28 @@ export default async function MensajesPage({
 
   if (bookings.length === 0) {
     return (
-      <main className="mx-auto flex min-h-[70vh] w-full max-w-3xl flex-col items-center justify-center px-4 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-100">
-          <MessageCircle className="h-6 w-6" />
+      <main className="mx-auto flex min-h-[72vh] w-full max-w-4xl flex-col items-center justify-center px-4 py-16 text-center">
+        <div className="w-full rounded-[22px] border border-gray-200 bg-white p-8 shadow-[0_18px_46px_rgba(38,56,51,0.06)] dark:border-white/10 dark:bg-[#0f1e1a] dark:shadow-black/25 sm:p-10">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-700 ring-1 ring-accent-100 dark:bg-accent-300/15 dark:text-accent-100 dark:ring-accent-300/20">
+            <MessageCircle className="h-6 w-6" aria-hidden="true" />
+          </div>
+          <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-accent-700 dark:text-accent-100">
+            Mensajes
+          </p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground text-balance">
+            Tus conversaciones van a vivir acá
+          </h1>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
+            Todavía no tenés solicitudes de clases particulares. Cuando contactes
+            a un profesor, el hilo va a aparecer en esta bandeja.
+          </p>
+          <Link
+            href="/explorar?tab=particulares"
+            className="mt-7 inline-flex items-center justify-center rounded-xl bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 active:scale-[0.98] dark:bg-accent-300 dark:text-[#071713]"
+          >
+            Buscar Profesores
+          </Link>
         </div>
-        <h1 className="mt-5 text-2xl font-bold text-foreground">Mensajes</h1>
-        <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-          Todavía no tenés solicitudes de clases particulares. Cuando contactes
-          a un profesor, el hilo va a aparecer acá.
-        </p>
-        <Link
-          href="/explorar?tab=particulares"
-          className="mt-6 rounded-full bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 dark:bg-accent-300 dark:text-[#071713]"
-        >
-          Buscar profesores
-        </Link>
       </main>
     );
   }
@@ -128,6 +165,15 @@ export default async function MensajesPage({
   }
 
   const selectedMessages = messagesByBooking.get(selectedBooking.id) ?? [];
+  const unreadByBooking = new Map<string, number>();
+
+  for (const message of messages) {
+    if (message.sender_id === user.id || message.read_at) continue;
+    unreadByBooking.set(
+      message.booking_id,
+      (unreadByBooking.get(message.booking_id) ?? 0) + 1
+    );
+  }
 
   const unreadIncomingIds = selectedMessages
     .filter((m) => m.sender_id !== user.id && !m.read_at)
@@ -147,24 +193,49 @@ export default async function MensajesPage({
   const selectedSubject = selectedBooking.subject_id
     ? subjects.get(selectedBooking.subject_id)
     : null;
+  const selectedRate = formatRate(
+    selectedBooking.hourly_rate_ars
+      ? Number(selectedBooking.hourly_rate_ars)
+      : null
+  );
+  const selectedStatus =
+    (selectedBooking.status as BookingStatus) in STATUS_LABELS
+      ? (selectedBooking.status as BookingStatus)
+      : null;
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-8 md:py-10">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground">Mensajes</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Solicitudes y conversaciones de clases particulares.
+    <main className="mx-auto w-full max-w-6xl px-4 py-6 md:py-8">
+      <header className="mb-6 border-b border-gray-200/80 pb-5 dark:border-white/10">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent-700 dark:text-accent-100">
+          Tutorías
         </p>
-      </div>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground text-balance">
+          Mensajes
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          Respondé solicitudes, coordiná horarios y mantené el contexto de
+          cada clase en un solo lugar.
+        </p>
+      </header>
 
-      <div className="grid min-h-[620px] overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-white/10 dark:bg-[#0f1e1a] lg:grid-cols-[340px_minmax(0,1fr)]">
-        <aside className="border-b border-gray-200 dark:border-white/10 lg:border-b-0 lg:border-r">
-          <div className="border-b border-gray-200 p-4 dark:border-white/10">
-            <p className="text-sm font-semibold text-foreground">
-              Conversaciones
-            </p>
+      <div className="grid min-h-[680px] overflow-hidden rounded-[22px] border border-gray-200 bg-white shadow-[0_18px_46px_rgba(38,56,51,0.06)] dark:border-white/10 dark:bg-[#0f1e1a] dark:shadow-black/25 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <aside className="flex min-h-0 flex-col border-b border-gray-200 bg-[rgba(var(--surface-warm-rgb),0.55)] dark:border-white/10 dark:bg-white/[0.02] lg:border-b-0 lg:border-r">
+          <div className="border-b border-gray-200 bg-white/70 p-4 backdrop-blur dark:border-white/10 dark:bg-white/[0.03]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-bold text-foreground">
+                  Conversaciones
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Clases particulares
+                </p>
+              </div>
+              <span className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-bold tabular-nums text-muted-foreground dark:border-white/10 dark:bg-white/[0.04]">
+                {bookings.length}
+              </span>
+            </div>
           </div>
-          <div className="max-h-[560px] overflow-y-auto">
+          <nav aria-label="Conversaciones" className="min-h-0 flex-1 overflow-y-auto p-2">
             {bookings.map((booking) => {
               const participantId =
                 booking.tutor_id === user.id ? booking.student_id : booking.tutor_id;
@@ -174,24 +245,31 @@ export default async function MensajesPage({
                 : null;
               const lastMessage = messagesByBooking.get(booking.id)?.at(-1);
               const active = booking.id === selectedBooking.id;
+              const unread = unreadByBooking.get(booking.id) ?? 0;
+              const status =
+                (booking.status as BookingStatus) in STATUS_LABELS
+                  ? (booking.status as BookingStatus)
+                  : null;
 
               return (
                 <Link
                   key={booking.id}
                   href={`/mensajes?booking=${booking.id}`}
-                  className={`block border-b border-gray-100 p-4 transition-colors dark:border-white/10 ${
+                  aria-current={active ? "page" : undefined}
+                  className={`group block rounded-2xl border p-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${
                     active
-                      ? "bg-accent-50 dark:bg-accent-300/15"
-                      : "hover:bg-gray-50 dark:hover:bg-white/5"
+                      ? "border-accent-200 bg-white shadow-[0_8px_24px_rgba(38,56,51,0.06)] dark:border-accent-300/30 dark:bg-accent-300/10"
+                      : "border-transparent hover:border-gray-200 hover:bg-white/70 dark:hover:border-white/10 dark:hover:bg-white/[0.04]"
                   }`}
                 >
                   <div className="flex gap-3">
-                    <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-accent-100 text-accent-700 dark:bg-accent-300/15 dark:text-accent-100">
+                    <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-accent-100 text-accent-700 ring-1 ring-black/5 dark:bg-accent-300/15 dark:text-accent-100 dark:ring-white/10">
                       {participant?.avatar_url ? (
                         <Image
                           src={participant.avatar_url}
                           alt={participant.display_name}
                           fill
+                          sizes="44px"
                           className="object-cover"
                         />
                       ) : (
@@ -205,81 +283,144 @@ export default async function MensajesPage({
                         <p className="truncate text-sm font-semibold text-foreground">
                           {participant?.display_name ?? "Usuario"}
                         </p>
-                        <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500 dark:bg-white/10 dark:text-sand-200">
-                          {STATUS_LABELS[booking.status as BookingStatus] ?? booking.status}
+                        {unread > 0 ? (
+                          <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-accent-600 px-1.5 text-[10px] font-bold leading-none text-white dark:bg-accent-300 dark:text-[#071713]">
+                            {unread > 9 ? "9+" : unread}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-1 flex items-center gap-2">
+                        <p className="min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground">
+                          {subject?.name ?? "Materia a coordinar"}
+                        </p>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ${
+                            status
+                              ? STATUS_STYLES[status]
+                              : "bg-gray-100 text-gray-500 ring-gray-200 dark:bg-white/10 dark:text-sand-200 dark:ring-white/10"
+                          }`}
+                        >
+                          {status ? STATUS_LABELS[status] : booking.status}
                         </span>
                       </div>
-                      <p className="mt-1 truncate text-xs text-muted-foreground">
-                        {subject?.name ?? "Materia a coordinar"}
+                      <p className="mt-2 truncate text-xs text-gray-500 dark:text-sand-300/70">
+                        {lastMessage?.body ?? "Sin mensajes todavía"}
                       </p>
-                      {lastMessage && (
-                        <p className="mt-1 truncate text-xs text-gray-400">
-                          {lastMessage.body}
-                        </p>
-                      )}
                     </div>
                   </div>
                 </Link>
               );
             })}
-          </div>
+          </nav>
         </aside>
 
         <section className="flex min-h-[620px] flex-col">
-          <header className="border-b border-gray-200 p-4 dark:border-white/10">
+          <header className="border-b border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-[#0f1e1a]">
             <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  {otherUser?.display_name ?? "Usuario"}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {selectedSubject?.name ?? "Materia a coordinar"}
-                  {selectedBooking.hourly_rate_ars
-                    ? ` · $${Number(selectedBooking.hourly_rate_ars).toLocaleString("es-AR")} ARS / hora`
-                    : ""}
-                </p>
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-accent-100 text-accent-700 ring-1 ring-black/5 dark:bg-accent-300/15 dark:text-accent-100 dark:ring-white/10">
+                  {otherUser?.avatar_url ? (
+                    <Image
+                      src={otherUser.avatar_url}
+                      alt={otherUser.display_name}
+                      fill
+                      sizes="44px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-sm font-bold">
+                      {initials(otherUser?.display_name ?? "Usuario")}
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-foreground">
+                    {otherUser?.display_name ?? "Usuario"}
+                  </p>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
+                    {selectedSubject?.name ?? "Materia a coordinar"}
+                    {selectedRate ? ` · ${selectedRate}` : ""}
+                  </p>
+                </div>
               </div>
-              <span className="rounded-full bg-accent-50 px-3 py-1 text-xs font-semibold text-accent-700 dark:bg-accent-300/15 dark:text-accent-100">
-                {STATUS_LABELS[selectedBooking.status as BookingStatus] ??
-                  selectedBooking.status}
+              <span
+                className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ring-1 ${
+                  selectedStatus
+                    ? STATUS_STYLES[selectedStatus]
+                    : "bg-gray-100 text-gray-500 ring-gray-200 dark:bg-white/10 dark:text-sand-200 dark:ring-white/10"
+                }`}
+              >
+                {selectedStatus
+                  ? STATUS_LABELS[selectedStatus]
+                  : selectedBooking.status}
               </span>
             </div>
             {selectedBooking.scheduled_at && (
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <CalendarDays className="h-3.5 w-3.5" />
-                {formatDate(selectedBooking.scheduled_at)}
-              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1 dark:border-white/10 dark:bg-white/[0.04]">
+                  <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+                  <time dateTime={selectedBooking.scheduled_at}>
+                    {formatDate(selectedBooking.scheduled_at)}
+                  </time>
+                </span>
+              </div>
             )}
           </header>
 
-          <div className="flex-1 space-y-3 overflow-y-auto bg-gray-50/70 p-4 dark:bg-[#0b1714]">
-            {selectedMessages.map((message) => {
-              const mine = message.sender_id === user.id;
-
-              return (
-                <div
-                  key={message.id}
-                  className={`flex ${mine ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`max-w-[78%] rounded-2xl px-4 py-2.5 text-sm leading-6 ${
-                      mine
-                        ? "bg-accent-600 text-white dark:bg-accent-300 dark:text-[#071713]"
-                        : "border border-gray-200 bg-white text-foreground dark:border-white/10 dark:bg-white/5"
-                    }`}
-                  >
-                    <p>{message.body}</p>
-                    <p
-                      className={`mt-1 text-[10px] ${
-                        mine ? "text-white/70 dark:text-[#071713]/60" : "text-muted-foreground"
-                      }`}
-                    >
-                      {formatDate(message.created_at)}
-                    </p>
+          <div className="flex-1 overflow-y-auto bg-[#f7faf8] p-4 dark:bg-[#0b1714] sm:p-5">
+            {selectedMessages.length === 0 ? (
+              <div className="flex min-h-[420px] items-center justify-center text-center">
+                <div className="max-w-sm">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-accent-700 ring-1 ring-gray-200 dark:bg-white/[0.04] dark:text-accent-100 dark:ring-white/10">
+                    <MessageSquareText className="h-5 w-5" aria-hidden="true" />
                   </div>
+                  <p className="mt-4 text-sm font-bold text-foreground">
+                    Todavía no hay mensajes
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    Escribí el primer mensaje para coordinar la clase.
+                  </p>
                 </div>
-              );
-            })}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {selectedMessages.map((message) => {
+                  const mine = message.sender_id === user.id;
+
+                  return (
+                    <div
+                      key={message.id}
+                      className={`flex ${mine ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[82%] rounded-2xl px-4 py-2.5 text-sm leading-6 shadow-[0_6px_20px_rgba(38,56,51,0.05)] sm:max-w-[70%] ${
+                          mine
+                            ? "rounded-br-md bg-accent-600 text-white dark:bg-accent-300 dark:text-[#071713]"
+                            : "rounded-bl-md border border-gray-200 bg-white text-foreground dark:border-white/10 dark:bg-white/[0.05]"
+                        }`}
+                      >
+                        <p className="break-words">{message.body}</p>
+                        <div
+                          className={`mt-1.5 flex items-center gap-1.5 text-[10px] ${
+                            mine
+                              ? "justify-end text-white/75 dark:text-[#071713]/60"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          <Clock3 className="h-3 w-3" aria-hidden="true" />
+                          <time dateTime={message.created_at}>
+                            {formatDate(message.created_at)}
+                          </time>
+                          {mine && (
+                            <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <MessageReplyForm bookingId={selectedBooking.id} />
@@ -288,4 +429,3 @@ export default async function MensajesPage({
     </main>
   );
 }
-
