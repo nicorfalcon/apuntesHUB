@@ -21,6 +21,7 @@ interface CourseOnboardingBody {
     career?: string | null;
   };
   cover_color?: string | null;
+  cover_image_url?: string | null;
   price_ars?: number;
   is_published?: boolean;
   modules?: CourseModuleInput[];
@@ -68,6 +69,11 @@ function validateBody(body: CourseOnboardingBody | null) {
   const coverColor = normalizeText(body.cover_color) || "#263833";
   if (!HEX_COLOR_PATTERN.test(coverColor)) {
     return "El color de portada no es válido.";
+  }
+
+  const coverImageUrl = normalizeText(body.cover_image_url);
+  if (coverImageUrl.length > 2048) {
+    return "La URL de la portada es demasiado larga.";
   }
 
   if (!Array.isArray(body.modules) || body.modules.length === 0) {
@@ -145,6 +151,7 @@ export async function POST(request: Request) {
       description: normalizeText(body?.description) || null,
       course_type: body?.course_type as CourseType,
       cover_color: normalizeText(body?.cover_color) || "#263833",
+      cover_image_url: normalizeText(body?.cover_image_url) || null,
       price_ars: Number(body?.price_ars),
       is_published: publish,
       published_at: publish ? new Date().toISOString() : null,

@@ -16,6 +16,10 @@ export async function GET(request: NextRequest) {
   const redirect = searchParams.get("redirect") ?? "/explorar";
 
   if (!code) {
+    console.error("[auth/callback] missing code", {
+      url: request.url,
+      params: Object.fromEntries(searchParams.entries()),
+    });
     return NextResponse.redirect(`${origin}/login?error=callback_failed`);
   }
 
@@ -40,6 +44,11 @@ export async function GET(request: NextRequest) {
 
   const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
   if (exchangeError) {
+    console.error("[auth/callback] exchangeCodeForSession failed", {
+      message: exchangeError.message,
+      status: exchangeError.status,
+      name: exchangeError.name,
+    });
     return NextResponse.redirect(`${origin}/login?error=callback_failed`);
   }
 
@@ -47,7 +56,14 @@ export async function GET(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
+    console.error("[auth/callback] getUser returned no user after exchange");
     return NextResponse.redirect(`${origin}/login?error=callback_failed`);
+  }
+
+  const isRecoveryFlow = redirect.startsWith("/reset-password");
+
+  if (isRecoveryFlow) {
+    return NextResponse.redirect(`${origin}${redirect}`);
   }
 
   const {

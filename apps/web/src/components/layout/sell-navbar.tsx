@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
 import type { User } from "@supabase/supabase-js";
 import type { Profile } from "@/lib/database.types";
 
@@ -22,7 +21,7 @@ function ArrowLeftIcon() {
 const PATH_LABELS: Record<string, string> = {
   "/":               "Inicio",
   "/explorar":       "Explorar",
-  "/my-purchases":   "Mis apuntes",
+  "/my-purchases":   "Mi biblioteca",
   "/sell/dashboard": "Panel de ventas",
   "/reputation":     "Reputación",
   "/profile":        "Mi perfil",
@@ -113,20 +112,18 @@ export function SellNavbar({ backLabel: propLabel, backHref: propHref }: SellNav
         <div className="h-5 w-px bg-gray-200" />
         <Link
           href={backHref}
-          className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-foreground"
+          className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 dark:text-sand-300/75 dark:hover:bg-white/10 dark:hover:text-sand-50 dark:focus-visible:ring-accent-300/30"
         >
           <ArrowLeftIcon />
           {backLabel}
         </Link>
       </div>
 
-      {/* Derecha: tema + avatar + dropdown */}
+      {/* Derecha: avatar + dropdown */}
       <div className="flex items-center gap-3">
         {user && (
           <>
-            <ThemeToggle />
-
-          <div className="relative" ref={dropdownRef}>
+            <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen((v) => !v)}
               className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-accent-600 text-xs font-semibold text-white"
@@ -151,7 +148,7 @@ export function SellNavbar({ backLabel: propLabel, backHref: propHref }: SellNav
                   <p className="truncate text-sm font-medium">{profile?.display_name || "Mi cuenta"}</p>
                 </div>
                 <Link href="/profile" onClick={() => setDropdownOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Mi perfil</Link>
-                <Link href="/my-purchases" onClick={() => setDropdownOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Mis apuntes</Link>
+                <Link href="/my-purchases" onClick={() => setDropdownOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Mi biblioteca</Link>
                 <Link href="/sell/dashboard" onClick={() => setDropdownOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Panel de ventas</Link>
                 <Link href="/reputation" onClick={() => setDropdownOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Reputación</Link>
                 <button onClick={handleSignOut} className="w-full border-t border-gray-100 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">

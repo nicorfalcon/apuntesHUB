@@ -50,7 +50,7 @@ export function ResumesList({ resumes, ventasPorResume, ingresosPorResume }: Res
       <div className="text-center">
         <p className="text-gray-400">Todavía no publicaste ningún apunte.</p>
         <Link
-          href="/sell/new"
+          href="/sell/new?type=apunte"
           className="mt-4 inline-block rounded-lg bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-accent-700"
         >
           Publicar mi primer apunte

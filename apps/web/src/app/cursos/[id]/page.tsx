@@ -23,9 +23,13 @@ import type { RecordedCourseItem } from "@/components/courses/types";
 function ModuleRow({
   module,
   locked,
+  progressPct,
+  completed,
 }: {
   module: RecordedCourseItem["course_modules"][number];
   locked: boolean;
+  progressPct: number;
+  completed: boolean;
 }) {
   return (
     <div className="flex gap-4 rounded-2xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
@@ -52,10 +56,31 @@ function ModuleRow({
             El video se desbloquea cuando se integra la inscripción del curso.
           </p>
         )}
+        {!locked && progressPct > 0 && (
+          <div className="mt-3">
+            <div className="mb-1.5 flex items-center justify-between text-xs font-semibold text-muted-foreground">
+              <span>{completed ? "Completado" : "Progreso"}</span>
+              <span>{progressPct}%</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
+              <div
+                className="h-full rounded-full bg-accent-600 dark:bg-accent-300"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+type CourseProgressRow = {
+  module_id: string;
+  watched_seconds: number;
+  completed_at: string | null;
+  updated_at: string | null;
+};
 
 export default async function CoursePage({
   params,
@@ -105,15 +130,24 @@ export default async function CoursePage({
 
   // Progreso del alumno: solo se calcula si hay enrollment completed
   let watchedSeconds = 0;
+  let progressRows: CourseProgressRow[] = [];
   if (enrollment?.status === "completed") {
-    const { data: progressRows } = await supabase
+    const { data } = await supabase
       .from("course_progress")
-      .select("watched_seconds")
+      .select("module_id, watched_seconds, completed_at, updated_at")
       .eq("enrollment_id", enrollment.id);
-    watchedSeconds = (progressRows ?? []).reduce(
-      (sum, row) => sum + (row.watched_seconds ?? 0),
-      0
+    progressRows = (data ?? []) as CourseProgressRow[];
+    const modulesById = new Map(
+      course.course_modules.map((courseModule) => [courseModule.id, courseModule])
     );
+    watchedSeconds = progressRows.reduce((sum, row) => {
+      const courseModule = modulesById.get(row.module_id);
+      if (row.completed_at && courseModule) {
+        return sum + courseModule.duration_seconds;
+      }
+      const watched = row.watched_seconds ?? 0;
+      return sum + Math.min(watched, courseModule?.duration_seconds ?? watched);
+    }, 0);
   }
   const progressPct =
     course.total_duration_seconds > 0
@@ -122,6 +156,38 @@ export default async function CoursePage({
           Math.round((watchedSeconds / course.total_duration_seconds) * 100)
         )
       : 0;
+
+  const progressByModule = new Map(
+    progressRows.map((row) => [row.module_id, row])
+  );
+  const getModuleProgressPct = (
+    courseModule: RecordedCourseItem["course_modules"][number]
+  ) => {
+    const row = progressByModule.get(courseModule.id);
+    if (!row) return 0;
+    if (row.completed_at) return 100;
+    if (courseModule.duration_seconds <= 0) return 0;
+    return Math.min(
+      100,
+      Math.round(((row.watched_seconds ?? 0) / courseModule.duration_seconds) * 100)
+    );
+  };
+  const latestProgress = [...progressRows].sort((a, b) => {
+    const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+    const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+    return bTime - aTime;
+  })[0];
+  const latestModuleIndex = latestProgress
+    ? course.course_modules.findIndex(
+        (courseModule) => courseModule.id === latestProgress.module_id
+      )
+    : -1;
+  const continueModule =
+    latestModuleIndex >= 0
+      ? latestProgress.completed_at && course.course_modules[latestModuleIndex + 1]
+        ? course.course_modules[latestModuleIndex + 1]
+        : course.course_modules[latestModuleIndex]
+      : firstModule;
 
   // Reseñas: lectura pública. Detectamos si el usuario ya dejó una.
   const { data: reviewRows } = await supabase
@@ -256,6 +322,8 @@ export default async function CoursePage({
                       key={module.id}
                       module={module}
                       locked={!hasAccess}
+                      progressPct={getModuleProgressPct(module)}
+                      completed={Boolean(progressByModule.get(module.id)?.completed_at)}
                     />
                   ))}
                 </div>
@@ -332,12 +400,12 @@ export default async function CoursePage({
                   >
                     Crear otro curso
                   </Link>
-                ) : hasAccess && firstModule ? (
+                ) : hasAccess && continueModule ? (
                   <Link
-                    href={`/cursos/${course.id}/ver/${firstModule.id}`}
+                    href={`/cursos/${course.id}/ver/${continueModule.id}`}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-accent-700 dark:bg-accent-300 dark:text-[#071713]"
                   >
-                    Ver curso
+                    {progressPct > 0 ? "Continuar curso" : "Ver curso"}
                     <PlayCircle className="h-4 w-4" />
                   </Link>
                 ) : (

@@ -32,12 +32,19 @@ export default function ResetPasswordPage() {
     const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
-      setError("No se pudo actualizar la contraseña. Intentá de nuevo.");
+      console.error("[reset-password] updateUser failed", {
+        message: error.message,
+        status: error.status,
+        name: error.name,
+        code: (error as { code?: string }).code,
+      });
+      setError(`No se pudo actualizar la contraseña: ${error.message}`);
       setLoading(false);
       return;
     }
 
-    router.push("/explorar");
+    await supabase.auth.signOut();
+    router.push("/login?reset=ok");
     router.refresh();
   }
 

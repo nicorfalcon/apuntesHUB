@@ -47,7 +47,7 @@ export function PurchaseStatusPoller({ purchaseId }: PurchaseStatusPollerProps) 
           href="/my-purchases"
           className="inline-flex items-center gap-2 rounded-lg bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700"
         >
-          Ver mis apuntes
+          Ver mi biblioteca
         </Link>
       </div>
     );
@@ -86,13 +86,13 @@ export function PurchaseStatusPoller({ purchaseId }: PurchaseStatusPollerProps) 
         <h1 className="text-2xl font-bold text-foreground">Procesando tu pago</h1>
         <p className="text-sm text-gray-500">
           Tu pago está siendo procesado. Puede tardar unos minutos en confirmarse.
-          Revisá la sección de &quot;Mis apuntes&quot; en un rato.
+          Revisá la sección de &quot;Mi biblioteca&quot; en un rato.
         </p>
         <Link
           href="/my-purchases"
           className="inline-flex items-center gap-2 rounded-lg bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700"
         >
-          Ir a mis apuntes
+          Ir a mi biblioteca
         </Link>
       </div>
     );
@@ -107,7 +107,7 @@ export function PurchaseStatusPoller({ purchaseId }: PurchaseStatusPollerProps) 
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
       </div>
-      <h1 className="text-2xl font-bold text-foreground">Confirmando tu pago...</h1>
+      <h1 className="text-2xl font-bold text-foreground">Confirmando tu pago…</h1>
       <p className="text-sm text-gray-500">
         Estamos verificando tu pago con Mercado Pago. Esto puede tardar unos segundos.
       </p>

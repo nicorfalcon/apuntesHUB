@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { StarRating } from "@/components/ui/star-rating";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
 import type { TocItem } from "@/components/ui/pdf-viewer";
 
 // Dynamic import — react-pdf solo funciona en el cliente
@@ -268,16 +267,14 @@ export function ViewerLayout({
           <div className="h-5 w-px bg-gray-200" />
           <Link
             href="/my-purchases"
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-foreground"
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 dark:text-sand-300/75 dark:hover:bg-white/10 dark:hover:text-sand-50 dark:focus-visible:ring-accent-300/30"
           >
             <ArrowLeftIcon />
-            Mis apuntes
+            Mi biblioteca
           </Link>
         </div>
 
         <div className="flex items-center gap-3">
-          <ThemeToggle />
-
           <div className="hidden h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-accent-600 to-accent-800 text-xs font-semibold text-white md:flex">
             {userAvatarUrl ? (
               <Image

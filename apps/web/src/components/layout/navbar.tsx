@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
+import { MessageCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
 import type { User } from "@supabase/supabase-js";
 import type { Profile } from "@/lib/database.types";
 
@@ -16,6 +16,7 @@ export function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Pick<Profile, "display_name" | "avatar_url"> | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -54,6 +55,30 @@ export function Navbar() {
       .single();
     if (data) setProfile(data);
   }
+
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      return;
+    }
+    let cancelled = false;
+    async function fetchUnread() {
+      try {
+        const res = await fetch("/api/messages/unread-count", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { count?: number };
+        if (!cancelled) setUnreadCount(data.count ?? 0);
+      } catch {
+        // ignore
+      }
+    }
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [user, pathname]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -108,7 +133,7 @@ export function Navbar() {
               href="/my-purchases"
               className={`text-sm font-medium transition-colors ${pathname.startsWith("/my-purchases") ? "text-accent-600 dark:text-accent-300" : "text-gray-500 hover:text-foreground dark:text-sand-300/75 dark:hover:text-sand-50"}`}
             >
-              Mis apuntes
+              Mi biblioteca
             </Link>
           )}
           {user && (
@@ -125,8 +150,22 @@ export function Navbar() {
         <div className="flex items-center gap-3">
           {user ? (
             <>
-              <ThemeToggle />
-
+            <Link
+              href="/mensajes"
+              aria-label={
+                unreadCount > 0
+                  ? `Mensajes (${unreadCount} sin leer)`
+                  : "Mensajes"
+              }
+              className="relative flex h-9 w-9 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 dark:text-sand-200 dark:hover:bg-white/10"
+            >
+              <MessageCircle className="h-5 w-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-white dark:ring-[#071713]">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </Link>
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen((v) => !v)}
@@ -230,8 +269,16 @@ export function Navbar() {
           })}
           {user ? (
             <>
+              <Link href="/mensajes" onClick={() => setMenuOpen(false)} className={`flex items-center justify-between py-2 text-sm font-medium ${pathname.startsWith("/mensajes") ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}>
+                <span>Mensajes</span>
+                {unreadCount > 0 && (
+                  <span className="ml-2 inline-flex min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold leading-none text-white">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </Link>
               <Link href="/profile" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname === "/profile" ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}>Mi perfil</Link>
-              <Link href="/my-purchases" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname.startsWith("/my-purchases") ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}>Mis apuntes</Link>
+              <Link href="/my-purchases" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname.startsWith("/my-purchases") ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}>Mi biblioteca</Link>
               <Link href="/sell/dashboard" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname === "/sell/dashboard" ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}>Panel de ventas</Link>
               <Link href="/reputation" onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname === "/reputation" ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}>Reputación</Link>
               <Link href={`/sell/new?from=${encodeURIComponent(pathname)}`} onClick={() => setMenuOpen(false)} className={`block py-2 text-sm font-medium ${pathname.startsWith("/sell") ? "text-accent-600 dark:text-accent-300" : "text-gray-600 dark:text-sand-300/75"}`}>Vender</Link>

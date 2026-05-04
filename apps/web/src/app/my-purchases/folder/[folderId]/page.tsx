@@ -55,7 +55,7 @@ export default async function FolderPage({ params }: { params: { folderId: strin
         <div className="mx-auto max-w-5xl px-4 py-8">
           {/* Breadcrumb */}
           <nav className="mb-4 flex items-center gap-2 text-sm text-gray-500">
-            <Link href="/my-purchases" className="hover:text-foreground transition-colors">Mis apuntes</Link>
+            <Link href="/my-purchases" className="hover:text-foreground transition-colors">Mi biblioteca</Link>
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
             </svg>
@@ -87,7 +87,7 @@ export default async function FolderPage({ params }: { params: { folderId: strin
               </svg>
             </div>
             <h2 className="mt-4 text-lg font-semibold text-foreground">Esta carpeta está vacía</h2>
-            <p className="mt-2 max-w-sm text-sm text-gray-500">Agregá apuntes desde <Link href="/my-purchases" className="text-accent-600 hover:underline">Mis apuntes</Link> usando el botón de carpeta en cada apunte.</p>
+            <p className="mt-2 max-w-sm text-sm text-gray-500">Agregá apuntes desde <Link href="/my-purchases" className="text-accent-600 hover:underline">Mi biblioteca</Link> usando el botón de carpeta en cada apunte.</p>
           </div>
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

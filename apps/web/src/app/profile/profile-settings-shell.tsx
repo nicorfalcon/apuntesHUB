@@ -2,12 +2,29 @@
 
 import { Suspense, useState } from "react";
 import { Bell, CreditCard, LockKeyhole, UserRound } from "lucide-react";
+
+function AccessibilityNewIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <circle cx="12" cy="4" r="1.6" fill="currentColor" stroke="none" />
+      <path d="M4 9h16" />
+      <path d="M9 9v3l-2 9" />
+      <path d="M15 9v3l2 9" />
+    </svg>
+  );
+}
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { ProfileForm } from "./profile-form";
 import { MpConnectSection } from "./mp-connect-section";
 import { SecuritySection } from "./security-section";
 import type { Profile } from "@/lib/database.types";
 
-type ProfileSection = "profile" | "payments" | "security" | "notifications";
+type ProfileSection =
+  | "profile"
+  | "accessibility"
+  | "payments"
+  | "security"
+  | "notifications";
 
 interface ProfileSettingsShellProps {
   userId: string;
@@ -25,6 +42,12 @@ const sections = [
     label: "Mi perfil",
     description: "Datos públicos",
     icon: UserRound,
+  },
+  {
+    id: "accessibility",
+    label: "Accesibilidad",
+    description: "Tema y lectura",
+    icon: AccessibilityNewIcon,
   },
   {
     id: "payments",
@@ -65,6 +88,37 @@ function ComingSoonPanel({
         <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-sand-300/75">{description}</p>
         <div className="mt-6 rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 dark:border-white/15 dark:bg-white/5">
           <p className="text-sm text-gray-500 dark:text-sand-300/75">{backendNote}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AccessibilityPanel() {
+  return (
+    <section className="rounded-2xl border border-gray-200/80 bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:border-white/10 dark:bg-[#0f1e1a]">
+      <div className="max-w-2xl">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-700 dark:text-accent-100">
+          Accesibilidad
+        </p>
+        <h2 className="mt-3 text-xl font-bold tracking-tight text-foreground">
+          Preferencias visuales
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Ajustá cómo se ve apuntesHUB en este dispositivo. La preferencia queda
+          guardada en tu navegador.
+        </p>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-white/10 dark:bg-white/[0.03]">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-foreground">Modo claro u oscuro</p>
+            <p className="mt-1 text-sm leading-5 text-muted-foreground">
+              Cambiá el contraste general de la interfaz.
+            </p>
+          </div>
+          <ThemeToggle />
         </div>
       </div>
     </section>
@@ -124,6 +178,8 @@ export function ProfileSettingsShell({
             <ProfileForm userId={userId} profile={profile} />
           </section>
         )}
+
+        {activeSection === "accessibility" && <AccessibilityPanel />}
 
         {activeSection === "payments" && (
           <section>

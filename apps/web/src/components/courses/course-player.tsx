@@ -14,6 +14,7 @@ interface CoursePlayerProps {
   initialWatchedSeconds: number;
   videoSrc: string | null;
   watermarkEmail: string;
+  moduleProgress: Record<string, { watchedSeconds: number; completed: boolean }>;
   /** Si el visitante es el autor sin enrollment, no se persiste progreso. */
   isAuthorPreview: boolean;
 }
@@ -35,11 +36,13 @@ export function CoursePlayer({
   initialWatchedSeconds,
   videoSrc,
   watermarkEmail,
+  moduleProgress,
   isAuthorPreview,
 }: CoursePlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [watermarkIndex, setWatermarkIndex] = useState(0);
   const [completed, setCompleted] = useState(false);
+  const [progressByModule, setProgressByModule] = useState(moduleProgress);
 
   const currentModule = useMemo(
     () => modules.find((m) => m.id === currentModuleId),
@@ -50,6 +53,14 @@ export function CoursePlayer({
     [modules, currentModuleId]
   );
   const nextModule = currentIndex >= 0 ? modules[currentIndex + 1] : undefined;
+
+  useEffect(() => {
+    setProgressByModule(moduleProgress);
+  }, [moduleProgress]);
+
+  useEffect(() => {
+    setCompleted(Boolean(moduleProgress[currentModuleId]?.completed));
+  }, [currentModuleId, moduleProgress]);
 
   // Rotar la posición del watermark cada 30s.
   useEffect(() => {
@@ -86,13 +97,21 @@ export function CoursePlayer({
 
     let lastSent = 0;
 
-    const sendProgress = async (completedFlag = false) => {
+    const sendProgress = async (completedFlag = false, keepalive = false) => {
       const seconds = Math.floor(video.currentTime || 0);
       if (!completedFlag && seconds === lastSent) return;
       lastSent = seconds;
+      setProgressByModule((current) => ({
+        ...current,
+        [currentModuleId]: {
+          watchedSeconds: seconds,
+          completed: Boolean(current[currentModuleId]?.completed || completedFlag),
+        },
+      }));
       try {
         const res = await fetch(`/api/courses/${courseId}/progress`, {
           method: "POST",
+          keepalive,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             module_id: currentModuleId,
@@ -105,6 +124,15 @@ export function CoursePlayer({
             completed?: boolean;
           } | null;
           if (data?.completed) setCompleted(true);
+          if (data?.completed) {
+            setProgressByModule((current) => ({
+              ...current,
+              [currentModuleId]: {
+                watchedSeconds: seconds,
+                completed: true,
+              },
+            }));
+          }
         }
       } catch {
         // Falla silenciosa: reintentamos en el próximo tick
@@ -117,14 +145,25 @@ export function CoursePlayer({
 
     const onEnded = () => sendProgress(true);
     const onPause = () => sendProgress(false);
+    const flushProgress = () => {
+      void sendProgress(false, true);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") flushProgress();
+    };
 
     video.addEventListener("ended", onEnded);
     video.addEventListener("pause", onPause);
+    window.addEventListener("pagehide", flushProgress);
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
+      flushProgress();
       clearInterval(interval);
       video.removeEventListener("ended", onEnded);
       video.removeEventListener("pause", onPause);
+      window.removeEventListener("pagehide", flushProgress);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [courseId, currentModuleId, isAuthorPreview]);
 
@@ -217,6 +256,19 @@ export function CoursePlayer({
             <ul className="space-y-1">
               {modules.map((courseModule) => {
                 const active = courseModule.id === currentModuleId;
+                const moduleProgressState = progressByModule[courseModule.id];
+                const progressPct = moduleProgressState?.completed
+                  ? 100
+                  : courseModule.duration_seconds > 0
+                    ? Math.min(
+                        100,
+                        Math.round(
+                          ((moduleProgressState?.watchedSeconds ?? 0) /
+                            courseModule.duration_seconds) *
+                            100
+                        )
+                      )
+                    : 0;
                 return (
                   <li key={courseModule.id}>
                     <Link
@@ -229,20 +281,35 @@ export function CoursePlayer({
                     >
                       <span
                         className={`mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                          active
+                          moduleProgressState?.completed
+                            ? "bg-green-600 text-white dark:bg-green-400 dark:text-[#071713]"
+                            : active
                             ? "bg-accent-600 text-white dark:bg-accent-300 dark:text-[#071713]"
                             : "bg-gray-100 text-muted-foreground dark:bg-white/[0.06]"
                         }`}
                       >
-                        {courseModule.position}
+                        {moduleProgressState?.completed ? (
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        ) : (
+                          courseModule.position
+                        )}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold">
                           {courseModule.title}
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDuration(courseModule.duration_seconds)}
+                        <span className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                          <span>{formatDuration(courseModule.duration_seconds)}</span>
+                          {progressPct > 0 && <span>{progressPct}%</span>}
                         </span>
+                        {progressPct > 0 && (
+                          <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
+                            <span
+                              className="block h-full rounded-full bg-accent-600 dark:bg-accent-300"
+                              style={{ width: `${progressPct}%` }}
+                            />
+                          </span>
+                        )}
                       </span>
                     </Link>
                   </li>

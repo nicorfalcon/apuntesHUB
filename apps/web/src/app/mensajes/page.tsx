@@ -128,6 +128,17 @@ export default async function MensajesPage({
   }
 
   const selectedMessages = messagesByBooking.get(selectedBooking.id) ?? [];
+
+  const unreadIncomingIds = selectedMessages
+    .filter((m) => m.sender_id !== user.id && !m.read_at)
+    .map((m) => m.id);
+  if (unreadIncomingIds.length > 0) {
+    await supabase
+      .from("tutor_messages")
+      .update({ read_at: new Date().toISOString() })
+      .in("id", unreadIncomingIds);
+  }
+
   const otherUserId =
     selectedBooking.tutor_id === user.id
       ? selectedBooking.student_id

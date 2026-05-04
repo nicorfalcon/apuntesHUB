@@ -218,8 +218,8 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
 
   /* ── Shared classes ── */
   const inputClass =
-    "mt-1 w-full rounded-[9px] border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm outline-none transition-colors focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20";
-  const labelClass = "block text-sm font-medium text-gray-700";
+    "mt-1 w-full rounded-xl border border-gray-200 bg-[var(--surface-warm)] px-3.5 py-2.5 text-sm text-foreground outline-none transition-[background-color,border-color,box-shadow] placeholder:text-gray-400 focus:border-accent-400 focus:bg-white focus:ring-2 focus:ring-accent-200/45 dark:border-white/15 dark:bg-white/[0.04] dark:placeholder:text-sand-300/45 dark:focus:border-accent-300 dark:focus:bg-white/[0.07] dark:focus:ring-accent-300/15";
+  const labelClass = "block text-sm font-medium text-gray-700 dark:text-sand-100";
 
   /* ── Progress bar width ── */
   const progressPercent = ((currentStep + 1) / STEPS.length) * 100;
@@ -227,7 +227,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-2xl border border-[0.5px] border-gray-200 bg-white"
+      className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:border-white/10 dark:bg-white/[0.03]"
     >
       {/* ── Progress indicator ── */}
       <div className="px-6 pt-6 pb-0 sm:px-8 sm:pt-8">
@@ -241,7 +241,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                     ? "bg-accent-600 text-white"
                     : i === currentStep
                       ? "bg-accent-600 text-white"
-                      : "bg-gray-100 text-gray-400"
+                      : "bg-gray-100 text-gray-400 dark:bg-white/[0.06] dark:text-sand-300/55"
                 }`}
               >
                 {i < currentStep ? (
@@ -252,7 +252,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
               </div>
               <span
                 className={`text-xs font-medium transition-colors duration-300 ${
-                  i <= currentStep ? "text-accent-600" : "text-gray-400"
+                  i <= currentStep ? "text-accent-600 dark:text-accent-100" : "text-gray-400 dark:text-sand-300/55"
                 }`}
               >
                 {label}
@@ -262,9 +262,9 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
         </div>
 
         {/* Progress bar */}
-        <div className="mt-4 h-1 w-full overflow-hidden rounded-full bg-gray-100">
+        <div className="mt-4 h-1 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
           <div
-            className="h-full rounded-full bg-accent-600 transition-all duration-500 ease-out"
+            className="h-full rounded-full bg-accent-600 transition-[width] duration-500 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -350,7 +350,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                 onChange={handleChange}
                 rows={3}
                 className={inputClass}
-                placeholder="Descripción breve del contenido..."
+                placeholder="Descripción breve del contenido…"
               />
             </div>
           </div>
@@ -366,18 +366,18 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
               <label className={labelClass}>
                 Archivo PDF {!isEdit && "*"}
               </label>
-              <div
+              <label
+                htmlFor="pdf"
                 onDragEnter={(e) => handleDrag(e, setPdfDragActive)}
                 onDragOver={(e) => handleDrag(e, setPdfDragActive)}
                 onDragLeave={(e) => handleDrag(e, setPdfDragActive)}
                 onDrop={handlePdfDrop}
-                onClick={() => pdfInputRef.current?.click()}
                 className={`mt-1 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-10 text-center transition-colors duration-200 ${
                   pdfDragActive
-                    ? "border-accent-500 bg-accent-50"
+                    ? "border-accent-500 bg-accent-50 dark:bg-accent-300/10"
                     : pdfFile
-                      ? "border-accent-300 bg-accent-50"
-                      : "border-gray-300 bg-gray-50 hover:border-accent-400 hover:bg-accent-50"
+                      ? "border-accent-300 bg-accent-50 dark:bg-accent-300/10"
+                      : "border-gray-300 bg-gray-50 hover:border-accent-400 hover:bg-accent-50 dark:border-white/15 dark:bg-white/[0.04] dark:hover:border-accent-300/40 dark:hover:bg-accent-300/10"
                 }`}
               >
                 {pdfFile ? (
@@ -387,11 +387,11 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                       className="text-accent-600"
                       strokeWidth={1.5}
                     />
-                    <p className="mt-2 text-sm font-medium text-gray-800">
+                    <p className="mt-2 text-sm font-medium text-gray-800 dark:text-sand-50">
                       {pdfFile.name}
                     </p>
-                    <p className="mt-0.5 text-xs text-gray-400">
-                      {(pdfFile.size / 1024 / 1024).toFixed(2)} MB — Hacé click
+                    <p className="mt-0.5 text-xs text-gray-400 dark:text-sand-300/65">
+                      {(pdfFile.size / 1024 / 1024).toFixed(2)} MB, hacé click
                       para cambiar
                     </p>
                   </>
@@ -402,10 +402,10 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                       className="text-gray-400"
                       strokeWidth={1.5}
                     />
-                    <p className="mt-2 text-sm font-medium text-gray-600">
+                    <p className="mt-2 text-sm font-medium text-gray-600 dark:text-sand-100">
                       Arrastrá tu PDF acá o hacé click para seleccionar
                     </p>
-                    <p className="mt-0.5 text-xs text-gray-400">
+                    <p className="mt-0.5 text-xs text-gray-400 dark:text-sand-300/65">
                       Solo archivos PDF
                     </p>
                   </>
@@ -415,12 +415,12 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                   id="pdf"
                   type="file"
                   accept="application/pdf"
-                  className="hidden"
+                  className="sr-only"
                   onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
                 />
-              </div>
+              </label>
               {isEdit && !pdfFile && (
-                <p className="mt-1.5 text-xs text-gray-400">
+                <p className="mt-1.5 text-xs text-gray-400 dark:text-sand-300/65">
                   Dejá vacío para mantener el archivo actual.
                 </p>
               )}
@@ -432,7 +432,8 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                 Imagen de preview{" "}
                 <span className="font-normal text-gray-400">(opcional)</span>
               </label>
-              <div
+              <label
+                htmlFor="preview"
                 onDragEnter={(e) =>
                   handleDrag(e, setPreviewDragActive)
                 }
@@ -443,13 +444,12 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                   handleDrag(e, setPreviewDragActive)
                 }
                 onDrop={handlePreviewDrop}
-                onClick={() => previewInputRef.current?.click()}
                 className={`mt-1 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors duration-200 ${
                   previewDragActive
-                    ? "border-accent-500 bg-accent-50"
+                    ? "border-accent-500 bg-accent-50 dark:bg-accent-300/10"
                     : previewFile
-                      ? "border-accent-300 bg-accent-50"
-                      : "border-gray-300 bg-gray-50 hover:border-accent-400 hover:bg-accent-50"
+                      ? "border-accent-300 bg-accent-50 dark:bg-accent-300/10"
+                      : "border-gray-300 bg-gray-50 hover:border-accent-400 hover:bg-accent-50 dark:border-white/15 dark:bg-white/[0.04] dark:hover:border-accent-300/40 dark:hover:bg-accent-300/10"
                 }`}
               >
                 {previewFile ? (
@@ -459,10 +459,10 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                       className="text-accent-600"
                       strokeWidth={1.5}
                     />
-                    <p className="mt-1.5 text-sm font-medium text-gray-800">
+                    <p className="mt-1.5 text-sm font-medium text-gray-800 dark:text-sand-50">
                       {previewFile.name}
                     </p>
-                    <p className="mt-0.5 text-xs text-gray-400">
+                    <p className="mt-0.5 text-xs text-gray-400 dark:text-sand-300/65">
                       Hacé click para cambiar
                     </p>
                   </>
@@ -473,7 +473,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                       className="text-gray-400"
                       strokeWidth={1.5}
                     />
-                    <p className="mt-1.5 text-sm text-gray-500">
+                    <p className="mt-1.5 text-sm text-gray-500 dark:text-sand-300/75">
                       Arrastrá una imagen o hacé click para seleccionar
                     </p>
                   </>
@@ -483,12 +483,12 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                   id="preview"
                   type="file"
                   accept="image/*"
-                  className="hidden"
+                  className="sr-only"
                   onChange={(e) =>
                     setPreviewFile(e.target.files?.[0] ?? null)
                   }
                 />
-              </div>
+              </label>
             </div>
           </div>
         </div>
@@ -504,7 +504,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                 Precio *
               </label>
               <div className="relative mt-1">
-                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-medium text-gray-500">
+                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-medium text-gray-500 dark:text-sand-300/75">
                   ARS
                 </span>
                 <input
@@ -525,7 +525,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                 onClick={() =>
                   setForm((prev) => ({ ...prev, price: "0" }))
                 }
-                className="mt-2 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-accent-500 hover:text-accent-600"
+                className="mt-2 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:border-accent-500 hover:text-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/30 dark:border-white/10 dark:text-sand-300/75 dark:hover:border-accent-300/35 dark:hover:text-accent-100"
               >
                 Gratuito
               </button>
@@ -550,39 +550,39 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
             </div>
 
             {/* Summary card */}
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-white/10 dark:bg-white/[0.04]">
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-sand-300/65">
                 Resumen
               </h3>
               <dl className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">Título</dt>
-                  <dd className="max-w-[60%] truncate text-right font-medium text-gray-800">
+                  <dt className="text-gray-500 dark:text-sand-300/75">Título</dt>
+                  <dd className="max-w-[60%] truncate text-right font-medium text-gray-800 dark:text-sand-50">
                     {form.title || "—"}
                   </dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">Materia</dt>
-                  <dd className="font-medium text-gray-800">
+                  <dt className="text-gray-500 dark:text-sand-300/75">Materia</dt>
+                  <dd className="font-medium text-gray-800 dark:text-sand-50">
                     {form.subject || "—"}
                   </dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">Universidad</dt>
-                  <dd className="font-medium text-gray-800">
+                  <dt className="text-gray-500 dark:text-sand-300/75">Universidad</dt>
+                  <dd className="font-medium text-gray-800 dark:text-sand-50">
                     {form.university || "—"}
                   </dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">Archivo</dt>
-                  <dd className="max-w-[60%] truncate text-right font-medium text-gray-800">
+                  <dt className="text-gray-500 dark:text-sand-300/75">Archivo</dt>
+                  <dd className="max-w-[60%] truncate text-right font-medium text-gray-800 dark:text-sand-50">
                     {pdfFile?.name ?? (isEdit ? "Archivo actual" : "—")}
                   </dd>
                 </div>
-                <div className="h-px bg-gray-200" />
+                <div className="h-px bg-gray-200 dark:bg-white/10" />
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">Precio</dt>
-                  <dd className="font-semibold text-accent-600">
+                  <dt className="text-gray-500 dark:text-sand-300/75">Precio</dt>
+                  <dd className="font-semibold text-accent-600 dark:text-accent-100">
                     {form.price === "0"
                       ? "Gratuito"
                       : form.price
@@ -599,15 +599,15 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
       {/* ── Error ── */}
       {error && (
         <div className="px-6 sm:px-8">
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600 dark:border-red-400/25 dark:bg-red-500/10 dark:text-red-100">
             {error}
           </p>
         </div>
       )}
 
       {/* ── Footer: navigation + step counter ── */}
-      <div className="flex items-center justify-between border-t border-gray-100 px-6 py-4 sm:px-8">
-        <span className="text-xs text-gray-400">
+      <div className="flex items-center justify-between border-t border-gray-100 px-6 py-4 dark:border-white/10 sm:px-8">
+        <span className="text-xs text-gray-400 dark:text-sand-300/65">
           Paso {currentStep + 1} de {STEPS.length}
         </span>
 
@@ -616,7 +616,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
             <button
               type="button"
               onClick={prevStep}
-              className="px-4 py-2 text-sm font-medium text-gray-500 transition-colors hover:text-gray-800"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/30 dark:text-sand-300/70 dark:hover:bg-white/10 dark:hover:text-sand-50 dark:focus-visible:ring-accent-300/25"
             >
               Volver
             </button>
@@ -628,7 +628,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
               type="button"
               onClick={nextStep}
               disabled={!canAdvance()}
-              className="rounded-lg bg-accent-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="rounded-lg bg-accent-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/30 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
             >
               Continuar
             </button>
@@ -637,10 +637,10 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
               key="step-submit"
               type="submit"
               disabled={loading || !form.price}
-              className="rounded-lg bg-accent-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="rounded-lg bg-accent-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/30 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
             >
               {loading
-                ? "Guardando..."
+                ? "Guardando…"
                 : isEdit
                   ? "Guardar cambios"
                   : "Publicar apunte"}

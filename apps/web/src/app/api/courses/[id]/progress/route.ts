@@ -57,10 +57,17 @@ export async function POST(
     return NextResponse.json({ error: "Módulo no válido" }, { status: 404 });
   }
 
-  const completedAt =
+  const { data: existingProgress } = await supabase
+    .from("course_progress")
+    .select("completed_at")
+    .eq("enrollment_id", enrollment.id)
+    .eq("module_id", body.module_id)
+    .maybeSingle();
+
+  const nextCompletedAt =
     body.completed || (courseModule.duration_seconds > 0 && watched >= courseModule.duration_seconds - 5)
       ? new Date().toISOString()
-      : null;
+      : existingProgress?.completed_at ?? null;
 
   const { error: upsertError } = await supabase
     .from("course_progress")
@@ -69,7 +76,7 @@ export async function POST(
         enrollment_id: enrollment.id,
         module_id: body.module_id,
         watched_seconds: watched,
-        completed_at: completedAt,
+        completed_at: nextCompletedAt,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "enrollment_id,module_id" }
@@ -79,5 +86,5 @@ export async function POST(
     return NextResponse.json({ error: upsertError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, completed: Boolean(completedAt) });
+  return NextResponse.json({ ok: true, completed: Boolean(nextCompletedAt) });
 }

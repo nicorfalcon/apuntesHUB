@@ -11,10 +11,10 @@ export function CourseList({ courses }: CourseListProps) {
   if (!featuredCourse) return null;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <CourseCard course={featuredCourse} featured />
       {rest.length > 0 && (
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {rest.map((course) => (
             <CourseCard key={course.id} course={course} />
           ))}

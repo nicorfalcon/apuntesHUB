@@ -77,15 +77,27 @@ export default async function CoursePlayerPage({
 
   // 3. Progreso previo (solo aplica si hay enrollment del alumno)
   let initialWatchedSeconds = 0;
+  let moduleProgress: Record<string, { watchedSeconds: number; completed: boolean }> = {};
   if (enrollmentId) {
-    const { data: progress } = await supabase
+    const { data: progressRows } = await supabase
       .from("course_progress")
-      .select("watched_seconds")
+      .select("module_id, watched_seconds, completed_at")
       .eq("enrollment_id", enrollmentId)
-      .eq("module_id", moduleId)
-      .maybeSingle();
+      .in(
+        "module_id",
+        modules.map((courseModule) => courseModule.id)
+      );
 
-    initialWatchedSeconds = progress?.watched_seconds ?? 0;
+    moduleProgress = Object.fromEntries(
+      (progressRows ?? []).map((progress) => [
+        progress.module_id,
+        {
+          watchedSeconds: progress.watched_seconds ?? 0,
+          completed: Boolean(progress.completed_at),
+        },
+      ])
+    );
+    initialWatchedSeconds = moduleProgress[moduleId]?.watchedSeconds ?? 0;
   }
 
   // Watermark: usamos el email del usuario (lo que tenemos en sesión).
@@ -103,6 +115,7 @@ export default async function CoursePlayerPage({
       initialWatchedSeconds={initialWatchedSeconds}
       videoSrc={videoSrc}
       watermarkEmail={watermarkEmail}
+      moduleProgress={moduleProgress}
       isAuthorPreview={isAuthor && !enrollmentId}
     />
   );

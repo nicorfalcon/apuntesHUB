@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   CalendarDays,
+  Check,
   GraduationCap,
   Link as LinkIcon,
   Plus,
@@ -87,6 +88,7 @@ const MODALITIES: { value: Modality; label: string }[] = [
   { value: "presencial", label: "Presencial" },
   { value: "ambas", label: "Online y presencial" },
 ];
+const TUTOR_STEPS = ["Perfil", "Materias", "Horarios"] as const;
 
 function createSubjectDraft(profile: Partial<Profile> | null): SubjectDraft {
   return {
@@ -214,6 +216,7 @@ export function TutorForm({
       : [createAvailabilityDraft()]
   );
   const [error, setError] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const formattedMainRate = useMemo(() => {
@@ -223,8 +226,9 @@ export function TutorForm({
   }, [subjects]);
 
   const inputClass =
-    "w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-gray-400 focus:border-accent-400 focus:ring-2 focus:ring-accent-200/45 dark:border-white/15 dark:bg-white/5 dark:placeholder:text-sand-300/45 dark:focus:border-accent-300 dark:focus:ring-accent-300/15";
+    "w-full rounded-xl border border-gray-200 bg-[var(--surface-warm)] px-3.5 py-2.5 text-sm text-foreground outline-none transition-[background-color,border-color,box-shadow] placeholder:text-gray-400 focus:border-accent-400 focus:bg-white focus:ring-2 focus:ring-accent-200/45 dark:border-white/15 dark:bg-white/[0.04] dark:placeholder:text-sand-300/45 dark:focus:border-accent-300 dark:focus:bg-white/[0.07] dark:focus:ring-accent-300/15";
   const selectClass = `${inputClass} appearance-none`;
+  const progressPercent = ((currentStep + 1) / TUTOR_STEPS.length) * 100;
 
   function updateSubject(
     localId: string,
@@ -286,12 +290,15 @@ export function TutorForm({
     );
   }
 
-  function validateForm() {
+  function validateProfileStep() {
     const trimmedBio = bio.trim();
     if (trimmedBio.length < 30) {
       return "Contá un poco más sobre cómo das clases. Mínimo 30 caracteres.";
     }
+    return null;
+  }
 
+  function validateSubjectsStep() {
     for (const subject of subjects) {
       if (!subject.name.trim() || !subject.university.trim()) {
         return "Completá materia y universidad en todas las materias.";
@@ -310,23 +317,57 @@ export function TutorForm({
         }
       }
     }
+    return null;
+  }
 
+  function validateAvailabilityStep() {
     for (const slot of availability) {
       if (!slot.startTime || !slot.endTime || slot.endTime <= slot.startTime) {
         return "Revisá los horarios: cada franja tiene que terminar después de empezar.";
       }
     }
-
     return null;
+  }
+
+  function validateForm() {
+    return validateProfileStep() ?? validateSubjectsStep() ?? validateAvailabilityStep();
+  }
+
+  function currentStepError() {
+    if (currentStep === 0) return validateProfileStep();
+    if (currentStep === 1) return validateSubjectsStep();
+    return validateAvailabilityStep();
+  }
+
+  function canAdvance() {
+    return currentStepError() === null;
+  }
+
+  function nextStep() {
+    const validationError = currentStepError();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    setError(null);
+    setCurrentStep((step) => Math.min(step + 1, TUTOR_STEPS.length - 1));
+  }
+
+  function prevStep() {
+    setError(null);
+    setCurrentStep((step) => Math.max(step - 1, 0));
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (currentStep < TUTOR_STEPS.length - 1) return;
     setError(null);
 
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
+      if (validateProfileStep()) setCurrentStep(0);
+      else if (validateSubjectsStep()) setCurrentStep(1);
       return;
     }
 
@@ -378,7 +419,49 @@ export function TutorForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-white/[0.03]">
+      <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:border-white/10 dark:bg-white/[0.03]">
+        <div className="px-6 pb-0 pt-6 sm:px-8 sm:pt-8">
+          <div className="flex items-center justify-between">
+            {TUTOR_STEPS.map((label, index) => (
+              <div key={label} className="flex flex-col items-center gap-1.5">
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold transition-colors duration-300 ${
+                    index < currentStep
+                      ? "bg-accent-600 text-white"
+                      : index === currentStep
+                        ? "bg-accent-600 text-white"
+                        : "bg-gray-100 text-gray-400 dark:bg-white/[0.06] dark:text-sand-300/55"
+                  }`}
+                >
+                  {index < currentStep ? (
+                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                  ) : (
+                    index + 1
+                  )}
+                </div>
+                <span
+                  className={`text-xs font-medium transition-colors duration-300 ${
+                    index <= currentStep
+                      ? "text-accent-600 dark:text-accent-100"
+                      : "text-gray-400 dark:text-sand-300/55"
+                  }`}
+                >
+                  {label}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 h-1 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
+            <div
+              className="h-full rounded-full bg-accent-600 transition-[width] duration-500 ease-out"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="px-6 py-6 sm:px-8">
+          <section className={currentStep === 0 ? "block" : "hidden"}>
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <div>
             <SectionTitle
@@ -419,9 +502,9 @@ export function TutorForm({
             </div>
           </aside>
         </div>
-      </section>
+          </section>
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-white/[0.03]">
+          <section className={currentStep === 1 ? "block" : "hidden"}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <SectionTitle
             icon="subjects"
@@ -442,7 +525,7 @@ export function TutorForm({
           {subjects.map((subject, index) => (
             <div
               key={subject.localId}
-              className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-white/10 dark:bg-white/[0.035]"
+              className="rounded-2xl border border-gray-200/70 bg-[var(--surface-warm)] p-4 dark:border-white/10 dark:bg-white/[0.035]"
             >
               <div className="mb-4 flex items-center justify-between gap-3">
                 <p className="text-sm font-bold text-foreground">
@@ -532,7 +615,7 @@ export function TutorForm({
                         )
                       }
                       className={`${inputClass} pl-10`}
-                      placeholder="https://..."
+                      placeholder="https://…"
                     />
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">
@@ -543,9 +626,9 @@ export function TutorForm({
             </div>
           ))}
         </div>
-      </section>
+          </section>
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-white/[0.03]">
+          <section className={currentStep === 2 ? "block" : "hidden"}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <SectionTitle
             icon="availability"
@@ -566,7 +649,7 @@ export function TutorForm({
           {availability.map((slot) => (
             <div
               key={slot.localId}
-              className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-white/10 dark:bg-white/[0.035]"
+              className="rounded-2xl border border-gray-200/70 bg-[var(--surface-warm)] p-4 dark:border-white/10 dark:bg-white/[0.035]"
             >
               <div className="mb-4 flex items-center justify-between gap-3">
                 <p className="text-sm font-bold text-foreground">Horario</p>
@@ -660,22 +743,53 @@ export function TutorForm({
             </div>
           ))}
         </div>
-      </section>
+          </section>
+        </div>
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-400/25 dark:bg-red-500/10 dark:text-red-100">
-          {error}
+        <div className="px-6 sm:px-8">
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-400/25 dark:bg-red-500/10 dark:text-red-100">
+            {error}
+          </p>
         </div>
       )}
 
-      <div className="flex justify-end border-t border-gray-200 pt-5 dark:border-white/10">
-        <button
-          type="submit"
-          disabled={loading}
-          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-accent-600 px-6 text-sm font-bold text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
-        >
-          {loading ? "Publicando..." : "Publicar perfil de profesor"}
-        </button>
+        <div className="flex items-center justify-between border-t border-gray-100 px-6 py-4 dark:border-white/10 sm:px-8">
+          <span className="text-xs text-gray-400 dark:text-sand-300/65">
+            Paso {currentStep + 1} de {TUTOR_STEPS.length}
+          </span>
+
+          <div className="flex items-center gap-3">
+            {currentStep > 0 && (
+              <button
+                type="button"
+                onClick={prevStep}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/30 dark:text-sand-300/70 dark:hover:bg-white/10 dark:hover:text-sand-50 dark:focus-visible:ring-accent-300/25"
+              >
+                Volver
+              </button>
+            )}
+
+            {currentStep < TUTOR_STEPS.length - 1 ? (
+              <button
+                type="button"
+                onClick={nextStep}
+                disabled={!canAdvance()}
+                className="rounded-lg bg-accent-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/30 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
+              >
+                Continuar
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading}
+                className="rounded-lg bg-accent-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/30 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
+              >
+                {loading ? "Publicando…" : "Publicar perfil de profesor"}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </form>
   );

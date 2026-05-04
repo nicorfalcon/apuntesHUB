@@ -34,7 +34,7 @@ export default async function CheckoutPendingPage({
           href="/my-purchases"
           className="inline-flex items-center gap-2 rounded-lg bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700"
         >
-          Ir a mis apuntes
+          Ir a mi biblioteca
         </Link>
       </div>
     </div>
