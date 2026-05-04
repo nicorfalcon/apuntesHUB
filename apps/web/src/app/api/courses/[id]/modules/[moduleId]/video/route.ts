@@ -39,7 +39,8 @@ export async function POST(
     return NextResponse.json({ error: "Video inválido" }, { status: 400 });
   }
 
-  const { data: courseModule } = await supabase
+  const admin = createAdminClient();
+  const { data: courseModule } = await admin
     .from("course_modules")
     .select("id, video_storage_key, recorded_courses!inner(id, author_id)")
     .eq("id", moduleId)
@@ -83,7 +84,6 @@ export async function POST(
     );
   }
 
-  const admin = createAdminClient();
   const { error } = await admin
     .from("course_modules")
     .update({

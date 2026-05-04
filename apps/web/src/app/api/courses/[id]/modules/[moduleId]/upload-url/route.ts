@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
   COURSE_VIDEO_MAX_BYTES,
@@ -50,7 +51,8 @@ export async function POST(
     );
   }
 
-  const { data: courseModule } = await supabase
+  const admin = createAdminClient();
+  const { data: courseModule } = await admin
     .from("course_modules")
     .select("id, recorded_courses!inner(id, author_id)")
     .eq("id", moduleId)
