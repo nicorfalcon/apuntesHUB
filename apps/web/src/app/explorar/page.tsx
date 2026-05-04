@@ -89,7 +89,12 @@ type RawCourse = RecordedCourse & {
   course_modules:
     | Pick<
         CourseModule,
-        "id" | "position" | "title" | "description" | "duration_seconds"
+        | "id"
+        | "position"
+        | "title"
+        | "description"
+        | "duration_seconds"
+        | "video_storage_key"
       >[]
     | null;
 };
@@ -140,7 +145,7 @@ export default async function ExplorarPage({
   const coursesPromise = supabase
     .from("recorded_courses")
     .select(
-      "*, profiles!author_id(id, display_name, avatar_url, university, career), subjects(id, name, university, career), course_modules(id, position, title, description, duration_seconds)"
+      "*, profiles!author_id(id, display_name, avatar_url, university, career), subjects(id, name, university, career), course_modules(id, position, title, description, duration_seconds, video_storage_key)"
     )
     .eq("is_published", true)
     .is("deleted_at", null)

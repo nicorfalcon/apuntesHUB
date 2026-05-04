@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 type CourseType = "curso_completo" | "repaso_final" | "resolucion_tps";
 
 interface CourseModuleInput {
+  client_id?: string;
   title?: string;
   description?: string | null;
   duration_minutes?: number;
@@ -158,7 +159,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const modules = (body?.modules ?? []).map((courseModule, index) => ({
+  const moduleInputs = body?.modules ?? [];
+  const modules = moduleInputs.map((courseModule, index) => ({
     course_id: course.id,
     position: index + 1,
     title: normalizeText(courseModule.title),
@@ -166,9 +168,12 @@ export async function POST(request: Request) {
     duration_seconds: Number(courseModule.duration_minutes) * 60,
   }));
 
-  const { error: modulesError } = await admin.from("course_modules").insert(modules);
+  const { data: createdModules, error: modulesError } = await admin
+    .from("course_modules")
+    .insert(modules)
+    .select("id, position");
 
-  if (modulesError) {
+  if (modulesError || !createdModules) {
     await admin.from("recorded_courses").delete().eq("id", course.id);
     return NextResponse.json(
       { error: "No pudimos guardar los módulos." },
@@ -176,5 +181,14 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ course_id: course.id });
+  return NextResponse.json({
+    course_id: course.id,
+    modules: createdModules
+      .sort((a, b) => a.position - b.position)
+      .map((createdModule) => ({
+        id: createdModule.id,
+        position: createdModule.position,
+        client_id: moduleInputs[createdModule.position - 1]?.client_id ?? null,
+      })),
+  });
 }

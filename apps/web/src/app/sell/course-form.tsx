@@ -12,12 +12,17 @@ import { toast } from "sonner";
 import {
   BookOpen,
   Clock,
-  Lock,
   Plus,
   Radio,
   Trash2,
+  Upload,
   Video,
 } from "lucide-react";
+import {
+  COURSE_VIDEO_MAX_BYTES,
+  COURSE_VIDEO_MAX_LABEL,
+  isAllowedCourseVideoType,
+} from "@/lib/backblaze/config";
 import type { Profile } from "@/lib/database.types";
 
 type CourseType = "curso_completo" | "repaso_final" | "resolucion_tps";
@@ -31,6 +36,7 @@ interface ModuleDraft {
   title: string;
   description: string;
   durationMinutes: string;
+  videoFile: File | null;
 }
 
 const COURSE_TYPES: { value: CourseType; label: string; description: string }[] = [
@@ -59,6 +65,7 @@ function createModuleDraft(): ModuleDraft {
     title: "",
     description: "",
     durationMinutes: "45",
+    videoFile: null,
   };
 }
 
@@ -120,6 +127,7 @@ export function CourseForm({ profile }: CourseFormProps) {
   });
   const [modules, setModules] = useState<ModuleDraft[]>([createModuleDraft()]);
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("Creando curso...");
   const [error, setError] = useState<string | null>(null);
 
   const totalDurationMinutes = useMemo(
@@ -151,13 +159,23 @@ export function CourseForm({ profile }: CourseFormProps) {
 
   function updateModule(
     localId: string,
-    field: keyof Omit<ModuleDraft, "localId">,
+    field: keyof Omit<ModuleDraft, "localId" | "videoFile">,
     value: string
   ) {
     setModules((current) =>
       current.map((courseModule) =>
         courseModule.localId === localId
           ? { ...courseModule, [field]: value }
+          : courseModule
+      )
+    );
+  }
+
+  function updateModuleVideo(localId: string, file: File | null) {
+    setModules((current) =>
+      current.map((courseModule) =>
+        courseModule.localId === localId
+          ? { ...courseModule, videoFile: file }
           : courseModule
       )
     );
@@ -194,8 +212,85 @@ export function CourseForm({ profile }: CourseFormProps) {
       if (!Number.isInteger(duration) || duration <= 0) {
         return "Cada módulo necesita una duración válida.";
       }
+      if (form.isPublished && !courseModule.videoFile) {
+        return "Cada módulo publicado necesita un video.";
+      }
+      if (courseModule.videoFile) {
+        if (!isAllowedCourseVideoType(courseModule.videoFile.type)) {
+          return "Subí videos MP4, WebM o MOV.";
+        }
+        if (courseModule.videoFile.size > COURSE_VIDEO_MAX_BYTES) {
+          return `Cada video debe pesar como máximo ${COURSE_VIDEO_MAX_LABEL}.`;
+        }
+      }
     }
     return null;
+  }
+
+  async function uploadModuleVideo({
+    courseId,
+    moduleId,
+    file,
+  }: {
+    courseId: string;
+    moduleId: string;
+    file: File;
+  }) {
+    const uploadUrlResponse = await fetch(
+      `/api/courses/${courseId}/modules/${moduleId}/upload-url`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          file_name: file.name,
+          content_type: file.type,
+          size: file.size,
+        }),
+      }
+    );
+
+    const uploadUrlPayload = (await uploadUrlResponse.json().catch(() => null)) as
+      | { upload_url?: string; storage_key?: string; error?: string }
+      | null;
+
+    if (
+      !uploadUrlResponse.ok ||
+      !uploadUrlPayload?.upload_url ||
+      !uploadUrlPayload.storage_key
+    ) {
+      throw new Error(
+        uploadUrlPayload?.error ?? "No pudimos preparar la subida del video."
+      );
+    }
+
+    const uploadResponse = await fetch(uploadUrlPayload.upload_url, {
+      method: "PUT",
+      headers: { "Content-Type": file.type },
+      body: file,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error("No pudimos subir el video a Backblaze.");
+    }
+
+    const completeResponse = await fetch(
+      `/api/courses/${courseId}/modules/${moduleId}/video`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storage_key: uploadUrlPayload.storage_key }),
+      }
+    );
+
+    const completePayload = (await completeResponse.json().catch(() => null)) as
+      | { error?: string }
+      | null;
+
+    if (!completeResponse.ok) {
+      throw new Error(
+        completePayload?.error ?? "No pudimos guardar el video del módulo."
+      );
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -209,6 +304,7 @@ export function CourseForm({ profile }: CourseFormProps) {
     }
 
     setLoading(true);
+    setLoadingMessage("Creando curso...");
 
     const response = await fetch("/api/courses/onboarding", {
       method: "POST",
@@ -226,6 +322,7 @@ export function CourseForm({ profile }: CourseFormProps) {
         price_ars: Number(form.price),
         is_published: form.isPublished,
         modules: modules.map((courseModule) => ({
+          client_id: courseModule.localId,
           title: courseModule.title.trim(),
           description: courseModule.description.trim() || null,
           duration_minutes: Number(courseModule.durationMinutes),
@@ -234,11 +331,49 @@ export function CourseForm({ profile }: CourseFormProps) {
     });
 
     const payload = (await response.json().catch(() => null)) as
-      | { course_id?: string; error?: string }
+      | {
+          course_id?: string;
+          modules?: { id: string; client_id: string | null }[];
+          error?: string;
+        }
       | null;
 
     if (!response.ok || !payload?.course_id) {
       setError(payload?.error ?? "No pudimos crear el curso.");
+      setLoading(false);
+      return;
+    }
+
+    const createdModulesByClientId = new Map(
+      (payload.modules ?? [])
+        .filter((courseModule) => courseModule.client_id)
+        .map((courseModule) => [courseModule.client_id, courseModule.id])
+    );
+
+    try {
+      const modulesWithVideo = modules.filter((courseModule) => courseModule.videoFile);
+      if (modulesWithVideo.length > 0) {
+        setLoadingMessage("Subiendo videos...");
+      }
+
+      for (const courseModule of modulesWithVideo) {
+        const moduleId = createdModulesByClientId.get(courseModule.localId);
+        if (!moduleId || !courseModule.videoFile) {
+          throw new Error("No pudimos asociar un video con su módulo.");
+        }
+
+        await uploadModuleVideo({
+          courseId: payload.course_id,
+          moduleId,
+          file: courseModule.videoFile,
+        });
+      }
+    } catch (uploadError) {
+      setError(
+        uploadError instanceof Error
+          ? `El curso se creó, pero falló la carga de video: ${uploadError.message}`
+          : "El curso se creó, pero falló la carga de video."
+      );
       setLoading(false);
       return;
     }
@@ -377,7 +512,7 @@ export function CourseForm({ profile }: CourseFormProps) {
           <SectionTitle
             icon="modules"
             title="Módulos"
-            description="Cargá la estructura del curso. El upload de video queda desactivado hasta BackBlaze."
+            description={`Cargá la estructura y el video de cada clase. Máximo ${COURSE_VIDEO_MAX_LABEL} por módulo.`}
           />
           <button
             type="button"
@@ -463,11 +598,41 @@ export function CourseForm({ profile }: CourseFormProps) {
                     placeholder="Qué se ve en esta clase."
                   />
                 </div>
-              </div>
-
-              <div className="mt-4 flex items-center gap-2 rounded-xl border border-dashed border-gray-200 px-3 py-2 text-xs text-muted-foreground dark:border-white/10">
-                <Lock className="h-4 w-4" />
-                Upload de video próximamente
+                <div className="md:col-span-2">
+                  <FieldLabel htmlFor={`module-video-${courseModule.localId}`}>
+                    Video de la clase
+                  </FieldLabel>
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-200 bg-white px-4 py-5 text-center transition-colors hover:border-accent-300 hover:bg-accent-50/40 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-accent-300/40 dark:hover:bg-accent-300/10">
+                    <Upload className="h-5 w-5 text-accent-700 dark:text-accent-100" />
+                    <span className="text-sm font-semibold text-foreground">
+                      {courseModule.videoFile
+                        ? courseModule.videoFile.name
+                        : "Seleccionar video"}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      MP4, WebM o MOV · hasta {COURSE_VIDEO_MAX_LABEL}
+                    </span>
+                    <input
+                      id={`module-video-${courseModule.localId}`}
+                      type="file"
+                      accept="video/mp4,video/webm,video/quicktime"
+                      className="sr-only"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0] ?? null;
+                        if (file && file.size > COURSE_VIDEO_MAX_BYTES) {
+                          setError(
+                            `El video de "${courseModule.title || `Módulo ${index + 1}`}" supera ${COURSE_VIDEO_MAX_LABEL}.`
+                          );
+                          event.target.value = "";
+                          updateModuleVideo(courseModule.localId, null);
+                          return;
+                        }
+                        setError(null);
+                        updateModuleVideo(courseModule.localId, file);
+                      }}
+                    />
+                  </label>
+                </div>
               </div>
             </div>
           ))}
@@ -479,7 +644,7 @@ export function CourseForm({ profile }: CourseFormProps) {
           <SectionTitle
             icon="publish"
             title="Publicación"
-            description="Podés publicarlo ahora con módulos mock. El video real se suma en la etapa de BackBlaze."
+            description="Si lo publicás ahora, cada módulo necesita tener su video cargado."
           />
           <div className="rounded-2xl border border-accent-200 bg-accent-50 p-4 dark:border-accent-300/20 dark:bg-accent-300/10">
             <p className="text-xs font-bold uppercase text-accent-700 dark:text-accent-100">
@@ -531,7 +696,7 @@ export function CourseForm({ profile }: CourseFormProps) {
           disabled={loading}
           className="inline-flex min-h-11 items-center justify-center rounded-xl bg-accent-600 px-6 text-sm font-bold text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
         >
-          {loading ? "Creando curso..." : "Crear curso grabado"}
+          {loading ? loadingMessage : "Crear curso grabado"}
         </button>
       </div>
     </form>

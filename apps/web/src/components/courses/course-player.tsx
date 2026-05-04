@@ -12,14 +12,11 @@ interface CoursePlayerProps {
   modules: CourseModuleSummary[];
   currentModuleId: string;
   initialWatchedSeconds: number;
+  videoSrc: string | null;
   watermarkEmail: string;
   /** Si el visitante es el autor sin enrollment, no se persiste progreso. */
   isAuthorPreview: boolean;
 }
-
-// Sample público usado mientras no haya integración con BackBlaze (Etapa 5).
-const SAMPLE_VIDEO_SRC =
-  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
 
 // Posiciones que va rotando el watermark cada 30s (esquinas/centro).
 const WATERMARK_POSITIONS = [
@@ -36,6 +33,7 @@ export function CoursePlayer({
   modules,
   currentModuleId,
   initialWatchedSeconds,
+  videoSrc,
   watermarkEmail,
   isAuthorPreview,
 }: CoursePlayerProps) {
@@ -147,15 +145,21 @@ export function CoursePlayer({
           </nav>
 
           <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-black shadow-sm dark:border-white/10">
-            <video
-              ref={videoRef}
-              src={SAMPLE_VIDEO_SRC}
-              controls
-              controlsList="nodownload"
-              playsInline
-              preload="metadata"
-              className="aspect-video w-full bg-black"
-            />
+            {videoSrc ? (
+              <video
+                ref={videoRef}
+                src={videoSrc}
+                controls
+                controlsList="nodownload"
+                playsInline
+                preload="metadata"
+                className="aspect-video w-full bg-black"
+              />
+            ) : (
+              <div className="flex aspect-video w-full items-center justify-center bg-black px-6 text-center text-sm font-semibold text-white/80">
+                Este módulo todavía no tiene video cargado.
+              </div>
+            )}
             {/* Watermark overlay: rota posición cada 30s, no interactúa con controles */}
             {watermarkEmail && (
               <div

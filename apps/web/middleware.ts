@@ -33,9 +33,18 @@ export async function middleware(request: NextRequest) {
   );
 
   // Refresca la sesión — no remover este await
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  // Si el refresh token quedó inválido (rotado, revocado, proyecto cambiado),
+  // limpiamos la sesión local para que el cliente no quede en loop de error.
+  if (
+    authError &&
+    (authError.code === "refresh_token_not_found" ||
+      authError.code === "refresh_token_already_used" ||
+      authError.message?.toLowerCase().includes("refresh token"))
+  ) {
+    await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+  }
 
   const pathname = request.nextUrl.pathname;
   const isProtected = PROTECTED_ROUTES.some((route) =>

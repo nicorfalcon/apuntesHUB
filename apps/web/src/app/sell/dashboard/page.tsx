@@ -3,6 +3,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ResumesList } from "./resumes-list";
+import { CoursesList } from "./courses-list";
+import { BookingsList } from "./bookings-list";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -12,15 +14,23 @@ export default async function DashboardPage() {
 
   if (!user) redirect("/login?redirect=/sell/dashboard");
 
-  const { data: resumes } = await supabase
-    .from("resumes")
-    .select("*")
-    .eq("seller_id", user.id)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false });
-
   const admin = createAdminClient();
-  const [{ data: purchases }, { data: mpCreds }] = await Promise.all([
+
+  const [
+    { data: resumes },
+    { data: purchases },
+    { data: mpCreds },
+    { data: courses },
+    { data: enrollments },
+    { data: bookings },
+    { data: profile },
+  ] = await Promise.all([
+    supabase
+      .from("resumes")
+      .select("*")
+      .eq("seller_id", user.id)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false }),
     supabase
       .from("purchases")
       .select("amount, seller_amount, resume_id")
@@ -31,12 +41,39 @@ export default async function DashboardPage() {
       .select("id")
       .eq("id", user.id)
       .single(),
+    supabase
+      .from("recorded_courses")
+      .select("id, title, price_ars, is_published, deleted_at, rating_avg, rating_count, created_at, course_modules(id, position, title, video_storage_key)")
+      .eq("author_id", user.id)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("course_enrollments")
+      .select("course_id, amount, seller_amount, recorded_courses!inner(author_id)")
+      .eq("recorded_courses.author_id", user.id)
+      .eq("status", "completed"),
+    supabase
+      .from("tutor_bookings")
+      .select(
+        "id, scheduled_at, duration_minutes, hourly_rate_ars, status, subjects(name), profiles!student_id(display_name)"
+      )
+      .eq("tutor_id", user.id)
+      .order("scheduled_at", { ascending: false, nullsFirst: false })
+      .limit(20),
+    supabase
+      .from("profiles")
+      .select("is_tutor, tutor_bio")
+      .eq("id", user.id)
+      .single(),
   ]);
+
   const hasMpConnected = !!mpCreds;
 
+  // Stats: apuntes
   const totalApuntes = resumes?.length ?? 0;
-  const totalVentas = purchases?.length ?? 0;
-  const totalIngresos = purchases?.reduce((sum, p) => sum + Number(p.seller_amount), 0) ?? 0;
+  const totalVentasApuntes = purchases?.length ?? 0;
+  const ingresosApuntes =
+    purchases?.reduce((sum, p) => sum + Number(p.seller_amount), 0) ?? 0;
 
   const ventasPorResume: Record<string, number> = {};
   const ingresosPorResume: Record<string, number> = {};
@@ -45,6 +82,33 @@ export default async function DashboardPage() {
     ingresosPorResume[p.resume_id] =
       (ingresosPorResume[p.resume_id] ?? 0) + Number(p.seller_amount);
   });
+
+  // Stats: cursos grabados
+  const totalCursos = courses?.length ?? 0;
+  const totalVentasCursos = enrollments?.length ?? 0;
+  const ingresosCursos =
+    enrollments?.reduce((sum, e) => sum + Number(e.seller_amount), 0) ?? 0;
+
+  const ventasPorCurso: Record<string, number> = {};
+  const ingresosPorCurso: Record<string, number> = {};
+  enrollments?.forEach((e) => {
+    ventasPorCurso[e.course_id] = (ventasPorCurso[e.course_id] ?? 0) + 1;
+    ingresosPorCurso[e.course_id] =
+      (ingresosPorCurso[e.course_id] ?? 0) + Number(e.seller_amount);
+  });
+
+  // Stats: tutorías
+  const completedBookings =
+    bookings?.filter((b) => b.status === "completed") ?? [];
+  const totalTutorias = completedBookings.length;
+  const ingresosTutorias = completedBookings.reduce(
+    (sum, b) => sum + ((b.hourly_rate_ars ?? 0) * (b.duration_minutes ?? 60)) / 60,
+    0
+  );
+
+  const isTutor = profile?.is_tutor ?? false;
+  const showCoursesSection = totalCursos > 0;
+  const showTutorSection = isTutor || (bookings?.length ?? 0) > 0;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12">
@@ -72,7 +136,7 @@ export default async function DashboardPage() {
               Conectá tu cuenta de Mercado Pago para recibir pagos
             </p>
             <p className="mt-0.5 text-xs text-yellow-700 dark:text-yellow-100/75">
-              Tus apuntes no podrán comprarse hasta que configures Mercado Pago.
+              Tus apuntes, cursos y tutorías no podrán cobrarse hasta que configures Mercado Pago.
             </p>
             <Link
               href="/profile"
@@ -84,29 +148,66 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* Stats */}
-      <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
-          <p className="text-sm text-muted-foreground">Total apuntes</p>
-          <p className="mt-1 text-2xl font-bold text-foreground">{totalApuntes}</p>
-        </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
-          <p className="text-sm text-muted-foreground">Ventas totales</p>
-          <p className="mt-1 text-2xl font-bold text-foreground">{totalVentas}</p>
-        </div>
-        <div className="col-span-2 rounded-xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03] sm:col-span-1">
-          <p className="text-sm text-muted-foreground">Tus ingresos</p>
-          <p className="mt-1 text-2xl font-bold text-accent-700 dark:text-accent-100">
-            ${totalIngresos.toLocaleString("es-AR")} ARS
-          </p>
-          <p className="text-xs text-muted-foreground">
-            (90% de cada venta antes de la comisión de Mercado Pago)
-          </p>
+      {/* Stats apuntes */}
+      <div className="mt-8">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Apuntes
+        </p>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <StatCard label="Total apuntes" value={totalApuntes} />
+          <StatCard label="Ventas" value={totalVentasApuntes} />
+          <StatCard
+            label="Ingresos"
+            value={`$${ingresosApuntes.toLocaleString("es-AR")} ARS`}
+            highlight
+            hint="(90% de cada venta antes de la comisión MP)"
+          />
         </div>
       </div>
 
+      {/* Stats cursos grabados */}
+      {showCoursesSection && (
+        <div className="mt-8">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Cursos grabados
+          </p>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <StatCard label="Total cursos" value={totalCursos} />
+            <StatCard label="Inscripciones" value={totalVentasCursos} />
+            <StatCard
+              label="Ingresos"
+              value={`$${ingresosCursos.toLocaleString("es-AR")} ARS`}
+              highlight
+              hint="(90% de cada inscripción)"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Stats tutorías */}
+      {showTutorSection && (
+        <div className="mt-8">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Clases particulares
+          </p>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <StatCard
+              label="Estado"
+              value={isTutor ? "Activo" : "Pausado"}
+            />
+            <StatCard label="Clases dictadas" value={totalTutorias} />
+            <StatCard
+              label="Ingresos"
+              value={`$${Math.round(ingresosTutorias).toLocaleString("es-AR")} ARS`}
+              highlight
+              hint="Tarifa × duración de clases completadas"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Lista de apuntes */}
-      <div className="mt-8">
+      <div className="mt-10">
         <h2 className="text-lg font-semibold text-foreground">Mis apuntes</h2>
         <div className="mt-4">
           <ResumesList
@@ -116,6 +217,58 @@ export default async function DashboardPage() {
           />
         </div>
       </div>
+
+      {/* Lista de cursos grabados */}
+      {showCoursesSection && (
+        <div className="mt-10">
+          <h2 className="text-lg font-semibold text-foreground">Mis cursos grabados</h2>
+          <div className="mt-4">
+            <CoursesList
+              courses={courses ?? []}
+              ventasPorCurso={ventasPorCurso}
+              ingresosPorCurso={ingresosPorCurso}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Lista de tutorías */}
+      {showTutorSection && (
+        <div className="mt-10">
+          <h2 className="text-lg font-semibold text-foreground">Mis clases particulares</h2>
+          <div className="mt-4">
+            <BookingsList bookings={(bookings ?? []) as never} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  highlight,
+  hint,
+}: {
+  label: string;
+  value: string | number;
+  highlight?: boolean;
+  hint?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p
+        className={`mt-1 text-2xl font-bold ${
+          highlight
+            ? "text-accent-700 dark:text-accent-100"
+            : "text-foreground"
+        }`}
+      >
+        {value}
+      </p>
+      {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
 }

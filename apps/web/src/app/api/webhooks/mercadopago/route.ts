@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getValidAccessToken } from "@/lib/mercadopago/refresh-token";
+import {
+  sendCourseSaleNotification,
+  sendResumeSaleNotification,
+} from "@/lib/email/sale-notifications";
 
 /**
  * POST /api/webhooks/mercadopago
@@ -197,6 +201,16 @@ async function processPaymentNotification(paymentId: string) {
       [idArgKey]: targetId,
       p_payment_id: paymentId,
     });
+
+    try {
+      if (isCourse) {
+        await sendCourseSaleNotification(admin, targetId, paymentId);
+      } else {
+        await sendResumeSaleNotification(admin, targetId, paymentId);
+      }
+    } catch (emailError) {
+      console.error("No se pudo enviar email de venta:", emailError);
+    }
   } else if (
     paymentData.status === "rejected" ||
     paymentData.status === "cancelled"

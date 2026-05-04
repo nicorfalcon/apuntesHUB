@@ -1,9 +1,11 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { CoursePlayer } from "@/components/courses/course-player";
+import { createCourseVideoReadUrl } from "@/lib/backblaze/client";
 import type { CourseModuleSummary } from "@/components/courses/types";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export default async function CoursePlayerPage({
   params,
@@ -24,7 +26,7 @@ export default async function CoursePlayerPage({
   const { data: rawCourse } = await supabase
     .from("recorded_courses")
     .select(
-      "id, title, author_id, is_published, deleted_at, course_modules(id, position, title, description, duration_seconds)"
+      "id, title, author_id, is_published, deleted_at, course_modules(id, position, title, description, duration_seconds, video_storage_key)"
     )
     .eq("id", courseId)
     .is("deleted_at", null)
@@ -88,6 +90,9 @@ export default async function CoursePlayerPage({
 
   // Watermark: usamos el email del usuario (lo que tenemos en sesión).
   const watermarkEmail = user.email ?? "";
+  const videoSrc = currentModule.video_storage_key
+    ? await createCourseVideoReadUrl(currentModule.video_storage_key)
+    : null;
 
   return (
     <CoursePlayer
@@ -96,6 +101,7 @@ export default async function CoursePlayerPage({
       modules={modules}
       currentModuleId={currentModule.id}
       initialWatchedSeconds={initialWatchedSeconds}
+      videoSrc={videoSrc}
       watermarkEmail={watermarkEmail}
       isAuthorPreview={isAuthor && !enrollmentId}
     />

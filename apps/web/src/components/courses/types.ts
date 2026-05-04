@@ -17,7 +17,12 @@ export type CourseSubject = Pick<
 
 export type CourseModuleSummary = Pick<
   CourseModule,
-  "id" | "position" | "title" | "description" | "duration_seconds"
+  | "id"
+  | "position"
+  | "title"
+  | "description"
+  | "duration_seconds"
+  | "video_storage_key"
 >;
 
 export type RecordedCourseItem = RecordedCourse & {
