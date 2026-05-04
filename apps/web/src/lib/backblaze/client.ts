@@ -43,7 +43,6 @@ function getClient() {
 export async function createCourseVideoUploadUrl({
   key,
   contentType,
-  size,
 }: {
   key: string;
   contentType: string;
@@ -53,7 +52,6 @@ export async function createCourseVideoUploadUrl({
     Bucket: getBucketName(),
     Key: key,
     ContentType: contentType,
-    ContentLength: size,
   });
 
   return getSignedUrl(getClient(), command, {
