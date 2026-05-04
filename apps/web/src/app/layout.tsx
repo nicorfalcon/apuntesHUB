@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 import { NavbarWrapper } from "@/components/layout/navbar-wrapper";
 import { ThemeRouteGuard } from "@/components/theme/theme-route-guard";
+import { CourseVideoUploadProvider } from "@/components/uploads/course-video-upload-provider";
 
 const instrumentSerif = Instrument_Serif({
   subsets: ["latin"],
@@ -45,10 +46,12 @@ export default function RootLayout({
     <html lang="es" suppressHydrationWarning>
       <body className={`${inter.variable} ${instrumentSerif.variable} font-body antialiased`}>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <ThemeRouteGuard />
-        <NavbarWrapper />
-        <main>{children}</main>
-        <Toaster richColors position="bottom-right" />
+        <CourseVideoUploadProvider>
+          <ThemeRouteGuard />
+          <NavbarWrapper />
+          <main>{children}</main>
+          <Toaster richColors position="bottom-right" />
+        </CourseVideoUploadProvider>
       </body>
     </html>
   );

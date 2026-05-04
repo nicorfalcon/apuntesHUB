@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { CheckCircle2, Loader2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -8,6 +8,7 @@ import {
   COURSE_VIDEO_MAX_LABEL,
   isAllowedCourseVideoType,
 } from "@/lib/backblaze/config";
+import { useCourseVideoUploads } from "@/components/uploads/course-video-upload-provider";
 
 interface CourseVideoUploadProps {
   courseId: string;
@@ -24,7 +25,29 @@ export function CourseVideoUpload({
 }: CourseVideoUploadProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [uploaded, setUploaded] = useState(hasVideo);
-  const [loading, setLoading] = useState(false);
+  const [uploadId, setUploadId] = useState<string | null>(null);
+  const { startCourseVideoUpload, tasks } = useCourseVideoUploads();
+  const currentTask = useMemo(
+    () => tasks.find((task) => task.id === uploadId) ?? null,
+    [tasks, uploadId]
+  );
+  const loading =
+    currentTask !== null &&
+    currentTask.status !== "completed" &&
+    currentTask.status !== "failed";
+
+  useEffect(() => {
+    if (!currentTask) return;
+
+    if (currentTask.status === "completed") {
+      setUploaded(true);
+      setUploadId(null);
+    }
+
+    if (currentTask.status === "failed") {
+      setUploadId(null);
+    }
+  }, [currentTask]);
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null;
@@ -41,75 +64,15 @@ export function CourseVideoUpload({
       return;
     }
 
-    setLoading(true);
-    try {
-      const uploadUrlResponse = await fetch(
-        `/api/courses/${courseId}/modules/${moduleId}/upload-url`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            file_name: file.name,
-            content_type: file.type,
-            size: file.size,
-          }),
-        }
-      );
-
-      const uploadUrlPayload = (await uploadUrlResponse.json().catch(() => null)) as
-        | { upload_url?: string; storage_key?: string; error?: string }
-        | null;
-
-      if (
-        !uploadUrlResponse.ok ||
-        !uploadUrlPayload?.upload_url ||
-        !uploadUrlPayload.storage_key
-      ) {
-        throw new Error(
-          uploadUrlPayload?.error ?? "No pudimos preparar la subida."
-        );
-      }
-
-      const uploadResponse = await fetch(uploadUrlPayload.upload_url, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error("No pudimos subir el video a Backblaze.");
-      }
-
-      const completeResponse = await fetch(
-        `/api/courses/${courseId}/modules/${moduleId}/video`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ storage_key: uploadUrlPayload.storage_key }),
-        }
-      );
-
-      const completePayload = (await completeResponse.json().catch(() => null)) as
-        | { error?: string }
-        | null;
-
-      if (!completeResponse.ok) {
-        throw new Error(
-          completePayload?.error ?? "No pudimos guardar el video del módulo."
-        );
-      }
-
-      setUploaded(true);
-      toast.success("Video del módulo actualizado.");
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "No pudimos cargar el video del módulo."
-      );
-    } finally {
-      setLoading(false);
-    }
+    const id = startCourseVideoUpload({
+      courseId,
+      moduleId,
+      file,
+      label,
+      successMessage: "Video del módulo actualizado.",
+    });
+    setUploadId(id);
+    toast.message("La subida sigue en segundo plano.");
   }
 
   return (
