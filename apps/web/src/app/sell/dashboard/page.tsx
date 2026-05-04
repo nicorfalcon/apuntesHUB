@@ -41,13 +41,13 @@ export default async function DashboardPage() {
       .select("id")
       .eq("id", user.id)
       .single(),
-    supabase
+    admin
       .from("recorded_courses")
       .select("id, title, price_ars, is_published, deleted_at, rating_avg, rating_count, created_at, course_modules(id, position, title, video_storage_key)")
       .eq("author_id", user.id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
-    supabase
+    admin
       .from("course_enrollments")
       .select("course_id, amount, seller_amount, recorded_courses!inner(author_id)")
       .eq("recorded_courses.author_id", user.id)
@@ -107,7 +107,6 @@ export default async function DashboardPage() {
   );
 
   const isTutor = profile?.is_tutor ?? false;
-  const showCoursesSection = totalCursos > 0;
   const showTutorSection = isTutor || (bookings?.length ?? 0) > 0;
 
   return (
@@ -166,23 +165,21 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats cursos grabados */}
-      {showCoursesSection && (
-        <div className="mt-8">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Cursos grabados
-          </p>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <StatCard label="Total cursos" value={totalCursos} />
-            <StatCard label="Inscripciones" value={totalVentasCursos} />
-            <StatCard
-              label="Ingresos"
-              value={`$${ingresosCursos.toLocaleString("es-AR")} ARS`}
-              highlight
-              hint="(90% de cada inscripción)"
-            />
-          </div>
+      <div className="mt-8">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Cursos grabados
+        </p>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <StatCard label="Total cursos" value={totalCursos} />
+          <StatCard label="Inscripciones" value={totalVentasCursos} />
+          <StatCard
+            label="Ingresos"
+            value={`$${ingresosCursos.toLocaleString("es-AR")} ARS`}
+            highlight
+            hint="(90% de cada inscripción)"
+          />
         </div>
-      )}
+      </div>
 
       {/* Stats tutorías */}
       {showTutorSection && (
@@ -219,18 +216,16 @@ export default async function DashboardPage() {
       </div>
 
       {/* Lista de cursos grabados */}
-      {showCoursesSection && (
-        <div className="mt-10">
-          <h2 className="text-lg font-semibold text-foreground">Mis cursos grabados</h2>
-          <div className="mt-4">
-            <CoursesList
-              courses={courses ?? []}
-              ventasPorCurso={ventasPorCurso}
-              ingresosPorCurso={ingresosPorCurso}
-            />
-          </div>
+      <div className="mt-10">
+        <h2 className="text-lg font-semibold text-foreground">Mis cursos grabados</h2>
+        <div className="mt-4">
+          <CoursesList
+            courses={courses ?? []}
+            ventasPorCurso={ventasPorCurso}
+            ingresosPorCurso={ingresosPorCurso}
+          />
         </div>
-      )}
+      </div>
 
       {/* Lista de tutorías */}
       {showTutorSection && (
