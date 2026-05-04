@@ -121,7 +121,7 @@ export function PurchaseActionsMenu({
                   className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-gray-50 disabled:opacity-60 dark:hover:bg-white/5"
                 >
                   <span className="flex h-6 w-6 items-center justify-center rounded-md" style={{ backgroundColor: folder.color + "24" }}>
-                    <FolderPlus className="h-4 w-4" style={{ color: folder.color }} />
+                    <FolderPlus className="h-4 w-4" style={{ color: folder.color ?? undefined }} />
                   </span>
                   <span className={`flex-1 truncate ${inFolder ? "font-medium text-accent-600 dark:text-accent-300" : "text-gray-700 dark:text-sand-100"}`}>{folder.name}</span>
                   {inFolder && <Check className="h-4 w-4 text-accent-600" />}

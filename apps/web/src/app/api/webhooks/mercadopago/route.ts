@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getValidAccessToken } from "@/lib/mercadopago/refresh-token";
+import {
+  sendCourseSaleNotification,
+  sendResumeSaleNotification,
+} from "@/lib/email/sale-notifications";
 
 /**
  * POST /api/webhooks/mercadopago
@@ -91,43 +95,61 @@ function validateSignature(
 }
 
 /**
- * Consulta el pago en la API de MP y actualiza la compra según el estado.
+ * Consulta el pago en la API de MP y actualiza la compra/inscripción según el estado.
+ * Soporta dos tipos de external_reference:
+ *   - "<uuid>" → compra de apunte (purchases)
+ *   - "course_enrollment:<uuid>" → inscripción a curso grabado (course_enrollments)
  */
 async function processPaymentNotification(paymentId: string) {
   const admin = createAdminClient();
 
-  // Primero necesitamos obtener los detalles del pago.
-  // Como no sabemos de qué vendedor es, usamos el external_reference
-  // para buscar la compra y luego el token del vendedor.
+  // Idempotencia: si ya fue procesado en cualquiera de las dos tablas, salir.
+  const [{ data: existingPurchase }, { data: existingEnrollment }] = await Promise.all([
+    admin.from("purchases").select("id, status").eq("payment_id", paymentId).maybeSingle(),
+    admin
+      .from("course_enrollments")
+      .select("id, status")
+      .eq("payment_id", paymentId)
+      .maybeSingle(),
+  ]);
 
-  // Intentar obtener el pago con el token de cualquier vendedor asociado.
-  // La API de pagos de MP permite consultar con el access_token del vendedor.
-
-  // Primero, intentamos buscar por payment_id en caso de duplicados
-  const { data: existingPurchase } = await admin
-    .from("purchases")
-    .select("id, status")
-    .eq("payment_id", paymentId)
-    .single();
-
-  if (existingPurchase?.status === "completed") {
-    return; // Ya procesado, idempotente
+  if (
+    existingPurchase?.status === "completed" ||
+    existingEnrollment?.status === "completed"
+  ) {
+    return;
   }
 
-  // Buscar compras pendientes para intentar con el token del vendedor
-  // Usamos un approach: buscar todas las compras pendientes y probar con sus vendedores
-  // En la práctica, el external_reference vincula el pago con la compra
-  const { data: pendingPurchases } = await admin
-    .from("purchases")
-    .select("id, seller_id")
-    .eq("status", "pending")
-    .order("created_at", { ascending: false })
-    .limit(50);
+  // Buscar vendedores con pagos pendientes en cualquiera de las dos tablas
+  // para probar consultando el pago con sus access_tokens.
+  const [{ data: pendingPurchases }, { data: pendingEnrollments }] = await Promise.all([
+    admin
+      .from("purchases")
+      .select("seller_id")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(50),
+    admin
+      .from("course_enrollments")
+      .select("course_id, recorded_courses!inner(author_id)")
+      .eq("status", "pending")
+      .order("purchased_at", { ascending: false })
+      .limit(50),
+  ]);
 
-  if (!pendingPurchases || pendingPurchases.length === 0) return;
+  const sellerIdsFromPurchases = (pendingPurchases ?? []).map((p) => p.seller_id);
+  const sellerIdsFromEnrollments = (pendingEnrollments ?? []).map((row) => {
+    const course = (row as Record<string, unknown>).recorded_courses as
+      | { author_id: string }
+      | null;
+    return course?.author_id;
+  }).filter((id): id is string => Boolean(id));
 
-  // Obtener vendedores únicos
-  const sellerIds = Array.from(new Set(pendingPurchases.map((p) => p.seller_id)));
+  const sellerIds = Array.from(
+    new Set([...sellerIdsFromPurchases, ...sellerIdsFromEnrollments])
+  );
+
+  if (sellerIds.length === 0) return;
 
   let paymentData: {
     status: string;
@@ -160,24 +182,41 @@ async function processPaymentNotification(paymentId: string) {
     return;
   }
 
-  const purchaseId = paymentData.external_reference;
-  if (!purchaseId) {
+  const externalReference = paymentData.external_reference;
+  if (!externalReference) {
     console.error(`Pago ${paymentId} sin external_reference`);
     return;
   }
 
-  // Actualizar estado según el status del pago
+  const isCourse = externalReference.startsWith("course_enrollment:");
+  const targetId = isCourse
+    ? externalReference.slice("course_enrollment:".length)
+    : externalReference;
+  const approvedRpc = isCourse ? "complete_course_enrollment" : "complete_purchase";
+  const failedRpc = isCourse ? "fail_course_enrollment" : "fail_purchase";
+  const idArgKey = isCourse ? "p_enrollment_id" : "p_purchase_id";
+
   if (paymentData.status === "approved") {
-    await admin.rpc("complete_purchase", {
-      p_purchase_id: purchaseId,
+    await admin.rpc(approvedRpc, {
+      [idArgKey]: targetId,
       p_payment_id: paymentId,
     });
+
+    try {
+      if (isCourse) {
+        await sendCourseSaleNotification(admin, targetId, paymentId);
+      } else {
+        await sendResumeSaleNotification(admin, targetId, paymentId);
+      }
+    } catch (emailError) {
+      console.error("No se pudo enviar email de venta:", emailError);
+    }
   } else if (
     paymentData.status === "rejected" ||
     paymentData.status === "cancelled"
   ) {
-    await admin.rpc("fail_purchase", {
-      p_purchase_id: purchaseId,
+    await admin.rpc(failedRpc, {
+      [idArgKey]: targetId,
       p_payment_id: paymentId,
     });
   }

@@ -14,7 +14,7 @@ const DEVICE_LIMIT_MESSAGE =
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") ?? "/browse";
+  const redirect = searchParams.get("redirect") ?? "/explorar";
   const initialError =
     searchParams.get("error") === "device_limit" ? DEVICE_LIMIT_MESSAGE : null;
   const { setIntent } = useLoginDeviceIntent();

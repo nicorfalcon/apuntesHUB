@@ -39,10 +39,14 @@ yarn-error.log*
 next-env.d.ts
 
 /supabase/.temp/
+/supabase/.branches/
 /supabase/migrations/*
 *.md
 
 !/supabase/migrations/
 !/supabase/migrations/0011_login_intents.sql
+!/supabase/migrations/0012_tutoring_and_courses.sql
+!/supabase/migrations/0012_tutoring_and_courses_rollback.sql
 !/docs/
 !/docs/device-login-flow.md
+!/docs/etapa2-codex-brief.md

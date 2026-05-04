@@ -63,7 +63,7 @@ export function Categories() {
             return (
               <ScrollReveal key={cat.name} delay={(i % 3) as 0 | 1 | 2 | 3}>
                 <a
-                  href={`/browse?career=${encodeURIComponent(cat.name)}`}
+                  href={`/explorar?career=${encodeURIComponent(cat.name)}`}
                   className="group flex items-center gap-5 rounded-xl border border-sand-400/50 bg-sand-100 p-6 transition-all hover:border-warm/40 hover:shadow-sm"
                 >
                   <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${cat.gradient}`}>

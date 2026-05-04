@@ -24,7 +24,7 @@ export function FinalCTA() {
             Empezar gratis
           </Link>
           <Link
-            href="/browse"
+            href="/explorar"
             className="rounded-lg border border-sand-600 px-8 py-3 text-sm font-medium text-sand-300 transition-colors hover:border-sand-500 hover:text-sand-200"
           >
             Explorar apuntes

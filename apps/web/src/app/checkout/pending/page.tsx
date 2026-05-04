@@ -15,7 +15,7 @@ export default async function CheckoutPendingPage({
   } = await supabase.auth.getUser();
 
   if (!user) redirect("/login");
-  if (!purchase_id) redirect("/browse");
+  if (!purchase_id) redirect("/explorar");
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4">

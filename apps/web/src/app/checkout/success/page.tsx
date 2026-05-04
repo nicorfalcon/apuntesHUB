@@ -15,7 +15,7 @@ export default async function CheckoutSuccessPage({
   } = await supabase.auth.getUser();
 
   if (!user) redirect("/login");
-  if (!purchase_id) redirect("/browse");
+  if (!purchase_id) redirect("/explorar");
 
   // Verificar que la compra pertenece al usuario
   const { data: purchase } = await supabase
@@ -25,7 +25,7 @@ export default async function CheckoutSuccessPage({
     .eq("buyer_id", user.id)
     .single();
 
-  if (!purchase) redirect("/browse");
+  if (!purchase) redirect("/explorar");
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4">

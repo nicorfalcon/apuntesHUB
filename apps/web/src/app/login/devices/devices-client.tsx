@@ -42,7 +42,7 @@ export function LoginDevicesClient() {
     const data = (await res.json()) as FinalizeLoginResponse;
 
     if (res.ok && data.status === "ok") {
-      const redirectTo = intent.redirectTo || "/browse";
+      const redirectTo = intent.redirectTo || "/explorar";
       window.location.assign(redirectTo);
       return;
     }

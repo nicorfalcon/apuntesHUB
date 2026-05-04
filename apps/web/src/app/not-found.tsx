@@ -9,7 +9,7 @@ export default function NotFound() {
         La página que intentás visitar no existe o fue movida.
       </p>
       <Link
-        href="/browse"
+        href="/explorar"
         className="mt-8 rounded-lg bg-accent-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700"
       >
         Explorar apuntes

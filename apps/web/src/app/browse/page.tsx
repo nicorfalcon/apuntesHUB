@@ -1,45 +1,13 @@
-import { createClient } from "@/lib/supabase/server";
-import ExplorarClient from "@/components/explore/ExplorarClient";
-import type { ResumeWithSeller } from "@/lib/database.types";
+import { redirect } from "next/navigation";
 
-export default async function ExplorarPage({
+export default async function BrowseRedirectPage({
   searchParams,
 }: {
   searchParams: Promise<{ career?: string }>;
 }) {
-  const { career: initialCareer } = await searchParams;
-  const supabase = await createClient();
+  const { career } = await searchParams;
+  const params = new URLSearchParams();
+  if (career) params.set("career", career);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: resumes } = await supabase
-    .from("resumes")
-    .select(
-      "*, profiles!seller_id(display_name, avatar_url, seller_rating_avg, seller_rating_count)"
-    )
-    .eq("status", "published")
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false });
-
-  let purchasedIds: string[] = [];
-  if (user) {
-    const { data: purchases } = await supabase
-      .from("purchases")
-      .select("resume_id")
-      .eq("buyer_id", user.id)
-      .eq("status", "completed");
-    purchasedIds =
-      (purchases as { resume_id: string }[] | null)?.map((p) => p.resume_id) ??
-      [];
-  }
-
-  return (
-    <ExplorarClient
-      resumes={(resumes as ResumeWithSeller[]) ?? []}
-      purchasedIds={purchasedIds}
-      initialCareer={initialCareer}
-    />
-  );
+  redirect(`/explorar${params.toString() ? `?${params.toString()}` : ""}`);
 }
