@@ -2,7 +2,6 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
-  BadgeCheck,
   CalendarDays,
   GraduationCap,
   MapPin,
@@ -37,7 +36,6 @@ export function TutorList({ tutors }: TutorListProps) {
           .slice(0, 3);
         const extraSubjects = Math.max(tutor.subjects.length - subjectNames.length, 0);
         const profile = tutor.profile;
-        const verified = Boolean(profile.tutor_verified_at);
 
         return (
           <article
@@ -59,11 +57,6 @@ export function TutorList({ tutors }: TutorListProps) {
                       {initials(profile.display_name)}
                     </div>
                   )}
-                  {verified && (
-                    <span className="absolute bottom-1 right-1 rounded-full bg-accent-600 p-1 text-white ring-2 ring-white dark:bg-accent-300 dark:text-[#071713] dark:ring-[#0f1e1a]">
-                      <BadgeCheck className="h-3.5 w-3.5" />
-                    </span>
-                  )}
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -71,11 +64,6 @@ export function TutorList({ tutors }: TutorListProps) {
                     <h3 className="text-xl font-bold tracking-tight text-foreground">
                       {profile.display_name}
                     </h3>
-                    {verified && (
-                      <span className="rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-semibold text-accent-700 dark:bg-accent-300/15 dark:text-accent-100">
-                        Verificado
-                      </span>
-                    )}
                   </div>
 
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
@@ -146,4 +134,3 @@ export function TutorList({ tutors }: TutorListProps) {
     </div>
   );
 }
-

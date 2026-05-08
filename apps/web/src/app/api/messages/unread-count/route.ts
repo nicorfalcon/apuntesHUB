@@ -14,7 +14,8 @@ export async function GET() {
   const { data: bookings } = await supabase
     .from("tutor_bookings")
     .select("id")
-    .or(`tutor_id.eq.${user.id},student_id.eq.${user.id}`);
+    .or(`tutor_id.eq.${user.id},student_id.eq.${user.id}`)
+    .in("status", ["confirmed", "completed", "cancelled"]);
 
   const bookingIds = (bookings ?? []).map((b) => b.id);
   if (bookingIds.length === 0) {

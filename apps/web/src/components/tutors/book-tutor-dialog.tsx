@@ -122,6 +122,22 @@ export function BookTutorDialog({
   }
 
   const disabled = subjects.length === 0;
+  const selectedModality = modality === "online" ? "Online" : "Presencial";
+  const selectedSlotDate = selectedSlot
+    ? new Date(selectedSlot.start).toLocaleDateString("es-AR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        timeZone: "America/Argentina/Buenos_Aires",
+      })
+    : null;
+  const selectedSlotTime = selectedSlot
+    ? new Date(selectedSlot.start).toLocaleTimeString("es-AR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "America/Argentina/Buenos_Aires",
+      })
+    : null;
 
   const modal =
     mounted && open
@@ -130,16 +146,16 @@ export function BookTutorDialog({
             className="fixed inset-0 z-[100] flex items-end justify-center bg-black/55 px-3 py-3 backdrop-blur-[2px] sm:items-center sm:px-4"
             onClick={(e) => e.target === e.currentTarget && setOpen(false)}
           >
-            <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-xl dark:border-white/10 dark:bg-[#0f1e1a] sm:max-h-[90vh] sm:p-6">
+            <div className="flex max-h-[94dvh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-white/10 dark:bg-[#0f1e1a]">
               {/* Header */}
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-4 py-4 dark:border-white/10 sm:px-6">
                 <div>
-                  <h2 className="text-lg font-bold text-foreground">
+                  <h2 className="text-xl font-bold tracking-tight text-foreground">
                     Reservar clase con {tutorName}
                   </h2>
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    Elegí materia, duración y horario. Pagás a través de
-                    Mercado Pago.
+                    Elegí materia, modalidad y un horario real disponible. El pago
+                    se completa con Mercado Pago.
                   </p>
                 </div>
                 <button
@@ -152,182 +168,216 @@ export function BookTutorDialog({
                 </button>
               </div>
 
-              <form onSubmit={handleBooking} className="mt-6 space-y-5">
-                {/* Subject */}
-                <div>
-                  <label
-                    htmlFor="book-subject"
-                    className="block text-sm font-medium text-gray-700 dark:text-sand-100"
-                  >
-                    Materia
-                  </label>
-                  <select
-                    id="book-subject"
-                    value={subjectId}
-                    onChange={(e) => setSubjectId(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-accent-400 focus:ring-2 focus:ring-accent-200/40 dark:border-white/15 dark:bg-[#071713] dark:focus:border-accent-300 dark:focus:ring-accent-300/15"
-                  >
-                    {subjects.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} · ${formatArs(s.hourlyRate)} / hora
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Duration */}
-                <div>
-                  <p className="block text-sm font-medium text-gray-700 dark:text-sand-100">
-                    Duración
-                  </p>
-                  <div className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-                    {DURATIONS.map((val) => (
-                      <button
-                        key={val}
-                        type="button"
-                        onClick={() => setDuration(val)}
-                        className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 dark:focus-visible:ring-accent-300 ${
-                          duration === val
-                            ? "border-accent-600 bg-accent-600 text-white dark:border-accent-300 dark:bg-accent-300 dark:text-[#071713]"
-                            : "border-gray-200 text-muted-foreground hover:bg-gray-50 hover:text-foreground dark:border-white/10 dark:hover:bg-white/5"
-                        }`}
-                      >
-                        {val} min
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Modality */}
-                <div>
-                  <p className="block text-sm font-medium text-gray-700 dark:text-sand-100">
-                    Modalidad
-                  </p>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    {(["online", "presencial"] as const).map((m) => (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => setModality(m)}
-                        className={`rounded-full border px-4 py-2 text-sm font-semibold capitalize transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 dark:focus-visible:ring-accent-300 ${
-                          modality === m
-                            ? "border-accent-600 bg-accent-600 text-white dark:border-accent-300 dark:bg-accent-300 dark:text-[#071713]"
-                            : "border-gray-200 text-muted-foreground hover:bg-gray-50 hover:text-foreground dark:border-white/10 dark:hover:bg-white/5"
-                        }`}
-                      >
-                        {m === "online" ? "Online" : "Presencial"}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Slot picker */}
-                <div>
-                  <p className="mb-2 block text-sm font-medium text-gray-700 dark:text-sand-100">
-                    Horario disponible
-                  </p>
-                  <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-3 dark:border-white/10 dark:bg-white/[0.02]">
-                    <AvailableSlotsPicker
-                      tutorId={tutorId}
-                      durationMinutes={duration}
-                      modality={modality}
-                      selectedSlot={selectedSlot}
-                      onSelectSlot={setSelectedSlot}
-                    />
-                  </div>
-                </div>
-
-                {/* Optional message */}
-                <div>
-                  <label
-                    htmlFor="book-message"
-                    className="block text-sm font-medium text-gray-700 dark:text-sand-100"
-                  >
-                    Mensaje al profesor{" "}
-                    <span className="font-normal text-muted-foreground">
-                      (opcional)
-                    </span>
-                  </label>
-                  <textarea
-                    id="book-message"
-                    rows={3}
-                    maxLength={1000}
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Ej: Tengo parcial la semana que viene y quiero practicar integrales."
-                    className="mt-1 w-full resize-none rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-foreground outline-none placeholder:text-gray-400 focus:border-accent-400 focus:ring-2 focus:ring-accent-200/40 dark:border-white/15 dark:bg-[#071713] dark:placeholder:text-sand-300/45 dark:focus:border-accent-300 dark:focus:ring-accent-300/15"
-                  />
-                </div>
-
-                {/* Price summary */}
-                {selectedSlot && estimatedPrice !== null && (
-                  <div className="rounded-xl border border-accent-200 bg-accent-50/50 p-4 dark:border-accent-300/20 dark:bg-accent-300/5">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground">
-                          {selectedSubject?.name} · {duration} min
-                        </p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {new Date(selectedSlot.start).toLocaleDateString(
-                            "es-AR",
-                            {
-                              weekday: "long",
-                              day: "numeric",
-                              month: "long",
-                              timeZone: "America/Argentina/Buenos_Aires",
-                            }
-                          )}{" "}
-                          a las{" "}
-                          {new Date(selectedSlot.start).toLocaleTimeString(
-                            "es-AR",
-                            {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              timeZone: "America/Argentina/Buenos_Aires",
-                            }
-                          )}
-                        </p>
+              <form
+                onSubmit={handleBooking}
+                className="min-h-0 flex-1 overflow-y-auto"
+              >
+                <div className="grid gap-5 p-4 sm:p-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
+                  <div className="space-y-5">
+                    <div className="grid gap-4 rounded-2xl border border-gray-200 bg-gray-50/60 p-4 dark:border-white/10 dark:bg-white/[0.03] sm:grid-cols-2">
+                      <div className="sm:col-span-2">
+                        <label
+                          htmlFor="book-subject"
+                          className="block text-sm font-semibold text-gray-800 dark:text-sand-100"
+                        >
+                          Materia
+                        </label>
+                        <select
+                          id="book-subject"
+                          value={subjectId}
+                          onChange={(e) => setSubjectId(e.target.value)}
+                          className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-sm text-foreground outline-none focus:border-accent-400 focus:ring-2 focus:ring-accent-200/40 dark:border-white/15 dark:bg-[#071713] dark:focus:border-accent-300 dark:focus:ring-accent-300/15"
+                        >
+                          {subjects.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name} · ${formatArs(s.hourlyRate)} / hora
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                      <p className="shrink-0 text-xl font-bold text-foreground">
-                        ${formatArs(estimatedPrice)}
-                      </p>
+
+                      <div>
+                        <p className="block text-sm font-semibold text-gray-800 dark:text-sand-100">
+                          Duración
+                        </p>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          {DURATIONS.map((val) => (
+                            <button
+                              key={val}
+                              type="button"
+                              onClick={() => setDuration(val)}
+                              className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 dark:focus-visible:ring-accent-300 ${
+                                duration === val
+                                  ? "border-accent-600 bg-accent-600 text-white dark:border-accent-300 dark:bg-accent-300 dark:text-[#071713]"
+                                  : "border-gray-200 bg-white text-muted-foreground hover:bg-gray-50 hover:text-foreground dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/5"
+                              }`}
+                            >
+                              {val} min
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="block text-sm font-semibold text-gray-800 dark:text-sand-100">
+                          Modalidad
+                        </p>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          {(["online", "presencial"] as const).map((m) => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => setModality(m)}
+                              className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 dark:focus-visible:ring-accent-300 ${
+                                modality === m
+                                  ? "border-accent-600 bg-accent-600 text-white dark:border-accent-300 dark:bg-accent-300 dark:text-[#071713]"
+                                  : "border-gray-200 bg-white text-muted-foreground hover:bg-gray-50 hover:text-foreground dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/5"
+                              }`}
+                            >
+                              {m === "online" ? "Online" : "Presencial"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                          <p className="block text-sm font-semibold text-gray-800 dark:text-sand-100">
+                            Elegí día y horario
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            Primero elegí un día. Después seleccioná uno de los
+                            horarios disponibles para ese día.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-gray-200 bg-gray-50/50 p-4 dark:border-white/10 dark:bg-white/[0.02]">
+                        <AvailableSlotsPicker
+                          tutorId={tutorId}
+                          durationMinutes={duration}
+                          modality={modality}
+                          selectedSlot={selectedSlot}
+                          onSelectSlot={setSelectedSlot}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="book-message"
+                        className="block text-sm font-semibold text-gray-800 dark:text-sand-100"
+                      >
+                        Mensaje al profesor{" "}
+                        <span className="font-normal text-muted-foreground">
+                          (opcional)
+                        </span>
+                      </label>
+                      <textarea
+                        id="book-message"
+                        rows={3}
+                        maxLength={1000}
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="Ej: Tengo parcial la semana que viene y quiero practicar integrales."
+                        className="mt-2 w-full resize-none rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-sm text-foreground outline-none placeholder:text-gray-400 focus:border-accent-400 focus:ring-2 focus:ring-accent-200/40 dark:border-white/15 dark:bg-[#071713] dark:placeholder:text-sand-300/45 dark:focus:border-accent-300 dark:focus:ring-accent-300/15"
+                      />
                     </div>
                   </div>
-                )}
 
-                {/* Error */}
-                {error && (
-                  <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-400/20 dark:bg-red-500/10 dark:text-red-200">
-                    {error}
-                  </p>
-                )}
+                  <aside className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:border-white/10 dark:bg-white/[0.03] lg:sticky lg:top-0">
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-700 dark:text-accent-100">
+                      Resumen
+                    </p>
+                    <h3 className="mt-2 text-lg font-bold text-foreground">
+                      Tu reserva
+                    </h3>
 
-                {/* Actions */}
-                <div className="flex flex-col-reverse gap-3 sm:flex-row">
-                  <button
-                    type="submit"
-                    disabled={loading || !selectedSlot}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-accent-300 dark:text-[#071713] dark:focus-visible:ring-accent-300 dark:focus-visible:ring-offset-[#0f1e1a]"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Procesando...
-                      </>
-                    ) : (
-                      <>
-                        <CalendarCheck className="h-4 w-4" />
-                        Reservar y pagar
-                      </>
+                    <dl className="mt-4 space-y-3 text-sm">
+                      <div className="flex items-start justify-between gap-4">
+                        <dt className="text-muted-foreground">Profesor</dt>
+                        <dd className="text-right font-semibold text-foreground">
+                          {tutorName}
+                        </dd>
+                      </div>
+                      <div className="flex items-start justify-between gap-4">
+                        <dt className="text-muted-foreground">Materia</dt>
+                        <dd className="text-right font-semibold text-foreground">
+                          {selectedSubject?.name ?? "Elegí una materia"}
+                        </dd>
+                      </div>
+                      <div className="flex items-start justify-between gap-4">
+                        <dt className="text-muted-foreground">Duración</dt>
+                        <dd className="text-right font-semibold text-foreground">
+                          {duration} min
+                        </dd>
+                      </div>
+                      <div className="flex items-start justify-between gap-4">
+                        <dt className="text-muted-foreground">Modalidad</dt>
+                        <dd className="text-right font-semibold text-foreground">
+                          {selectedModality}
+                        </dd>
+                      </div>
+                      <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-3 dark:border-white/10 dark:bg-[#071713]">
+                        <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                          Horario
+                        </dt>
+                        <dd className="mt-1 text-sm font-semibold text-foreground">
+                          {selectedSlotDate && selectedSlotTime
+                            ? `${selectedSlotDate} a las ${selectedSlotTime}`
+                            : "Seleccioná un horario disponible"}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    <div className="mt-5 rounded-xl border border-accent-200 bg-accent-50/60 p-4 dark:border-accent-300/20 dark:bg-accent-300/10">
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        Total estimado
+                      </p>
+                      <p className="mt-1 text-3xl font-bold tracking-tight text-foreground">
+                        {estimatedPrice !== null
+                          ? `$${formatArs(estimatedPrice)}`
+                          : "A coordinar"}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Se confirma al continuar con el pago.
+                      </p>
+                    </div>
+
+                    {error && (
+                      <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-400/20 dark:bg-red-500/10 dark:text-red-200">
+                        {error}
+                      </p>
                     )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setOpen(false)}
-                    className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 dark:border-white/15 dark:text-sand-100 dark:hover:bg-white/5 dark:focus-visible:ring-accent-300"
-                  >
-                    Cancelar
-                  </button>
+
+                    <div className="mt-4 flex flex-col gap-2">
+                      <button
+                        type="submit"
+                        disabled={loading || !selectedSlot}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-accent-300 dark:text-[#071713] dark:focus-visible:ring-accent-300 dark:focus-visible:ring-offset-[#0f1e1a]"
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Procesando...
+                          </>
+                        ) : (
+                          <>
+                            <CalendarCheck className="h-4 w-4" />
+                            Reservar y pagar
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOpen(false)}
+                        className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 dark:border-white/15 dark:text-sand-100 dark:hover:bg-white/5 dark:focus-visible:ring-accent-300"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </aside>
                 </div>
               </form>
             </div>

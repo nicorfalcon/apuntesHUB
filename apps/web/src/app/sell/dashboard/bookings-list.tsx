@@ -55,7 +55,11 @@ const STATUS_LABELS: Record<string, { label: string; class: string }> = {
 
 interface BookingsListProps {
   bookings: BookingRow[];
+  showBlockedSlots?: boolean;
 }
+
+type TeacherBookingTab = "upcoming" | "past";
+const PAGE_SIZE = 6;
 
 function BookingCard({ booking }: { booking: BookingRow }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -341,7 +345,9 @@ function BookingCard({ booking }: { booking: BookingRow }) {
   );
 }
 
-export function BookingsList({ bookings }: BookingsListProps) {
+export function BookingsList({ bookings, showBlockedSlots = true }: BookingsListProps) {
+  const [activeTab, setActiveTab] = useState<TeacherBookingTab>("upcoming");
+  const [page, setPage] = useState(1);
   const now = new Date();
   
   const upcoming = bookings.filter(b => {
@@ -353,10 +359,22 @@ export function BookingsList({ bookings }: BookingsListProps) {
     if (!b.scheduled_at) return false;
     return new Date(b.scheduled_at) < now;
   });
+  const activeBookings = activeTab === "upcoming" ? upcoming : past;
+  const totalPages = Math.max(1, Math.ceil(activeBookings.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const visibleBookings = activeBookings.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE
+  );
+
+  function selectTab(tab: TeacherBookingTab) {
+    setActiveTab(tab);
+    setPage(1);
+  }
 
   return (
     <div className="flex flex-col gap-8">
-      <BlockedSlotsManager />
+      {showBlockedSlots && <BlockedSlotsManager />}
       
       {bookings.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-14 text-center dark:border-white/10 dark:bg-white/[0.02]">
@@ -371,31 +389,68 @@ export function BookingsList({ bookings }: BookingsListProps) {
           </p>
         </div>
       ) : (
-        <div className="space-y-8">
-          {upcoming.length > 0 && (
-            <section>
-              <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">
-                Próximas clases ({upcoming.length})
-              </h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                {upcoming.map((booking) => (
-                  <BookingCard key={booking.id} booking={booking} />
-                ))}
-              </div>
-            </section>
+        <div className="space-y-5">
+          <div className="inline-flex w-full overflow-x-auto rounded-2xl border border-gray-200 bg-[var(--surface-warm)] p-1 dark:border-white/10 dark:bg-white/[0.04] sm:w-auto">
+            {[
+              { id: "upcoming" as const, label: "Próximas", count: upcoming.length },
+              { id: "past" as const, label: "Pasadas", count: past.length },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => selectTab(tab.id)}
+                className={`inline-flex min-w-max items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-colors ${
+                  activeTab === tab.id
+                    ? "bg-white text-accent-700 shadow-sm dark:bg-accent-300/15 dark:text-accent-100"
+                    : "text-muted-foreground hover:bg-white/70 hover:text-foreground dark:hover:bg-white/10"
+                }`}
+              >
+                {tab.label}
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs dark:bg-white/10">
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {visibleBookings.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              {visibleBookings.map((booking) => (
+                <BookingCard key={booking.id} booking={booking} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-10 text-center dark:border-white/10 dark:bg-white/[0.02]">
+              <p className="text-sm font-bold text-foreground">
+                No hay clases {activeTab === "upcoming" ? "próximas" : "pasadas"}.
+              </p>
+            </div>
           )}
 
-          {past.length > 0 && (
-            <section>
-              <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">
-                Clases pasadas ({past.length})
-              </h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                {past.map((booking) => (
-                  <BookingCard key={booking.id} booking={booking} />
-                ))}
+          {activeBookings.length > PAGE_SIZE && (
+            <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-3 dark:border-white/10 dark:bg-white/[0.03] sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">
+                Página {safePage} de {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((value) => Math.max(1, value - 1))}
+                  disabled={safePage === 1}
+                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-bold text-foreground transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:hover:bg-white/10"
+                >
+                  Anterior
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                  disabled={safePage === totalPages}
+                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-bold text-foreground transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:hover:bg-white/10"
+                >
+                  Siguiente
+                </button>
               </div>
-            </section>
+            </div>
           )}
         </div>
       )}

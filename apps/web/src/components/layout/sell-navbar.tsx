@@ -21,10 +21,12 @@ function ArrowLeftIcon() {
 const PATH_LABELS: Record<string, string> = {
   "/":               "Inicio",
   "/explorar":       "Explorar",
+  "/clases":          "Clases",
   "/my-purchases":   "Mi biblioteca",
   "/sell/dashboard": "Panel de ventas",
   "/reputation":     "Reputación",
   "/profile":        "Mi perfil",
+  "/profile/profesor": "Perfil de profesor",
 };
 
 function getBackInfo(fromParam: string | null, propLabel?: string, propHref?: string) {
@@ -150,6 +152,7 @@ export function SellNavbar({ backLabel: propLabel, backHref: propHref }: SellNav
                     </p>
                   </div>
                   <Link href="/profile" onClick={() => setDropdownOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-sand-100 dark:hover:bg-white/10">Mi perfil</Link>
+                  <Link href="/profile/profesor" onClick={() => setDropdownOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-sand-100 dark:hover:bg-white/10">Perfil de profesor</Link>
                   <Link href="/my-purchases" onClick={() => setDropdownOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-sand-100 dark:hover:bg-white/10">Mi biblioteca</Link>
                   <Link href="/sell/dashboard" onClick={() => setDropdownOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-sand-100 dark:hover:bg-white/10">Panel de ventas</Link>
                   <Link href="/reputation" onClick={() => setDropdownOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-sand-100 dark:hover:bg-white/10">Reputación</Link>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Clock } from "lucide-react";
+import { CalendarDays, Clock, MapPin } from "lucide-react";
 import { StarRating } from "@/components/ui/star-rating";
 import {
   formatArs,
@@ -25,7 +25,7 @@ interface TutorProfileSectionsProps {
 const SECTIONS: { id: TutorSection; label: string }[] = [
   { id: "sobre-mi", label: "Sobre mí" },
   { id: "materias", label: "Materias" },
-  { id: "disponibilidad", label: "Disponibilidad" },
+  { id: "disponibilidad", label: "Disponibilidad general" },
   { id: "resenas", label: "Reseñas" },
 ];
 
@@ -34,6 +34,31 @@ function normalizeSection(hash: string): TutorSection {
   return SECTIONS.some((section) => section.id === value)
     ? (value as TutorSection)
     : "sobre-mi";
+}
+
+function summarizeAvailabilityDetails(availability: TutorAvailability[]) {
+  if (availability.length === 0) {
+    return {
+      days: "A coordinar",
+      timeRange: "A coordinar",
+      modalities: "A coordinar",
+    };
+  }
+
+  const days = Array.from(
+    new Set(availability.map((slot) => slot.day_of_week))
+  ).sort((a, b) => a - b);
+  const modalities = Array.from(
+    new Set(availability.map((slot) => slot.modality))
+  );
+  const starts = availability.map((slot) => slot.start_time).sort();
+  const ends = availability.map((slot) => slot.end_time).sort();
+
+  return {
+    days: days.map((day) => formatDay(day, true)).join(" · "),
+    timeRange: `${formatTime(starts[0])} a ${formatTime(ends[ends.length - 1])}`,
+    modalities: modalities.map(formatModality).join(" · "),
+  };
 }
 
 export function TutorProfileSections({
@@ -47,6 +72,10 @@ export function TutorProfileSections({
   const reviewersById = useMemo(
     () => new Map(reviewers.map((reviewer) => [reviewer.id, reviewer])),
     [reviewers]
+  );
+  const availabilitySummary = useMemo(
+    () => summarizeAvailabilityDetails(availability),
+    [availability]
   );
 
   useEffect(() => {
@@ -140,30 +169,50 @@ export function TutorProfileSections({
 
         {activeSection === "disponibilidad" && (
           <section className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-[#0f1e1a]">
-            <h2 className="text-xl font-bold text-foreground">Disponibilidad</h2>
+            <h2 className="text-xl font-bold text-foreground">
+              Disponibilidad general
+            </h2>
             {availability.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">
                 Los horarios se coordinan por mensaje.
               </p>
             ) : (
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {availability.map((slot) => (
-                  <div
-                    key={slot.id}
-                    className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-white/10 dark:bg-white/5"
-                  >
-                    <p className="font-semibold text-foreground">
-                      {formatDay(slot.day_of_week)}
+              <div className="mt-4 space-y-4">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-white/10 dark:bg-white/5">
+                    <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                      <CalendarDays className="h-4 w-4" />
+                      Días
                     </p>
-                    <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      {formatTime(slot.start_time)} a {formatTime(slot.end_time)}
-                    </p>
-                    <p className="mt-2 rounded-full bg-accent-50 px-2.5 py-1 text-xs font-semibold text-accent-700 dark:bg-accent-300/15 dark:text-accent-100">
-                      {formatModality(slot.modality)}
+                    <p className="mt-2 text-sm font-semibold text-foreground">
+                      {availabilitySummary.days}
                     </p>
                   </div>
-                ))}
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-white/10 dark:bg-white/5">
+                    <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      Franja
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-foreground">
+                      {availabilitySummary.timeRange}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-white/10 dark:bg-white/5">
+                    <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      Modalidades
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-foreground">
+                      {availabilitySummary.modalities}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-accent-200 bg-accent-50/60 p-4 dark:border-accent-300/20 dark:bg-accent-300/10">
+                  <p className="text-sm font-semibold text-foreground">
+                    {availability.length} franja{availability.length === 1 ? "" : "s"} semanal{availability.length === 1 ? "" : "es"} publicada{availability.length === 1 ? "" : "s"}
+                  </p>
+                </div>
               </div>
             )}
           </section>
@@ -213,4 +262,3 @@ export function TutorProfileSections({
     </>
   );
 }
-

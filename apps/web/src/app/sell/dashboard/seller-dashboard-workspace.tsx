@@ -36,7 +36,6 @@ interface SellerDashboardWorkspaceProps {
   ingresosTutorias: number;
   apuntesContent: ReactNode;
   cursosContent: ReactNode;
-  clasesContent?: ReactNode;
 }
 
 function formatMoney(value: number) {
@@ -143,7 +142,6 @@ export function SellerDashboardWorkspace({
   ingresosTutorias,
   apuntesContent,
   cursosContent,
-  clasesContent,
 }: SellerDashboardWorkspaceProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -181,7 +179,7 @@ export function SellerDashboardWorkspace({
       ? apuntesContent
       : activeTab === "cursos"
         ? cursosContent
-        : clasesContent;
+        : null;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -312,6 +310,27 @@ export function SellerDashboardWorkspace({
           </div>
         </div>
 
+        {activeTab === "clases" && (
+          <div className="rounded-2xl border border-accent-200 bg-accent-50/70 p-6 dark:border-accent-300/20 dark:bg-accent-300/10">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-foreground">
+                  La gestión de clases ahora se realiza desde tu Perfil de profesor.
+                </h3>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+                  Vender queda enfocado en apuntes y cursos. Para administrar materias,
+                  horarios, bloqueos y reservas, usá la sección docente de tu perfil.
+                </p>
+              </div>
+              <Link
+                href="/profile/profesor"
+                className="inline-flex shrink-0 items-center justify-center rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-accent-700 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
+              >
+                Ir a Perfil de profesor
+              </Link>
+            </div>
+          </div>
+        )}
         {activeContent}
       </section>
     </div>

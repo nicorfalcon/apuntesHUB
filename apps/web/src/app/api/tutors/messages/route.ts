@@ -38,12 +38,19 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const { data: booking } = await admin
     .from("tutor_bookings")
-    .select("id, tutor_id, student_id")
+    .select("id, tutor_id, student_id, status")
     .eq("id", bookingId)
     .single();
 
   if (!booking || ![booking.tutor_id, booking.student_id].includes(user.id)) {
     return NextResponse.json({ error: "No autorizado." }, { status: 403 });
+  }
+
+  if (!["confirmed", "completed", "cancelled"].includes(booking.status)) {
+    return NextResponse.json(
+      { error: "La conversación estará disponible cuando la reserva esté confirmada." },
+      { status: 403 }
+    );
   }
 
   const { data: message, error } = await admin
@@ -70,4 +77,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ message_id: message.id });
 }
-

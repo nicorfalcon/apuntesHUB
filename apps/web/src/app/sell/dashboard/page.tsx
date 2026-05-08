@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ResumesList } from "./resumes-list";
 import { CoursesList } from "./courses-list";
-import { BookingsList } from "./bookings-list";
 import { SellerDashboardWorkspace } from "./seller-dashboard-workspace";
 
 export default async function DashboardPage() {
@@ -136,11 +135,6 @@ export default async function DashboardPage() {
           ventasPorCurso={ventasPorCurso}
           ingresosPorCurso={ingresosPorCurso}
         />
-      }
-      clasesContent={
-        showTutorSection ? (
-          <BookingsList bookings={(bookings ?? []) as never} />
-        ) : undefined
       }
     />
   );

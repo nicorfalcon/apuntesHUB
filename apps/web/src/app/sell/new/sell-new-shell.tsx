@@ -1,19 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   BookOpen,
   ChevronRight,
-  GraduationCap,
   PlayCircle,
 } from "lucide-react";
 import { ResumeForm } from "../resume-form";
-import {
-  TutorForm,
-  type InitialTutorAvailability,
-  type InitialTutorSubject,
+import type {
+  InitialTutorAvailability,
+  InitialTutorSubject,
 } from "../tutor-form";
 import { CourseForm } from "../course-form";
 import type { Profile } from "@/lib/database.types";
@@ -28,7 +27,7 @@ interface SellNewShellProps {
 }
 
 const SELL_TYPES: {
-  id: SellType;
+  id: Exclude<SellType, "profesores">;
   title: string;
   description: string;
   detail: string;
@@ -45,15 +44,8 @@ const SELL_TYPES: {
     id: "curso",
     title: "Subir curso grabado",
     description: "Módulos, portada, videos y precio.",
-    detail: "Pensado para clases pregrabadas, repasos finales o resolución de TPs.",
+    detail: "Pensado para lecciones pregrabadas, repasos finales o resolución de TPs.",
     icon: PlayCircle,
-  },
-  {
-    id: "profesores",
-    title: "Publicitar clases particulares",
-    description: "Materias, tarifa y disponibilidad.",
-    detail: "Mostrá tu perfil para que alumnos te contacten y coordinen clases.",
-    icon: GraduationCap,
   },
 ];
 
@@ -104,11 +96,43 @@ function SelectionCard({
   );
 }
 
+function TutorSettingsMoveNotice() {
+  return (
+    <section className="rounded-2xl border border-accent-200 bg-accent-50/70 p-6 dark:border-accent-300/20 dark:bg-accent-300/10">
+      <div className="max-w-2xl">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent-700 dark:text-accent-100">
+          Clases particulares
+        </p>
+        <h2 className="mt-3 text-2xl font-bold tracking-tight text-foreground">
+          La configuración de clases ahora se gestiona desde Perfil de profesor.
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Vender queda enfocado en apuntes y cursos grabados. Para publicar tus
+          clases, editar materias, horarios y bloqueos, usá la nueva sección de
+          cuenta.
+        </p>
+      </div>
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+        <Link
+          href="/profile/profesor"
+          className="inline-flex items-center justify-center rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-accent-700 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
+        >
+          Ir a Perfil de profesor
+        </Link>
+        <Link
+          href="/sell/new"
+          className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-foreground transition-colors hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/10"
+        >
+          Publicar apunte o curso
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 export function SellNewShell({
   userId,
   profile,
-  initialTutorSubjects,
-  initialAvailability,
 }: SellNewShellProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -168,7 +192,7 @@ export function SellNewShell({
     });
   }
 
-  if (!selectedType || !selectedItem) {
+  if (!selectedType || (!selectedItem && selectedType !== "profesores")) {
     return (
       <div className="space-y-8">
         <header className="max-w-3xl">
@@ -179,33 +203,46 @@ export function SellNewShell({
             ¿Qué querés publicar?
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Publicá material de estudio, un curso grabado o tus clases
-            particulares desde un único lugar.
+            Publicá material de estudio o cursos grabados para compartirlos con la
+            comunidad.
           </p>
         </header>
 
         <section
           aria-label="Tipo de publicación"
-          className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]"
+          className="grid gap-4 md:grid-cols-2"
         >
-          <SelectionCard
-            item={SELL_TYPES[0]}
-            featured
-            onSelect={() => selectType(SELL_TYPES[0].id)}
-          />
-          <div className="grid gap-4">
-            {SELL_TYPES.slice(1).map((item) => (
-              <SelectionCard
-                key={item.id}
-                item={item}
-                onSelect={() => selectType(item.id)}
-              />
-            ))}
-          </div>
+          {SELL_TYPES.map((item) => (
+            <SelectionCard
+              key={item.id}
+              item={item}
+              onSelect={() => selectType(item.id)}
+            />
+          ))}
         </section>
       </div>
     );
   }
+
+  if (selectedType === "profesores") {
+    return (
+      <div className="space-y-6">
+        <header className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:border-white/10 dark:bg-white/[0.03] sm:p-6">
+          <button
+            type="button"
+            onClick={clearType}
+            className="inline-flex items-center gap-2 rounded-lg px-2 py-1 text-sm font-semibold text-muted-foreground transition-colors hover:bg-gray-50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 dark:hover:bg-white/10 dark:focus-visible:ring-accent-300/30"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver a Vender
+          </button>
+        </header>
+        <TutorSettingsMoveNotice />
+      </div>
+    );
+  }
+
+  if (!selectedItem) return null;
 
   const SelectedIcon = selectedItem.icon;
 
@@ -237,14 +274,6 @@ export function SellNewShell({
 
       <div>
         {selectedType === "apunte" && <ResumeForm userId={userId} />}
-        {selectedType === "profesores" && (
-          <TutorForm
-            userId={userId}
-            profile={profile}
-            initialSubjects={initialTutorSubjects}
-            initialAvailability={initialAvailability}
-          />
-        )}
         {selectedType === "curso" && <CourseForm userId={userId} profile={profile} />}
       </div>
     </div>

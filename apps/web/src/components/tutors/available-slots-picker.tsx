@@ -34,6 +34,21 @@ function formatShortDate(ymd: string) {
   });
 }
 
+function pickDefaultDayKey(
+  dayEntries: [string, AvailableSlot[]][],
+  todayYmd: string
+) {
+  if (dayEntries.some(([dateKey]) => dateKey === todayYmd)) {
+    return todayYmd;
+  }
+
+  return (
+    dayEntries.find(([, daySlots]) => daySlots.length > 0)?.[0] ??
+    dayEntries[0]?.[0] ??
+    null
+  );
+}
+
 export function AvailableSlotsPicker({
   tutorId,
   durationMinutes,
@@ -45,6 +60,7 @@ export function AvailableSlotsPicker({
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
 
   const todayYmd = getTodayYmd();
   
@@ -110,6 +126,34 @@ export function AvailableSlotsPicker({
   const canGoNext = weekOffset < 3; // max 4 weeks ahead
 
   const dayEntries = Array.from(slotsByDay.entries());
+  const defaultDayKey = pickDefaultDayKey(dayEntries, todayYmd);
+  const selectedSlotDayKey = selectedSlot
+    ? formatDateInArgentina(new Date(selectedSlot.start))
+    : null;
+  const activeDayKey =
+    selectedSlotDayKey && slotsByDay.has(selectedSlotDayKey)
+      ? selectedSlotDayKey
+      : selectedDayKey && slotsByDay.has(selectedDayKey)
+        ? selectedDayKey
+        : defaultDayKey;
+  const activeDaySlots = activeDayKey ? slotsByDay.get(activeDayKey) ?? [] : [];
+  const activeDayDate = activeDayKey
+    ? new Date(`${activeDayKey}T12:00:00Z`)
+    : null;
+  const activeDayName = activeDayDate
+    ? formatDay(activeDayDate.getUTCDay())
+    : "este día";
+
+  function selectDay(dateKey: string) {
+    setSelectedDayKey(dateKey);
+    if (selectedSlotDayKey && selectedSlotDayKey !== dateKey) {
+      onSelectSlot(null);
+    }
+  }
+
+  useEffect(() => {
+    setSelectedDayKey(defaultDayKey);
+  }, [defaultDayKey, fromYmd, toYmd, tutorId, durationMinutes, modality]);
 
   return (
     <div className="space-y-4" aria-live="polite">
@@ -125,9 +169,14 @@ export function AvailableSlotsPicker({
           <ChevronLeft className="h-4 w-4" />
         </button>
 
-        <p className="text-center text-sm font-bold text-foreground">
-          {formatShortDate(fromYmd)} – {formatShortDate(toYmd)}
-        </p>
+        <div className="text-center">
+          <p className="text-sm font-bold text-foreground">
+            Semana del {formatShortDate(fromYmd)} al {formatShortDate(toYmd)}
+          </p>
+          <p className="text-[11px] font-medium text-muted-foreground">
+            Podés revisar hasta 4 semanas hacia adelante
+          </p>
+        </div>
 
         <button
           type="button"
@@ -153,129 +202,127 @@ export function AvailableSlotsPicker({
           {error}
         </p>
       ) : (
-        <>
-          <div className="space-y-2 sm:hidden">
-            {dayEntries.map(([dateKey, daySlots]) => {
-              const d = new Date(`${dateKey}T12:00:00Z`);
-              const dow = d.getUTCDay();
-              const isToday = dateKey === todayYmd;
+        <div className="space-y-4">
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className="text-sm font-bold text-foreground">Elegí un día</p>
+              {slots.length > 0 && (
+                <p className="text-xs font-medium text-muted-foreground">
+                  {slots.length} horario{slots.length === 1 ? "" : "s"} en la semana
+                </p>
+              )}
+            </div>
 
-              return (
-                <section
-                  key={`mobile-${dateKey}`}
-                  className={`rounded-xl border p-3 ${
-                    isToday
-                      ? "border-accent-300 bg-accent-50/70 dark:border-accent-300/30 dark:bg-accent-300/10"
-                      : "border-gray-200 bg-white dark:border-white/10 dark:bg-white/[0.03]"
-                  }`}
-                >
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <p className="text-sm font-bold text-foreground">
-                      {formatDay(dow)}
-                    </p>
-                    <p
-                      className={`text-xs font-semibold ${
-                        isToday
-                          ? "text-accent-700 dark:text-accent-100"
-                          : "text-muted-foreground"
-                      }`}
-                    >
-                      {formatShortDate(dateKey)}
-                    </p>
-                  </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+              {dayEntries.map(([dateKey, daySlots]) => {
+                const d = new Date(`${dateKey}T12:00:00Z`);
+                const dow = d.getUTCDay();
+                const isToday = dateKey === todayYmd;
+                const isActive = activeDayKey === dateKey;
+                const hasSlots = daySlots.length > 0;
 
-                  {daySlots.length === 0 ? (
-                    <p className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-muted-foreground dark:bg-white/[0.04]">
-                      Sin horarios disponibles
-                    </p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {daySlots.map((slot) => {
-                        const isSelected = selectedSlot?.start === slot.start;
-                        return (
-                          <button
-                            key={slot.start}
-                            type="button"
-                            onClick={() => onSelectSlot(isSelected ? null : slot)}
-                            className={`flex min-h-10 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 dark:focus-visible:ring-accent-300 ${
-                              isSelected
-                                ? "bg-accent-600 text-white shadow-sm dark:bg-accent-300 dark:text-[#071713]"
-                                : "border border-gray-200 bg-white text-foreground hover:border-accent-400 hover:bg-accent-50 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-accent-300/30 dark:hover:bg-accent-300/10"
-                            }`}
-                          >
-                            <Clock className="h-3.5 w-3.5 shrink-0" />
-                            {formatTimeInArgentina(new Date(slot.start))}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </section>
-              );
-            })}
+                return (
+                  <button
+                    key={dateKey}
+                    type="button"
+                    disabled={!hasSlots}
+                    aria-pressed={isActive}
+                    onClick={() => selectDay(dateKey)}
+                    className={`min-h-[104px] rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:cursor-not-allowed dark:focus-visible:ring-accent-300 ${
+                      isActive
+                        ? "border-accent-600 bg-accent-50 text-foreground ring-1 ring-accent-200 dark:border-accent-300 dark:bg-accent-300/10 dark:ring-accent-300/20"
+                        : hasSlots
+                          ? "border-gray-200 bg-white text-foreground hover:border-accent-300 hover:bg-accent-50/50 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-accent-300/35 dark:hover:bg-accent-300/10"
+                          : "border-gray-200 bg-gray-50 text-muted-foreground opacity-70 dark:border-white/10 dark:bg-white/[0.02]"
+                    }`}
+                  >
+                    <span className="flex items-start justify-between gap-2">
+                      <span>
+                        <span className="block text-sm font-bold">
+                          {formatDay(dow)}
+                        </span>
+                        <span
+                          className={`mt-0.5 block text-xs font-semibold ${
+                            isToday
+                              ? "text-accent-700 dark:text-accent-100"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {formatShortDate(dateKey)}
+                        </span>
+                      </span>
+                      {isToday && (
+                        <span className="rounded-full bg-accent-100 px-2 py-0.5 text-[10px] font-bold text-accent-700 dark:bg-accent-300/20 dark:text-accent-100">
+                          Hoy
+                        </span>
+                      )}
+                    </span>
+
+                    {hasSlots ? (
+                      <span className="mt-3 block">
+                        <span className="block text-xs font-bold text-accent-700 dark:text-accent-100">
+                          {daySlots.length} horario
+                          {daySlots.length === 1 ? "" : "s"}
+                        </span>
+                        <span className="mt-1 block text-[11px] text-muted-foreground">
+                          Desde {formatTimeInArgentina(new Date(daySlots[0].start))}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="mt-3 block text-xs font-semibold text-muted-foreground">
+                        Sin horarios
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="hidden grid-cols-7 gap-1.5 sm:grid">
-          {/* Day headers */}
-          {dayEntries.map(([dateKey]) => {
-            const d = new Date(`${dateKey}T12:00:00Z`);
-            const dow = d.getUTCDay();
-            const isToday = dateKey === todayYmd;
-            return (
-              <div
-                key={`header-${dateKey}`}
-                className="text-center"
-              >
-                <p
-                  className={`text-xs font-semibold ${
-                    isToday
-                      ? "text-accent-600 dark:text-accent-300"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  {formatDay(dow, true)}
+          <section className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-bold text-foreground">
+                  Horarios para {activeDayName}
+                  {activeDayKey ? ` ${formatShortDate(activeDayKey)}` : ""}
                 </p>
-                <p
-                  className={`text-[11px] ${
-                    isToday
-                      ? "text-accent-600 dark:text-accent-300"
-                      : "text-muted-foreground/70"
-                  }`}
-                >
-                  {d.getUTCDate()}
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Elegí una hora para continuar con el pago.
                 </p>
               </div>
-            );
-          })}
+              {activeDaySlots.length > 0 && (
+                <p className="text-xs font-semibold text-muted-foreground">
+                  {activeDaySlots.length} opción{activeDaySlots.length === 1 ? "" : "es"}
+                </p>
+              )}
+            </div>
 
-          {/* Slot columns */}
-          {dayEntries.map(([dateKey, daySlots]) => (
-            <div
-              key={`slots-${dateKey}`}
-              className="flex min-h-[60px] flex-col gap-1"
-            >
-              {daySlots.length === 0 ? (
-                <div className="flex h-full items-center justify-center">
-                  <span className="text-[10px] text-muted-foreground/50">Sin horarios</span>
-                </div>
-              ) : (
-                daySlots.map((slot) => {
+            {activeDaySlots.length === 0 ? (
+              <div className="mt-4 rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center dark:border-white/10 dark:bg-white/[0.03]">
+                <p className="text-sm font-semibold text-foreground">
+                  No hay horarios para este día.
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Probá otro día, semana, duración o modalidad.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+                {activeDaySlots.map((slot) => {
                   const isSelected = selectedSlot?.start === slot.start;
                   return (
                     <button
                       key={slot.start}
                       type="button"
-                      onClick={() =>
-                        onSelectSlot(isSelected ? null : slot)
-                      }
-                      className={`group flex min-h-8 items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 dark:focus-visible:ring-accent-300 ${
+                      onClick={() => onSelectSlot(isSelected ? null : slot)}
+                      className={`group flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 dark:focus-visible:ring-accent-300 ${
                         isSelected
                           ? "bg-accent-600 text-white shadow-sm dark:bg-accent-300 dark:text-[#071713]"
-                          : "border border-gray-200 bg-white text-foreground hover:border-accent-400 hover:bg-accent-50/50 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-accent-300/30 dark:hover:bg-accent-300/10"
+                          : "border border-gray-200 bg-white text-foreground hover:border-accent-400 hover:bg-accent-50/70 dark:border-white/10 dark:bg-[#071713] dark:hover:border-accent-300/35 dark:hover:bg-accent-300/10"
                       }`}
                     >
                       <Clock
-                        className={`h-3 w-3 shrink-0 ${
+                        className={`h-4 w-4 shrink-0 ${
                           isSelected
                             ? "text-white/80 dark:text-[#071713]/70"
                             : "text-muted-foreground/60 group-hover:text-accent-500 dark:group-hover:text-accent-300/70"
@@ -284,19 +331,11 @@ export function AvailableSlotsPicker({
                       {formatTimeInArgentina(new Date(slot.start))}
                     </button>
                   );
-                })
-              )}
-            </div>
-          ))}
-          </div>
-        </>
-      )}
-
-      {/* No slots message */}
-      {!loading && !error && slots.length === 0 && (
-        <p className="rounded-xl border border-dashed border-gray-200 bg-white px-3 py-3 text-center text-xs leading-5 text-muted-foreground dark:border-white/10 dark:bg-white/[0.03]">
-          No hay horarios disponibles esta semana. Probá otra semana o duración.
-        </p>
+                })}
+              </div>
+            )}
+          </section>
+        </div>
       )}
     </div>
   );

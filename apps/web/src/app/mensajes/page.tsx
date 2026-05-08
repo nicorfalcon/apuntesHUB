@@ -1,15 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-  CalendarDays,
-  CheckCircle2,
-  Clock3,
-  MessageCircle,
-  MessageSquareText,
-} from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { MessageReplyForm } from "@/components/messages/message-reply-form";
+import { MessagesWorkspace } from "@/components/messages/messages-workspace";
 import type {
   Profile,
   Subject,
@@ -17,56 +10,7 @@ import type {
   TutorMessage,
 } from "@/lib/database.types";
 
-type BookingStatus = "requested" | "confirmed" | "completed" | "cancelled";
-
-const STATUS_LABELS: Record<BookingStatus, string> = {
-  requested: "Solicitada",
-  confirmed: "Confirmada",
-  completed: "Completada",
-  cancelled: "Cancelada",
-};
-
-const STATUS_STYLES: Record<BookingStatus, string> = {
-  requested:
-    "bg-[#FBF3DB] text-[#956400] ring-[#F1E2B5] dark:bg-yellow-300/[0.12] dark:text-yellow-100 dark:ring-yellow-300/20",
-  confirmed:
-    "bg-[#E1F3FE] text-[#1F6C9F] ring-[#B9DFF5] dark:bg-sky-300/[0.12] dark:text-sky-100 dark:ring-sky-300/20",
-  completed:
-    "bg-[#EDF3EC] text-[#346538] ring-[#D2E3D0] dark:bg-accent-300/[0.12] dark:text-accent-100 dark:ring-accent-300/20",
-  cancelled:
-    "bg-[#FDEBEC] text-[#9F2F2D] ring-[#F5C9CA] dark:bg-red-300/[0.12] dark:text-red-100 dark:ring-red-300/20",
-};
-
-const dateFormatter = new Intl.DateTimeFormat("es-AR", {
-  day: "2-digit",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
-const moneyFormatter = new Intl.NumberFormat("es-AR", {
-  style: "currency",
-  currency: "ARS",
-  maximumFractionDigits: 0,
-});
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
-
-function formatDate(value: string) {
-  return dateFormatter.format(new Date(value));
-}
-
-function formatRate(value: number | null) {
-  if (!value) return null;
-  return `${moneyFormatter.format(value)} / hora`;
-}
+const VISIBLE_MESSAGE_STATUSES = ["confirmed", "completed", "cancelled"] as const;
 
 export default async function MensajesPage({
   searchParams,
@@ -85,40 +29,34 @@ export default async function MensajesPage({
     .from("tutor_bookings")
     .select("*")
     .or(`tutor_id.eq.${user.id},student_id.eq.${user.id}`)
+    .in("status", [...VISIBLE_MESSAGE_STATUSES])
     .order("updated_at", { ascending: false });
 
   const bookings = (rawBookings as TutorBooking[] | null) ?? [];
 
   if (bookings.length === 0) {
+    const selectedBookingIsUnavailable = selectedBookingParam
+      ? await bookingExistsForUser(supabase, selectedBookingParam, user.id)
+      : false;
+
     return (
-      <main className="mx-auto flex min-h-[72vh] w-full max-w-4xl flex-col items-center justify-center px-4 py-16 text-center">
-        <div className="w-full rounded-[22px] border border-gray-200 bg-white p-8 shadow-[0_18px_46px_rgba(38,56,51,0.06)] dark:border-white/10 dark:bg-[#0f1e1a] dark:shadow-black/25 sm:p-10">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-700 ring-1 ring-accent-100 dark:bg-accent-300/15 dark:text-accent-100 dark:ring-accent-300/20">
-            <MessageCircle className="h-6 w-6" aria-hidden="true" />
-          </div>
-          <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-accent-700 dark:text-accent-100">
-            Mensajes
-          </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground text-balance">
-            Tus conversaciones van a vivir acá
-          </h1>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
-            Todavía no tenés solicitudes de clases particulares. Cuando contactes
-            a un profesor, el hilo va a aparecer en esta bandeja.
-          </p>
-          <Link
-            href="/explorar?tab=particulares"
-            className="mt-7 inline-flex items-center justify-center rounded-xl bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 active:scale-[0.98] dark:bg-accent-300 dark:text-[#071713]"
-          >
-            Buscar Profesores
-          </Link>
-        </div>
-      </main>
+      <EmptyMessagesState
+        unavailableSelectedBooking={selectedBookingIsUnavailable}
+      />
     );
   }
 
   const selectedBooking =
     bookings.find((booking) => booking.id === selectedBookingParam) ?? bookings[0];
+  const selectedBookingIsUnavailable =
+    selectedBookingParam && selectedBooking.id !== selectedBookingParam
+      ? await bookingExistsForUser(supabase, selectedBookingParam, user.id)
+      : false;
+
+  if (selectedBookingIsUnavailable) {
+    return <EmptyMessagesState unavailableSelectedBooking />;
+  }
+
   const bookingIds = bookings.map((booking) => booking.id);
   const profileIds = Array.from(
     new Set(bookings.flatMap((booking) => [booking.tutor_id, booking.student_id]))
@@ -146,62 +84,20 @@ export default async function MensajesPage({
       .order("created_at", { ascending: true }),
   ]);
 
-  const profiles = new Map(
-    ((rawProfiles as Pick<
-      Profile,
-      "id" | "display_name" | "avatar_url" | "university" | "career"
-    >[] | null) ?? []).map((profile) => [profile.id, profile])
-  );
-  const subjects = new Map(
-    ((rawSubjects as Subject[] | null) ?? []).map((subject) => [subject.id, subject])
-  );
   const messages = (rawMessages as TutorMessage[] | null) ?? [];
-  const messagesByBooking = new Map<string, TutorMessage[]>();
-
-  for (const message of messages) {
-    const current = messagesByBooking.get(message.booking_id) ?? [];
-    current.push(message);
-    messagesByBooking.set(message.booking_id, current);
-  }
-
-  const selectedMessages = messagesByBooking.get(selectedBooking.id) ?? [];
-  const unreadByBooking = new Map<string, number>();
-
-  for (const message of messages) {
-    if (message.sender_id === user.id || message.read_at) continue;
-    unreadByBooking.set(
-      message.booking_id,
-      (unreadByBooking.get(message.booking_id) ?? 0) + 1
-    );
-  }
-
+  const selectedMessages = messages.filter(
+    (message) => message.booking_id === selectedBooking.id
+  );
   const unreadIncomingIds = selectedMessages
-    .filter((m) => m.sender_id !== user.id && !m.read_at)
-    .map((m) => m.id);
+    .filter((message) => message.sender_id !== user.id && !message.read_at)
+    .map((message) => message.id);
+
   if (unreadIncomingIds.length > 0) {
     await supabase
       .from("tutor_messages")
       .update({ read_at: new Date().toISOString() })
       .in("id", unreadIncomingIds);
   }
-
-  const otherUserId =
-    selectedBooking.tutor_id === user.id
-      ? selectedBooking.student_id
-      : selectedBooking.tutor_id;
-  const otherUser = profiles.get(otherUserId);
-  const selectedSubject = selectedBooking.subject_id
-    ? subjects.get(selectedBooking.subject_id)
-    : null;
-  const selectedRate = formatRate(
-    selectedBooking.hourly_rate_ars
-      ? Number(selectedBooking.hourly_rate_ars)
-      : null
-  );
-  const selectedStatus =
-    (selectedBooking.status as BookingStatus) in STATUS_LABELS
-      ? (selectedBooking.status as BookingStatus)
-      : null;
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:py-8">
@@ -213,218 +109,73 @@ export default async function MensajesPage({
           Mensajes
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Respondé solicitudes, coordiná horarios y mantené el contexto de
-          cada clase en un solo lugar.
+          Coordiná detalles de tus clases confirmadas. Cada conversación
+          corresponde a una reserva.
         </p>
       </header>
 
-      <div className="grid min-h-[680px] overflow-hidden rounded-[22px] border border-gray-200 bg-white shadow-[0_18px_46px_rgba(38,56,51,0.06)] dark:border-white/10 dark:bg-[#0f1e1a] dark:shadow-black/25 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <aside className="flex min-h-0 flex-col border-b border-gray-200 bg-[rgba(var(--surface-warm-rgb),0.55)] dark:border-white/10 dark:bg-white/[0.02] lg:border-b-0 lg:border-r">
-          <div className="border-b border-gray-200 bg-white/70 p-4 backdrop-blur dark:border-white/10 dark:bg-white/[0.03]">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-bold text-foreground">
-                  Conversaciones
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Clases particulares
-                </p>
-              </div>
-              <span className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-bold tabular-nums text-muted-foreground dark:border-white/10 dark:bg-white/[0.04]">
-                {bookings.length}
-              </span>
-            </div>
-          </div>
-          <nav aria-label="Conversaciones" className="min-h-0 flex-1 overflow-y-auto p-2">
-            {bookings.map((booking) => {
-              const participantId =
-                booking.tutor_id === user.id ? booking.student_id : booking.tutor_id;
-              const participant = profiles.get(participantId);
-              const subject = booking.subject_id
-                ? subjects.get(booking.subject_id)
-                : null;
-              const lastMessage = messagesByBooking.get(booking.id)?.at(-1);
-              const active = booking.id === selectedBooking.id;
-              const unread = unreadByBooking.get(booking.id) ?? 0;
-              const status =
-                (booking.status as BookingStatus) in STATUS_LABELS
-                  ? (booking.status as BookingStatus)
-                  : null;
+      <MessagesWorkspace
+        userId={user.id}
+        bookings={bookings}
+        profiles={
+          (rawProfiles as Pick<
+            Profile,
+            "id" | "display_name" | "avatar_url" | "university" | "career"
+          >[] | null) ?? []
+        }
+        subjects={(rawSubjects as Subject[] | null) ?? []}
+        messages={messages}
+        selectedBookingId={selectedBooking.id}
+      />
+    </main>
+  );
+}
 
-              return (
-                <Link
-                  key={booking.id}
-                  href={`/mensajes?booking=${booking.id}`}
-                  aria-current={active ? "page" : undefined}
-                  className={`group block rounded-2xl border p-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${
-                    active
-                      ? "border-accent-200 bg-white shadow-[0_8px_24px_rgba(38,56,51,0.06)] dark:border-accent-300/30 dark:bg-accent-300/10"
-                      : "border-transparent hover:border-gray-200 hover:bg-white/70 dark:hover:border-white/10 dark:hover:bg-white/[0.04]"
-                  }`}
-                >
-                  <div className="flex gap-3">
-                    <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-accent-100 text-accent-700 ring-1 ring-black/5 dark:bg-accent-300/15 dark:text-accent-100 dark:ring-white/10">
-                      {participant?.avatar_url ? (
-                        <Image
-                          src={participant.avatar_url}
-                          alt={participant.display_name}
-                          fill
-                          sizes="44px"
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-sm font-bold">
-                          {initials(participant?.display_name ?? "Usuario")}
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="truncate text-sm font-semibold text-foreground">
-                          {participant?.display_name ?? "Usuario"}
-                        </p>
-                        {unread > 0 ? (
-                          <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-accent-600 px-1.5 text-[10px] font-bold leading-none text-white dark:bg-accent-300 dark:text-[#071713]">
-                            {unread > 9 ? "9+" : unread}
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="mt-1 flex items-center gap-2">
-                        <p className="min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground">
-                          {subject?.name ?? "Materia a coordinar"}
-                        </p>
-                        <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ${
-                            status
-                              ? STATUS_STYLES[status]
-                              : "bg-gray-100 text-gray-500 ring-gray-200 dark:bg-white/10 dark:text-sand-200 dark:ring-white/10"
-                          }`}
-                        >
-                          {status ? STATUS_LABELS[status] : booking.status}
-                        </span>
-                      </div>
-                      <p className="mt-2 truncate text-xs text-gray-500 dark:text-sand-300/70">
-                        {lastMessage?.body ?? "Sin mensajes todavía"}
-                      </p>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </nav>
-        </aside>
+async function bookingExistsForUser(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  bookingId: string,
+  userId: string
+) {
+  const { data } = await supabase
+    .from("tutor_bookings")
+    .select("id")
+    .eq("id", bookingId)
+    .or(`tutor_id.eq.${userId},student_id.eq.${userId}`)
+    .maybeSingle();
 
-        <section className="flex min-h-[620px] flex-col">
-          <header className="border-b border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-[#0f1e1a]">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-accent-100 text-accent-700 ring-1 ring-black/5 dark:bg-accent-300/15 dark:text-accent-100 dark:ring-white/10">
-                  {otherUser?.avatar_url ? (
-                    <Image
-                      src={otherUser.avatar_url}
-                      alt={otherUser.display_name}
-                      fill
-                      sizes="44px"
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-sm font-bold">
-                      {initials(otherUser?.display_name ?? "Usuario")}
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-foreground">
-                    {otherUser?.display_name ?? "Usuario"}
-                  </p>
-                  <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {selectedSubject?.name ?? "Materia a coordinar"}
-                    {selectedRate ? ` · ${selectedRate}` : ""}
-                  </p>
-                </div>
-              </div>
-              <span
-                className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ring-1 ${
-                  selectedStatus
-                    ? STATUS_STYLES[selectedStatus]
-                    : "bg-gray-100 text-gray-500 ring-gray-200 dark:bg-white/10 dark:text-sand-200 dark:ring-white/10"
-                }`}
-              >
-                {selectedStatus
-                  ? STATUS_LABELS[selectedStatus]
-                  : selectedBooking.status}
-              </span>
-            </div>
-            {selectedBooking.scheduled_at && (
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1 dark:border-white/10 dark:bg-white/[0.04]">
-                  <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
-                  <time dateTime={selectedBooking.scheduled_at}>
-                    {formatDate(selectedBooking.scheduled_at)}
-                  </time>
-                </span>
-              </div>
-            )}
-          </header>
+  return Boolean(data);
+}
 
-          <div className="flex-1 overflow-y-auto bg-[#f7faf8] p-4 dark:bg-[#0b1714] sm:p-5">
-            {selectedMessages.length === 0 ? (
-              <div className="flex min-h-[420px] items-center justify-center text-center">
-                <div className="max-w-sm">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-accent-700 ring-1 ring-gray-200 dark:bg-white/[0.04] dark:text-accent-100 dark:ring-white/10">
-                    <MessageSquareText className="h-5 w-5" aria-hidden="true" />
-                  </div>
-                  <p className="mt-4 text-sm font-bold text-foreground">
-                    Todavía no hay mensajes
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Escribí el primer mensaje para coordinar la clase.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {selectedMessages.map((message) => {
-                  const mine = message.sender_id === user.id;
-
-                  return (
-                    <div
-                      key={message.id}
-                      className={`flex ${mine ? "justify-end" : "justify-start"}`}
-                    >
-                      <div
-                        className={`max-w-[82%] rounded-2xl px-4 py-2.5 text-sm leading-6 shadow-[0_6px_20px_rgba(38,56,51,0.05)] sm:max-w-[70%] ${
-                          mine
-                            ? "rounded-br-md bg-accent-600 text-white dark:bg-accent-300 dark:text-[#071713]"
-                            : "rounded-bl-md border border-gray-200 bg-white text-foreground dark:border-white/10 dark:bg-white/[0.05]"
-                        }`}
-                      >
-                        <p className="break-words">{message.body}</p>
-                        <div
-                          className={`mt-1.5 flex items-center gap-1.5 text-[10px] ${
-                            mine
-                              ? "justify-end text-white/75 dark:text-[#071713]/60"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          <Clock3 className="h-3 w-3" aria-hidden="true" />
-                          <time dateTime={message.created_at}>
-                            {formatDate(message.created_at)}
-                          </time>
-                          {mine && (
-                            <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <MessageReplyForm bookingId={selectedBooking.id} />
-        </section>
+function EmptyMessagesState({
+  unavailableSelectedBooking = false,
+}: {
+  unavailableSelectedBooking?: boolean;
+}) {
+  return (
+    <main className="mx-auto flex min-h-[72vh] w-full max-w-4xl flex-col items-center justify-center px-4 py-16 text-center">
+      <div className="w-full rounded-[22px] border border-gray-200 bg-white p-8 shadow-[0_18px_46px_rgba(38,56,51,0.06)] dark:border-white/10 dark:bg-[#0f1e1a] dark:shadow-black/25 sm:p-10">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-700 ring-1 ring-accent-100 dark:bg-accent-300/15 dark:text-accent-100 dark:ring-accent-300/20">
+          <MessageCircle className="h-6 w-6" aria-hidden="true" />
+        </div>
+        <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-accent-700 dark:text-accent-100">
+          Mensajes
+        </p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground text-balance">
+          {unavailableSelectedBooking
+            ? "La conversación todavía no está disponible"
+            : "Tus conversaciones van a vivir acá"}
+        </h1>
+        <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
+          {unavailableSelectedBooking
+            ? "La conversación estará disponible cuando la reserva esté confirmada."
+            : "Cuando una reserva esté confirmada, vas a poder coordinar los detalles de la clase por mensajes."}
+        </p>
+        <Link
+          href="/explorar?tab=particulares"
+          className="mt-7 inline-flex items-center justify-center rounded-xl bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 active:scale-[0.98] dark:bg-accent-300 dark:text-[#071713]"
+        >
+          Explorar profesores
+        </Link>
       </div>
     </main>
   );

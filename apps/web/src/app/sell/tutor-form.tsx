@@ -13,7 +13,6 @@ import {
   CalendarDays,
   Check,
   GraduationCap,
-  Link as LinkIcon,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -309,13 +308,6 @@ export function TutorForm({
         return "Ingresá una tarifa por hora válida para cada materia.";
       }
 
-      if (subject.approvalProofUrl.trim()) {
-        try {
-          new URL(subject.approvalProofUrl.trim());
-        } catch {
-          return "El comprobante debe ser un link válido.";
-        }
-      }
     }
     return null;
   }
@@ -361,6 +353,11 @@ export function TutorForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (currentStep < TUTOR_STEPS.length - 1) return;
+
+    const nativeEvent = event.nativeEvent as SubmitEvent;
+    const submitter = nativeEvent.submitter as HTMLButtonElement | null;
+    if (submitter?.dataset.intent !== "publish") return;
+
     setError(null);
 
     const validationError = validateForm();
@@ -480,8 +477,8 @@ export function TutorForm({
                 placeholder="Ej: Doy clases enfocadas en resolver ejercicios, preparar parciales y ordenar la teoría antes del examen."
               />
               <p className="mt-2 text-xs text-muted-foreground">
-                Mínimo 30 caracteres. La verificación queda pendiente hasta que
-                revisemos tu comprobante.
+                Mínimo 30 caracteres. Usá este espacio para contar cómo das
+                clases y qué temas trabajás.
               </p>
             </div>
           </div>
@@ -597,30 +594,6 @@ export function TutorForm({
                     className={inputClass}
                     placeholder="Ingeniería Informática"
                   />
-                </div>
-                <div className="md:col-span-2">
-                  <FieldLabel htmlFor={`subject-proof-${subject.localId}`}>
-                    Link al comprobante de aprobación
-                  </FieldLabel>
-                  <div className="relative">
-                    <LinkIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      id={`subject-proof-${subject.localId}`}
-                      value={subject.approvalProofUrl}
-                      onChange={(event) =>
-                        updateSubject(
-                          subject.localId,
-                          "approvalProofUrl",
-                          event.target.value
-                        )
-                      }
-                      className={`${inputClass} pl-10`}
-                      placeholder="https://…"
-                    />
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Puede ser un link privado de Drive, certificado o analítico.
-                  </p>
                 </div>
               </div>
             </div>
@@ -772,6 +745,7 @@ export function TutorForm({
 
             {currentStep < TUTOR_STEPS.length - 1 ? (
               <button
+                key="tutor-step-next"
                 type="button"
                 onClick={nextStep}
                 disabled={!canAdvance()}
@@ -781,7 +755,9 @@ export function TutorForm({
               </button>
             ) : (
               <button
+                key="tutor-step-submit"
                 type="submit"
+                data-intent="publish"
                 disabled={loading}
                 className="rounded-lg bg-accent-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/30 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
               >
