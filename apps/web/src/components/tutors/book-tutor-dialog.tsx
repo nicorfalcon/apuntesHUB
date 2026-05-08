@@ -127,10 +127,10 @@ export function BookTutorDialog({
     mounted && open
       ? createPortal(
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-4"
+            className="fixed inset-0 z-[100] flex items-end justify-center bg-black/55 px-3 py-3 backdrop-blur-[2px] sm:items-center sm:px-4"
             onClick={(e) => e.target === e.currentTarget && setOpen(false)}
           >
-            <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-[#0f1e1a]">
+            <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-xl dark:border-white/10 dark:bg-[#0f1e1a] sm:max-h-[90vh] sm:p-6">
               {/* Header */}
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -145,7 +145,7 @@ export function BookTutorDialog({
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-foreground dark:hover:bg-white/10"
+                  className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 dark:hover:bg-white/10 dark:focus-visible:ring-accent-300"
                   aria-label="Cerrar"
                 >
                   <X className="h-4 w-4" />
@@ -165,7 +165,7 @@ export function BookTutorDialog({
                     id="book-subject"
                     value={subjectId}
                     onChange={(e) => setSubjectId(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-accent-400 focus:ring-2 focus:ring-accent-200/40 dark:border-white/15 dark:bg-white/5 dark:focus:border-accent-300 dark:focus:ring-accent-300/15"
+                    className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-accent-400 focus:ring-2 focus:ring-accent-200/40 dark:border-white/15 dark:bg-[#071713] dark:focus:border-accent-300 dark:focus:ring-accent-300/15"
                   >
                     {subjects.map((s) => (
                       <option key={s.id} value={s.id}>
@@ -180,13 +180,13 @@ export function BookTutorDialog({
                   <p className="block text-sm font-medium text-gray-700 dark:text-sand-100">
                     Duración
                   </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                     {DURATIONS.map((val) => (
                       <button
                         key={val}
                         type="button"
                         onClick={() => setDuration(val)}
-                        className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+                        className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 dark:focus-visible:ring-accent-300 ${
                           duration === val
                             ? "border-accent-600 bg-accent-600 text-white dark:border-accent-300 dark:bg-accent-300 dark:text-[#071713]"
                             : "border-gray-200 text-muted-foreground hover:bg-gray-50 hover:text-foreground dark:border-white/10 dark:hover:bg-white/5"
@@ -203,13 +203,13 @@ export function BookTutorDialog({
                   <p className="block text-sm font-medium text-gray-700 dark:text-sand-100">
                     Modalidad
                   </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="mt-2 grid grid-cols-2 gap-2">
                     {(["online", "presencial"] as const).map((m) => (
                       <button
                         key={m}
                         type="button"
                         onClick={() => setModality(m)}
-                        className={`rounded-full border px-4 py-2 text-sm font-semibold capitalize transition-colors ${
+                        className={`rounded-full border px-4 py-2 text-sm font-semibold capitalize transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 dark:focus-visible:ring-accent-300 ${
                           modality === m
                             ? "border-accent-600 bg-accent-600 text-white dark:border-accent-300 dark:bg-accent-300 dark:text-[#071713]"
                             : "border-gray-200 text-muted-foreground hover:bg-gray-50 hover:text-foreground dark:border-white/10 dark:hover:bg-white/5"
@@ -255,15 +255,15 @@ export function BookTutorDialog({
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Ej: Tengo parcial la semana que viene y quiero practicar integrales."
-                    className="mt-1 w-full resize-none rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-foreground outline-none placeholder:text-gray-400 focus:border-accent-400 focus:ring-2 focus:ring-accent-200/40 dark:border-white/15 dark:bg-white/5 dark:placeholder:text-sand-300/45 dark:focus:border-accent-300 dark:focus:ring-accent-300/15"
+                    className="mt-1 w-full resize-none rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-foreground outline-none placeholder:text-gray-400 focus:border-accent-400 focus:ring-2 focus:ring-accent-200/40 dark:border-white/15 dark:bg-[#071713] dark:placeholder:text-sand-300/45 dark:focus:border-accent-300 dark:focus:ring-accent-300/15"
                   />
                 </div>
 
                 {/* Price summary */}
                 {selectedSlot && estimatedPrice !== null && (
                   <div className="rounded-xl border border-accent-200 bg-accent-50/50 p-4 dark:border-accent-300/20 dark:bg-accent-300/5">
-                    <div className="flex items-center justify-between">
-                      <div>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground">
                           {selectedSubject?.name} · {duration} min
                         </p>
@@ -288,7 +288,7 @@ export function BookTutorDialog({
                           )}
                         </p>
                       </div>
-                      <p className="text-xl font-bold text-foreground">
+                      <p className="shrink-0 text-xl font-bold text-foreground">
                         ${formatArs(estimatedPrice)}
                       </p>
                     </div>
@@ -297,17 +297,17 @@ export function BookTutorDialog({
 
                 {/* Error */}
                 {error && (
-                  <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-200">
+                  <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-400/20 dark:bg-red-500/10 dark:text-red-200">
                     {error}
                   </p>
                 )}
 
                 {/* Actions */}
-                <div className="flex gap-3">
+                <div className="flex flex-col-reverse gap-3 sm:flex-row">
                   <button
                     type="submit"
                     disabled={loading || !selectedSlot}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-accent-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 disabled:opacity-60 dark:bg-accent-300 dark:text-[#071713]"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-accent-300 dark:text-[#071713] dark:focus-visible:ring-accent-300 dark:focus-visible:ring-offset-[#0f1e1a]"
                   >
                     {loading ? (
                       <>
@@ -324,7 +324,7 @@ export function BookTutorDialog({
                   <button
                     type="button"
                     onClick={() => setOpen(false)}
-                    className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-white/15 dark:text-sand-100 dark:hover:bg-white/5"
+                    className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 dark:border-white/15 dark:text-sand-100 dark:hover:bg-white/5 dark:focus-visible:ring-accent-300"
                   >
                     Cancelar
                   </button>

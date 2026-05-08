@@ -109,21 +109,23 @@ export function AvailableSlotsPicker({
   const canGoPrev = weekOffset > 0;
   const canGoNext = weekOffset < 3; // max 4 weeks ahead
 
+  const dayEntries = Array.from(slotsByDay.entries());
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4" aria-live="polite">
       {/* Week navigation */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-2 py-2 dark:border-white/10 dark:bg-white/[0.03]">
         <button
           type="button"
           disabled={!canGoPrev}
           onClick={() => setWeekOffset((o) => o - 1)}
-          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-foreground disabled:opacity-30 dark:hover:bg-white/10"
+          className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-white/10 dark:focus-visible:ring-accent-300"
           aria-label="Semana anterior"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
 
-        <p className="text-sm font-medium text-foreground">
+        <p className="text-center text-sm font-bold text-foreground">
           {formatShortDate(fromYmd)} – {formatShortDate(toYmd)}
         </p>
 
@@ -131,7 +133,7 @@ export function AvailableSlotsPicker({
           type="button"
           disabled={!canGoNext}
           onClick={() => setWeekOffset((o) => o + 1)}
-          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-foreground disabled:opacity-30 dark:hover:bg-white/10"
+          className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-white/10 dark:focus-visible:ring-accent-300"
           aria-label="Semana siguiente"
         >
           <ChevronRight className="h-4 w-4" />
@@ -140,20 +142,82 @@ export function AvailableSlotsPicker({
 
       {/* Slots grid */}
       {loading ? (
-        <div className="flex items-center justify-center py-8">
+        <div className="flex items-center justify-center rounded-xl border border-dashed border-gray-200 bg-white py-8 dark:border-white/10 dark:bg-white/[0.03]">
           <Loader2 className="h-5 w-5 animate-spin text-accent-500" />
           <span className="ml-2 text-sm text-muted-foreground">
             Buscando horarios...
           </span>
         </div>
       ) : error ? (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-200">
+        <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-400/20 dark:bg-red-500/10 dark:text-red-200">
           {error}
         </p>
       ) : (
-        <div className="grid grid-cols-7 gap-1.5">
+        <>
+          <div className="space-y-2 sm:hidden">
+            {dayEntries.map(([dateKey, daySlots]) => {
+              const d = new Date(`${dateKey}T12:00:00Z`);
+              const dow = d.getUTCDay();
+              const isToday = dateKey === todayYmd;
+
+              return (
+                <section
+                  key={`mobile-${dateKey}`}
+                  className={`rounded-xl border p-3 ${
+                    isToday
+                      ? "border-accent-300 bg-accent-50/70 dark:border-accent-300/30 dark:bg-accent-300/10"
+                      : "border-gray-200 bg-white dark:border-white/10 dark:bg-white/[0.03]"
+                  }`}
+                >
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <p className="text-sm font-bold text-foreground">
+                      {formatDay(dow)}
+                    </p>
+                    <p
+                      className={`text-xs font-semibold ${
+                        isToday
+                          ? "text-accent-700 dark:text-accent-100"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {formatShortDate(dateKey)}
+                    </p>
+                  </div>
+
+                  {daySlots.length === 0 ? (
+                    <p className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-muted-foreground dark:bg-white/[0.04]">
+                      Sin horarios disponibles
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {daySlots.map((slot) => {
+                        const isSelected = selectedSlot?.start === slot.start;
+                        return (
+                          <button
+                            key={slot.start}
+                            type="button"
+                            onClick={() => onSelectSlot(isSelected ? null : slot)}
+                            className={`flex min-h-10 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 dark:focus-visible:ring-accent-300 ${
+                              isSelected
+                                ? "bg-accent-600 text-white shadow-sm dark:bg-accent-300 dark:text-[#071713]"
+                                : "border border-gray-200 bg-white text-foreground hover:border-accent-400 hover:bg-accent-50 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-accent-300/30 dark:hover:bg-accent-300/10"
+                            }`}
+                          >
+                            <Clock className="h-3.5 w-3.5 shrink-0" />
+                            {formatTimeInArgentina(new Date(slot.start))}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+              );
+            })}
+          </div>
+
+          <div className="hidden grid-cols-7 gap-1.5 sm:grid">
           {/* Day headers */}
-          {Array.from(slotsByDay.entries()).map(([dateKey]) => {
+          {dayEntries.map(([dateKey]) => {
             const d = new Date(`${dateKey}T12:00:00Z`);
             const dow = d.getUTCDay();
             const isToday = dateKey === todayYmd;
@@ -185,14 +249,14 @@ export function AvailableSlotsPicker({
           })}
 
           {/* Slot columns */}
-          {Array.from(slotsByDay.entries()).map(([dateKey, daySlots]) => (
+          {dayEntries.map(([dateKey, daySlots]) => (
             <div
               key={`slots-${dateKey}`}
-              className="flex flex-col gap-1 min-h-[60px]"
+              className="flex min-h-[60px] flex-col gap-1"
             >
               {daySlots.length === 0 ? (
                 <div className="flex h-full items-center justify-center">
-                  <span className="text-[10px] text-muted-foreground/40">—</span>
+                  <span className="text-[10px] text-muted-foreground/50">Sin horarios</span>
                 </div>
               ) : (
                 daySlots.map((slot) => {
@@ -204,10 +268,10 @@ export function AvailableSlotsPicker({
                       onClick={() =>
                         onSelectSlot(isSelected ? null : slot)
                       }
-                      className={`group flex items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 text-[11px] font-medium transition-all ${
+                      className={`group flex min-h-8 items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 dark:focus-visible:ring-accent-300 ${
                         isSelected
                           ? "bg-accent-600 text-white shadow-sm dark:bg-accent-300 dark:text-[#071713]"
-                          : "border border-gray-200 text-foreground hover:border-accent-400 hover:bg-accent-50/50 dark:border-white/10 dark:hover:border-accent-300/30 dark:hover:bg-accent-300/5"
+                          : "border border-gray-200 bg-white text-foreground hover:border-accent-400 hover:bg-accent-50/50 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-accent-300/30 dark:hover:bg-accent-300/10"
                       }`}
                     >
                       <Clock
@@ -224,12 +288,13 @@ export function AvailableSlotsPicker({
               )}
             </div>
           ))}
-        </div>
+          </div>
+        </>
       )}
 
       {/* No slots message */}
       {!loading && !error && slots.length === 0 && (
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="rounded-xl border border-dashed border-gray-200 bg-white px-3 py-3 text-center text-xs leading-5 text-muted-foreground dark:border-white/10 dark:bg-white/[0.03]">
           No hay horarios disponibles esta semana. Probá otra semana o duración.
         </p>
       )}
