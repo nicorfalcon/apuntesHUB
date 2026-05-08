@@ -222,11 +222,23 @@ async function processPaymentNotification(paymentId: string) {
     const bookingId = externalReference.slice("tutoring_booking:".length);
 
     if (paymentData.status === "approved") {
-      await admin.rpc("complete_tutoring_booking", {
+      const { data: didConfirm, error } = await admin.rpc("complete_tutoring_booking", {
         p_booking_id: bookingId,
         p_payment_id: paymentId,
       });
-      // Email de notificación al profesor se implementa en Fase 5
+
+      if (error) {
+        console.error("Error confirmando reserva:", error);
+      } else if (didConfirm === true) {
+        try {
+          const { sendTutoringBookingNotifications } = await import(
+            "@/lib/email/sale-notifications"
+          );
+          await sendTutoringBookingNotifications(admin, bookingId, paymentId);
+        } catch (emailError) {
+          console.error("No se pudo enviar emails de tutoring:", emailError);
+        }
+      }
     } else if (
       paymentData.status === "rejected" ||
       paymentData.status === "cancelled"

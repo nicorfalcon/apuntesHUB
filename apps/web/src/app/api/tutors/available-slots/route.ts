@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  generateDateRangeYmd,
+  getDayOfWeekYmd,
+  timeToArgentinaDate,
+} from "@/lib/timezone";
 
 /**
  * POST /api/tutors/available-slots
@@ -30,9 +35,6 @@ interface ConcreteSlot {
   end: string; // ISO datetime (UTC)
   day_of_week: number;
 }
-
-// Argentina no tiene DST desde 2009. UTC-3 siempre.
-const ART_OFFSET_MS = 3 * 60 * 60_000;
 
 export async function POST(request: NextRequest) {
   let body: SlotRequest;
@@ -74,7 +76,7 @@ export async function POST(request: NextRequest) {
   });
 
   // Generate list of date strings to iterate (avoids Date UTC midnight issues)
-  const dateStrings = generateDateRange(date_from, date_to);
+  const dateStrings = generateDateRangeYmd(date_from, date_to);
   const maxDays = 14;
   if (dateStrings.length > maxDays || dateStrings.length === 0) {
     return NextResponse.json(
@@ -84,10 +86,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Build ISO range for Supabase queries using ART boundaries
-  // date_from 00:00 ART = date_from 03:00 UTC
-  const rangeStartUtc = new Date(`${date_from}T00:00:00Z`).getTime() + ART_OFFSET_MS;
-  // date_to 23:59 ART = date_to+1 02:59 UTC
-  const rangeEndUtc = new Date(`${date_to}T23:59:59Z`).getTime() + ART_OFFSET_MS;
+  const rangeStartUtc = timeToArgentinaDate(date_from, "00:00").getTime();
+  const rangeEndUtc = timeToArgentinaDate(date_to, "23:59:59").getTime();
 
   const [
     { data: availability },
@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
 
   for (const dateStr of dateStrings) {
     // dateStr is YYYY-MM-DD (ART calendar date)
-    const dayOfWeek = getDayOfWeekFromDateStr(dateStr);
+    const dayOfWeek = getDayOfWeekYmd(dateStr);
 
     // Find availability windows for this day of the week
     const dayAvailability = availability.filter((a) => {
@@ -164,9 +164,8 @@ export async function POST(request: NextRequest) {
 
     for (const avail of dayAvailability) {
       // Convert ART local times to UTC timestamps
-      // avail.start_time is like "14:00:00" (ART)
-      const windowStartUtc = artTimeToUtc(dateStr, avail.start_time);
-      const windowEndUtc = artTimeToUtc(dateStr, avail.end_time);
+      const windowStartUtc = timeToArgentinaDate(dateStr, avail.start_time).getTime();
+      const windowEndUtc = timeToArgentinaDate(dateStr, avail.end_time).getTime();
 
       // Generate slots at 30-minute intervals within the window
       let cursor = windowStartUtc;
@@ -203,41 +202,4 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ slots });
-}
-
-/**
- * Convert ART local time (dateStr + timeStr) to UTC timestamp in ms.
- * Argentina is always UTC-3 (no DST since 2009).
- */
-function artTimeToUtc(dateStr: string, timeStr: string): number {
-  const [hours, minutes] = timeStr.split(":").map(Number);
-  const h = String(hours).padStart(2, "0");
-  const m = String(minutes).padStart(2, "0");
-  // Parse as UTC, then add 3 hours to convert ART→UTC
-  return new Date(`${dateStr}T${h}:${m}:00Z`).getTime() + ART_OFFSET_MS;
-}
-
-/**
- * Get day of week (0=Sun, 6=Sat) from a YYYY-MM-DD string.
- * Uses UTC parse which is fine since we only care about the calendar date.
- */
-function getDayOfWeekFromDateStr(dateStr: string): number {
-  // Add T12:00:00Z to avoid timezone edge cases with midnight
-  return new Date(`${dateStr}T12:00:00Z`).getUTCDay();
-}
-
-/**
- * Generate array of YYYY-MM-DD strings from date_from to date_to inclusive.
- */
-function generateDateRange(from: string, to: string): string[] {
-  const dates: string[] = [];
-  const current = new Date(`${from}T12:00:00Z`);
-  const end = new Date(`${to}T12:00:00Z`);
-
-  while (current <= end) {
-    dates.push(current.toISOString().split("T")[0]);
-    current.setUTCDate(current.getUTCDate() + 1);
-  }
-
-  return dates;
 }

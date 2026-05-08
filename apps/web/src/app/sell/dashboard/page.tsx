@@ -55,7 +55,7 @@ export default async function DashboardPage() {
     supabase
       .from("tutor_bookings")
       .select(
-        "id, scheduled_at, duration_minutes, hourly_rate_ars, status, subjects(name), profiles!student_id(display_name)"
+        "id, scheduled_at, duration_minutes, hourly_rate_ars, amount, status, modality, meeting_url, location_details, initial_message, student_id, subjects(name), profiles!student_id(display_name)"
       )
       .eq("tutor_id", user.id)
       .order("scheduled_at", { ascending: false, nullsFirst: false })

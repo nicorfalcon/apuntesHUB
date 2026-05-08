@@ -3,6 +3,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Clock, Loader2 } from "lucide-react";
 import { formatDay } from "./format";
+import {
+  addDaysYmd,
+  formatDateInArgentina,
+  formatTimeInArgentina,
+  getTodayYmd,
+  getWeekStartYmd,
+} from "@/lib/timezone";
 
 export interface AvailableSlot {
   start: string;
@@ -18,30 +25,12 @@ interface AvailableSlotsPickerProps {
   onSelectSlot: (slot: AvailableSlot | null) => void;
 }
 
-function formatSlotTime(isoString: string) {
-  const d = new Date(isoString);
-  return d.toLocaleTimeString("es-AR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "America/Argentina/Buenos_Aires",
-  });
-}
-
-function getWeekRange(referenceDate: Date) {
-  const from = new Date(referenceDate);
-  from.setDate(from.getDate() - from.getDay() + 1); // Monday
-  from.setHours(0, 0, 0, 0);
-  const to = new Date(from);
-  to.setDate(to.getDate() + 6); // Sunday
-  to.setHours(23, 59, 59, 999);
-  return { from, to };
-}
-
-function formatShortDate(date: Date) {
-  return date.toLocaleDateString("es-AR", {
+function formatShortDate(ymd: string) {
+  // Use UTC midnight parse to get exactly the calendar date without timezone shift
+  return new Date(`${ymd}T12:00:00Z`).toLocaleDateString("es-AR", {
     day: "numeric",
     month: "short",
-    timeZone: "America/Argentina/Buenos_Aires",
+    timeZone: "UTC",
   });
 }
 
@@ -57,10 +46,13 @@ export function AvailableSlotsPicker({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const now = new Date();
-  const refDate = new Date(now);
-  refDate.setDate(refDate.getDate() + weekOffset * 7);
-  const { from, to } = getWeekRange(refDate);
+  const todayYmd = getTodayYmd();
+  
+  // Calculate from and to based on week offset
+  // Base is the start of the current week
+  const currentWeekStart = getWeekStartYmd(todayYmd);
+  const fromYmd = addDaysYmd(currentWeekStart, weekOffset * 7);
+  const toYmd = addDaysYmd(fromYmd, 6); // 7 days inclusive
 
   const fetchSlots = useCallback(async () => {
     setLoading(true);
@@ -73,12 +65,8 @@ export function AvailableSlotsPicker({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           tutor_id: tutorId,
-          date_from: from.toLocaleDateString("sv-SE", {
-            timeZone: "America/Argentina/Buenos_Aires",
-          }),
-          date_to: to.toLocaleDateString("sv-SE", {
-            timeZone: "America/Argentina/Buenos_Aires",
-          }),
+          date_from: fromYmd,
+          date_to: toYmd,
           duration_minutes: durationMinutes,
           modality,
         }),
@@ -104,20 +92,16 @@ export function AvailableSlotsPicker({
     fetchSlots();
   }, [fetchSlots]);
 
-  // Group slots by ART-local date (not UTC, since 23:00 ART = 02:00 UTC next day)
+  // Group slots by ART-local YMD date string
   const slotsByDay = new Map<string, AvailableSlot[]>();
   for (let i = 0; i < 7; i++) {
-    const dayDate = new Date(from);
-    dayDate.setDate(dayDate.getDate() + i);
-    const key = dayDate.toLocaleDateString("sv-SE", {
-      timeZone: "America/Argentina/Buenos_Aires",
-    });
+    const key = addDaysYmd(fromYmd, i);
     slotsByDay.set(key, []);
   }
+  
   for (const slot of slots) {
-    const key = new Date(slot.start).toLocaleDateString("sv-SE", {
-      timeZone: "America/Argentina/Buenos_Aires",
-    });
+    // Get the YMD string directly from the start Date in Argentina timezone
+    const key = formatDateInArgentina(new Date(slot.start));
     const daySlots = slotsByDay.get(key);
     if (daySlots) daySlots.push(slot);
   }
@@ -140,7 +124,7 @@ export function AvailableSlotsPicker({
         </button>
 
         <p className="text-sm font-medium text-foreground">
-          {formatShortDate(from)} – {formatShortDate(to)}
+          {formatShortDate(fromYmd)} – {formatShortDate(toYmd)}
         </p>
 
         <button
@@ -170,12 +154,9 @@ export function AvailableSlotsPicker({
         <div className="grid grid-cols-7 gap-1.5">
           {/* Day headers */}
           {Array.from(slotsByDay.entries()).map(([dateKey]) => {
-            const d = new Date(dateKey + "T12:00:00Z");
+            const d = new Date(`${dateKey}T12:00:00Z`);
             const dow = d.getUTCDay();
-            const todayStr = now.toLocaleDateString("sv-SE", {
-              timeZone: "America/Argentina/Buenos_Aires",
-            });
-            const isToday = dateKey === todayStr;
+            const isToday = dateKey === todayYmd;
             return (
               <div
                 key={`header-${dateKey}`}
@@ -236,7 +217,7 @@ export function AvailableSlotsPicker({
                             : "text-muted-foreground/60 group-hover:text-accent-500 dark:group-hover:text-accent-300/70"
                         }`}
                       />
-                      {formatSlotTime(slot.start)}
+                      {formatTimeInArgentina(new Date(slot.start))}
                     </button>
                   );
                 })

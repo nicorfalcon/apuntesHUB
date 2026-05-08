@@ -1094,8 +1094,11 @@ export type Database = {
         Returns: undefined
       }
       complete_tutoring_booking: {
-        Args: { p_booking_id: string; p_payment_id: string }
-        Returns: undefined
+        Args: {
+          p_booking_id: string
+          p_payment_id: string
+        }
+        Returns: boolean
       }
       consume_login_intent_and_revoke_device: {
         Args: {
