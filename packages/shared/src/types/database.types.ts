@@ -769,14 +769,60 @@ export type Database = {
           },
         ]
       }
+      tutor_blocked_slots: {
+        Row: {
+          block_type: string
+          created_at: string
+          ends_at: string
+          id: string
+          reason: string | null
+          starts_at: string
+          tutor_id: string
+        }
+        Insert: {
+          block_type?: string
+          created_at?: string
+          ends_at: string
+          id?: string
+          reason?: string | null
+          starts_at: string
+          tutor_id: string
+        }
+        Update: {
+          block_type?: string
+          created_at?: string
+          ends_at?: string
+          id?: string
+          reason?: string | null
+          starts_at?: string
+          tutor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tutor_blocked_slots_tutor_id_fkey"
+            columns: ["tutor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tutor_bookings: {
         Row: {
+          amount: number | null
+          confirmed_at: string | null
           created_at: string
           duration_minutes: number
           hourly_rate_ars: number | null
           id: string
           initial_message: string | null
+          modality: string
+          mp_preference_id: string | null
+          payment_expires_at: string | null
+          payment_id: string | null
+          platform_fee: number
           scheduled_at: string | null
+          seller_amount: number
           status: string
           student_id: string
           subject_id: string | null
@@ -784,12 +830,20 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          amount?: number | null
+          confirmed_at?: string | null
           created_at?: string
           duration_minutes?: number
           hourly_rate_ars?: number | null
           id?: string
           initial_message?: string | null
+          modality?: string
+          mp_preference_id?: string | null
+          payment_expires_at?: string | null
+          payment_id?: string | null
+          platform_fee?: number
           scheduled_at?: string | null
+          seller_amount?: number
           status?: string
           student_id: string
           subject_id?: string | null
@@ -797,12 +851,20 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          amount?: number | null
+          confirmed_at?: string | null
           created_at?: string
           duration_minutes?: number
           hourly_rate_ars?: number | null
           id?: string
           initial_message?: string | null
+          modality?: string
+          mp_preference_id?: string | null
+          payment_expires_at?: string | null
+          payment_id?: string | null
+          platform_fee?: number
           scheduled_at?: string | null
+          seller_amount?: number
           status?: string
           student_id?: string
           subject_id?: string | null
@@ -1019,12 +1081,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_view_recorded_course: {
+        Args: { p_course_id: string; p_user_id: string }
+        Returns: boolean
+      }
       complete_course_enrollment: {
         Args: { p_enrollment_id: string; p_payment_id: string }
         Returns: undefined
       }
       complete_purchase: {
         Args: { p_payment_id: string; p_purchase_id: string }
+        Returns: undefined
+      }
+      complete_tutoring_booking: {
+        Args: { p_booking_id: string; p_payment_id: string }
         Returns: undefined
       }
       consume_login_intent_and_revoke_device: {
@@ -1035,7 +1105,22 @@ export type Database = {
         }
         Returns: undefined
       }
+      create_tutoring_booking: {
+        Args: {
+          p_duration_minutes: number
+          p_initial_message?: string
+          p_modality: string
+          p_scheduled_at: string
+          p_subject_id: string
+          p_tutor_id: string
+        }
+        Returns: Json
+      }
       enroll_course: { Args: { p_course_id: string }; Returns: Json }
+      expire_pending_tutoring_bookings: {
+        Args: { p_tutor_id?: string }
+        Returns: number
+      }
       fail_course_enrollment: {
         Args: { p_enrollment_id: string; p_payment_id: string }
         Returns: undefined
@@ -1044,7 +1129,19 @@ export type Database = {
         Args: { p_payment_id: string; p_purchase_id: string }
         Returns: undefined
       }
+      fail_tutoring_booking: {
+        Args: { p_booking_id: string; p_payment_id: string }
+        Returns: undefined
+      }
       get_resume_download_url: { Args: { p_resume_id: string }; Returns: Json }
+      has_completed_course_enrollment: {
+        Args: { p_course_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      is_recorded_course_author: {
+        Args: { p_course_id: string; p_user_id: string }
+        Returns: boolean
+      }
       purchase_resume: { Args: { p_resume_id: string }; Returns: Json }
       revoke_all_my_sessions: { Args: never; Returns: undefined }
       revoke_my_session: { Args: { p_session_id: string }; Returns: undefined }
@@ -1227,11 +1324,12 @@ export type FolderWithItems = Folder & {
 }
 
 // ============================================
-// Tipos derivados Etapa 1 — tutoría y cursos grabados
+// Tipos derivados — tutoría y cursos grabados
 // ============================================
 export type Subject = Database["public"]["Tables"]["subjects"]["Row"]
 export type TutorSubject = Database["public"]["Tables"]["tutor_subjects"]["Row"]
 export type TutorAvailability = Database["public"]["Tables"]["tutor_availability"]["Row"]
+export type TutorBlockedSlot = Database["public"]["Tables"]["tutor_blocked_slots"]["Row"]
 export type TutorBooking = Database["public"]["Tables"]["tutor_bookings"]["Row"]
 export type TutorMessage = Database["public"]["Tables"]["tutor_messages"]["Row"]
 export type TutorReview = Database["public"]["Tables"]["tutor_reviews"]["Row"]

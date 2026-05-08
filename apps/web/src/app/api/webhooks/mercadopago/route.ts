@@ -95,19 +95,29 @@ function validateSignature(
 }
 
 /**
- * Consulta el pago en la API de MP y actualiza la compra/inscripción según el estado.
- * Soporta dos tipos de external_reference:
+ * Consulta el pago en la API de MP y actualiza la compra/inscripción/booking según el estado.
+ * Soporta tres tipos de external_reference:
  *   - "<uuid>" → compra de apunte (purchases)
  *   - "course_enrollment:<uuid>" → inscripción a curso grabado (course_enrollments)
+ *   - "tutoring_booking:<uuid>" → reserva de clase particular (tutor_bookings)
  */
 async function processPaymentNotification(paymentId: string) {
   const admin = createAdminClient();
 
-  // Idempotencia: si ya fue procesado en cualquiera de las dos tablas, salir.
-  const [{ data: existingPurchase }, { data: existingEnrollment }] = await Promise.all([
+  // Idempotencia: si ya fue procesado en cualquiera de las tres tablas, salir.
+  const [
+    { data: existingPurchase },
+    { data: existingEnrollment },
+    { data: existingBooking },
+  ] = await Promise.all([
     admin.from("purchases").select("id, status").eq("payment_id", paymentId).maybeSingle(),
     admin
       .from("course_enrollments")
+      .select("id, status")
+      .eq("payment_id", paymentId)
+      .maybeSingle(),
+    admin
+      .from("tutor_bookings")
       .select("id, status")
       .eq("payment_id", paymentId)
       .maybeSingle(),
@@ -115,14 +125,19 @@ async function processPaymentNotification(paymentId: string) {
 
   if (
     existingPurchase?.status === "completed" ||
-    existingEnrollment?.status === "completed"
+    existingEnrollment?.status === "completed" ||
+    existingBooking?.status === "confirmed"
   ) {
     return;
   }
 
-  // Buscar vendedores con pagos pendientes en cualquiera de las dos tablas
+  // Buscar vendedores/tutores con pagos pendientes en las tres tablas
   // para probar consultando el pago con sus access_tokens.
-  const [{ data: pendingPurchases }, { data: pendingEnrollments }] = await Promise.all([
+  const [
+    { data: pendingPurchases },
+    { data: pendingEnrollments },
+    { data: pendingBookings },
+  ] = await Promise.all([
     admin
       .from("purchases")
       .select("seller_id")
@@ -135,6 +150,12 @@ async function processPaymentNotification(paymentId: string) {
       .eq("status", "pending")
       .order("purchased_at", { ascending: false })
       .limit(50),
+    admin
+      .from("tutor_bookings")
+      .select("tutor_id")
+      .eq("status", "pending_payment")
+      .order("created_at", { ascending: false })
+      .limit(50),
   ]);
 
   const sellerIdsFromPurchases = (pendingPurchases ?? []).map((p) => p.seller_id);
@@ -144,9 +165,14 @@ async function processPaymentNotification(paymentId: string) {
       | null;
     return course?.author_id;
   }).filter((id): id is string => Boolean(id));
+  const sellerIdsFromBookings = (pendingBookings ?? []).map((b) => b.tutor_id);
 
   const sellerIds = Array.from(
-    new Set([...sellerIdsFromPurchases, ...sellerIdsFromEnrollments])
+    new Set([
+      ...sellerIdsFromPurchases,
+      ...sellerIdsFromEnrollments,
+      ...sellerIdsFromBookings,
+    ])
   );
 
   if (sellerIds.length === 0) return;
@@ -188,37 +214,61 @@ async function processPaymentNotification(paymentId: string) {
     return;
   }
 
+  // Determinar tipo de transacción por el prefijo del external_reference
+  const isTutoring = externalReference.startsWith("tutoring_booking:");
   const isCourse = externalReference.startsWith("course_enrollment:");
-  const targetId = isCourse
-    ? externalReference.slice("course_enrollment:".length)
-    : externalReference;
-  const approvedRpc = isCourse ? "complete_course_enrollment" : "complete_purchase";
-  const failedRpc = isCourse ? "fail_course_enrollment" : "fail_purchase";
-  const idArgKey = isCourse ? "p_enrollment_id" : "p_purchase_id";
 
-  if (paymentData.status === "approved") {
-    await admin.rpc(approvedRpc, {
-      [idArgKey]: targetId,
-      p_payment_id: paymentId,
-    });
+  if (isTutoring) {
+    const bookingId = externalReference.slice("tutoring_booking:".length);
 
-    try {
-      if (isCourse) {
-        await sendCourseSaleNotification(admin, targetId, paymentId);
-      } else {
-        await sendResumeSaleNotification(admin, targetId, paymentId);
-      }
-    } catch (emailError) {
-      console.error("No se pudo enviar email de venta:", emailError);
+    if (paymentData.status === "approved") {
+      await admin.rpc("complete_tutoring_booking", {
+        p_booking_id: bookingId,
+        p_payment_id: paymentId,
+      });
+      // Email de notificación al profesor se implementa en Fase 5
+    } else if (
+      paymentData.status === "rejected" ||
+      paymentData.status === "cancelled"
+    ) {
+      await admin.rpc("fail_tutoring_booking", {
+        p_booking_id: bookingId,
+        p_payment_id: paymentId,
+      });
     }
-  } else if (
-    paymentData.status === "rejected" ||
-    paymentData.status === "cancelled"
-  ) {
-    await admin.rpc(failedRpc, {
-      [idArgKey]: targetId,
-      p_payment_id: paymentId,
-    });
+  } else {
+    // Flujo existente: purchases o course_enrollments
+    const targetId = isCourse
+      ? externalReference.slice("course_enrollment:".length)
+      : externalReference;
+    const approvedRpc = isCourse ? "complete_course_enrollment" : "complete_purchase";
+    const failedRpc = isCourse ? "fail_course_enrollment" : "fail_purchase";
+    const idArgKey = isCourse ? "p_enrollment_id" : "p_purchase_id";
+
+    if (paymentData.status === "approved") {
+      await admin.rpc(approvedRpc, {
+        [idArgKey]: targetId,
+        p_payment_id: paymentId,
+      });
+
+      try {
+        if (isCourse) {
+          await sendCourseSaleNotification(admin, targetId, paymentId);
+        } else {
+          await sendResumeSaleNotification(admin, targetId, paymentId);
+        }
+      } catch (emailError) {
+        console.error("No se pudo enviar email de venta:", emailError);
+      }
+    } else if (
+      paymentData.status === "rejected" ||
+      paymentData.status === "cancelled"
+    ) {
+      await admin.rpc(failedRpc, {
+        [idArgKey]: targetId,
+        p_payment_id: paymentId,
+      });
+    }
   }
   // pending / in_process: no hacer nada, esperar siguiente notificación
 }

@@ -14,6 +14,7 @@ import {
   formatArs,
   summarizeModalities,
 } from "@/components/tutors/format";
+import { BookTutorDialog } from "@/components/tutors/book-tutor-dialog";
 import { ContactTutorDialog } from "@/components/tutors/contact-tutor-dialog";
 import { TutorProfileSections } from "@/components/tutors/tutor-profile-sections";
 import type {
@@ -214,6 +215,16 @@ export default async function TutorProfilePage({
                     : "Horarios a coordinar"}
                 </p>
               </div>
+
+              <BookTutorDialog
+                tutorId={profile.id}
+                tutorName={profile.display_name}
+                subjects={tutorSubjectItems.map((item) => ({
+                  id: item.subject.id,
+                  name: item.subject.name,
+                  hourlyRate: item.hourly_rate_ars,
+                }))}
+              />
 
               <ContactTutorDialog
                 tutorId={profile.id}

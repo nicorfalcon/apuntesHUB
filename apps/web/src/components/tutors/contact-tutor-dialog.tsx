@@ -228,7 +228,7 @@ export function ContactTutorDialog({
         type="button"
         disabled={disabled}
         onClick={() => setOpen(true)}
-        className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-accent-300 dark:text-[#071713]"
+        className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full border border-gray-300 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:hover:bg-white/5"
       >
         <MessageCircle className="h-4 w-4" />
         Contactar
