@@ -310,6 +310,44 @@ export type Database = {
         }
         Relationships: []
       }
+      ingestion_jobs: {
+        Row: {
+          id: string
+          resume_id: string
+          status: "pending" | "processing" | "done" | "failed"
+          chunks_generated: number
+          error_message: string | null
+          started_at: string | null
+          finished_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          resume_id: string
+          status?: "pending" | "processing" | "done" | "failed"
+          chunks_generated?: number
+          error_message?: string | null
+          started_at?: string | null
+          finished_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          status?: "pending" | "processing" | "done" | "failed"
+          chunks_generated?: number
+          error_message?: string | null
+          started_at?: string | null
+          finished_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingestion_jobs_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: true
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       login_intents: {
         Row: {
           consumed_at: string | null
@@ -1056,6 +1094,20 @@ export type Database = {
         }
         Returns: {
           resume_id: string
+          similarity: number
+        }[]
+      }
+      search_chunks_for_study: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          min_similarity?: number
+          resume_ids?: string[] | null
+        }
+        Returns: {
+          resume_id: string
+          chunk_index: number
+          content: string
           similarity: number
         }[]
       }
