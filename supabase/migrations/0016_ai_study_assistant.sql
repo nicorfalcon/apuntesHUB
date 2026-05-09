@@ -64,7 +64,7 @@ returns table (
   similarity   float
 )
 language sql stable security invoker
-set search_path = ''
+set search_path = public
 as $$
   select
     dc.resume_id,
