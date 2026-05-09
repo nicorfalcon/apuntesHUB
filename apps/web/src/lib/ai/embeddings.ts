@@ -1,40 +1,32 @@
-const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:batchEmbedContents";
+import OpenAI from "openai";
+
+export const EMBEDDING_MODEL = "text-embedding-ada-002";
+export const EMBEDDING_DIM = 1536;
+
+// OpenAI acepta hasta 2048 inputs por request, pero limitamos a 100 para no superar el límite de tokens
+const BATCH_LIMIT = 100;
+
+function getClient(): OpenAI {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("OPENAI_API_KEY no está configurada");
+  return new OpenAI({ apiKey });
+}
 
 export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
-  const apiKey = process.env.GOOGLE_AI_API_KEY;
-  if (!apiKey) throw new Error("GOOGLE_AI_API_KEY no está configurada");
-
-  // Gemini acepta hasta 100 textos por request, procesamos en batches
-  const batches: string[][] = [];
-  for (let i = 0; i < texts.length; i += 100) {
-    batches.push(texts.slice(i, i + 100));
-  }
-
+  const client = getClient();
   const allEmbeddings: number[][] = [];
 
-  for (const batch of batches) {
-    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        requests: batch.map((text) => ({
-          model: "models/text-embedding-004",
-          content: { parts: [{ text }] },
-        })),
-      }),
+  for (let i = 0; i < texts.length; i += BATCH_LIMIT) {
+    const batch = texts.slice(i, i + BATCH_LIMIT);
+    const response = await client.embeddings.create({
+      model: EMBEDDING_MODEL,
+      input: batch,
     });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Error de Gemini API: ${error}`);
+    // la API devuelve los embeddings en el mismo orden que el input
+    const sorted = response.data.sort((a, b) => a.index - b.index);
+    for (const item of sorted) {
+      allEmbeddings.push(item.embedding);
     }
-
-    const data = await response.json();
-    const embeddings = data.embeddings.map(
-      (e: { values: number[] }) => e.values
-    );
-    allEmbeddings.push(...embeddings);
   }
 
   return allEmbeddings;
