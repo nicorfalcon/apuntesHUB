@@ -24,6 +24,7 @@ export default async function DashboardPage() {
     { data: enrollments },
     { data: bookings },
     { data: profile },
+    { data: ingestionJobs },
   ] = await Promise.all([
     supabase
       .from("resumes")
@@ -65,6 +66,9 @@ export default async function DashboardPage() {
       .select("is_tutor, tutor_bio")
       .eq("id", user.id)
       .single(),
+    supabase
+      .from("ingestion_jobs")
+      .select("resume_id, status, chunks_generated"),
   ]);
 
   const hasMpConnected = !!mpCreds;
@@ -106,6 +110,11 @@ export default async function DashboardPage() {
     0
   );
 
+  const ingestionStatuses: Record<string, "pending" | "processing" | "done" | "failed"> = {};
+  ingestionJobs?.forEach((j) => {
+    ingestionStatuses[j.resume_id] = j.status;
+  });
+
   const isTutor = profile?.is_tutor ?? false;
   const showTutorSection = isTutor || (bookings?.length ?? 0) > 0;
 
@@ -127,6 +136,7 @@ export default async function DashboardPage() {
           resumes={resumes ?? []}
           ventasPorResume={ventasPorResume}
           ingresosPorResume={ingresosPorResume}
+          ingestionStatuses={ingestionStatuses}
         />
       }
       cursosContent={

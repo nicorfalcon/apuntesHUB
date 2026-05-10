@@ -7,12 +7,21 @@ import type { Resume } from "@/lib/database.types";
 import { ResumeActionsMenu } from "./resume-actions-menu";
 
 type Filter = "all" | "published" | "draft" | "archived";
+type IngestionStatus = "pending" | "processing" | "done" | "failed";
 
 interface ResumesListProps {
   resumes: Resume[];
   ventasPorResume: Record<string, number>;
   ingresosPorResume: Record<string, number>;
+  ingestionStatuses?: Record<string, IngestionStatus>;
 }
+
+const AI_BADGE: Record<IngestionStatus, { label: string; class: string }> = {
+  done:       { label: "IA ✓",       class: "bg-green-100 text-green-700" },
+  processing: { label: "IA ...",     class: "bg-blue-100 text-blue-600 animate-pulse" },
+  pending:    { label: "IA ...",     class: "bg-blue-100 text-blue-600 animate-pulse" },
+  failed:     { label: "IA error",   class: "bg-red-100 text-red-600" },
+};
 
 const STATUS_LABELS: Record<Resume["status"], { label: string; class: string }> = {
   published: { label: "Publicado", class: "bg-green-100 text-green-700" },
@@ -27,8 +36,34 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: "archived", label: "Archivados" },
 ];
 
-export function ResumesList({ resumes, ventasPorResume, ingresosPorResume }: ResumesListProps) {
+export function ResumesList({ resumes, ventasPorResume, ingresosPorResume, ingestionStatuses = {} }: ResumesListProps) {
   const [filter, setFilter] = useState<Filter>("all");
+  const [localStatuses, setLocalStatuses] = useState<Record<string, IngestionStatus>>(ingestionStatuses);
+
+  async function handleIngest(resumeId: string) {
+    setLocalStatuses((prev) => ({ ...prev, [resumeId]: "processing" }));
+
+    const res = await fetch(`/api/ai/ingest/${resumeId}`, { method: "POST" });
+    if (!res.ok) {
+      setLocalStatuses((prev) => ({ ...prev, [resumeId]: "failed" }));
+      return;
+    }
+
+    async function poll() {
+      const statusRes = await fetch(`/api/ai/ingest/${resumeId}/status`);
+      if (!statusRes.ok) {
+        setLocalStatuses((prev) => ({ ...prev, [resumeId]: "failed" }));
+        return;
+      }
+      const job = await statusRes.json();
+      setLocalStatuses((prev) => ({ ...prev, [resumeId]: job.status }));
+      if (job.status === "processing" || job.status === "pending") {
+        setTimeout(poll, 2500);
+      }
+    }
+
+    setTimeout(poll, 2500);
+  }
 
   const counts = useMemo(
     () => ({
@@ -103,6 +138,8 @@ export function ResumesList({ resumes, ventasPorResume, ingresosPorResume }: Res
             const ventas = ventasPorResume[resume.id] ?? 0;
             const ingresos = ingresosPorResume[resume.id] ?? 0;
             const hasRating = (resume.rating_count ?? 0) > 0;
+            const aiStatus = localStatuses[resume.id];
+            const aiBadge = aiStatus ? AI_BADGE[aiStatus] : null;
 
             return (
               <div
@@ -135,6 +172,11 @@ export function ResumesList({ resumes, ventasPorResume, ingresosPorResume }: Res
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusInfo.class}`}>
                       {statusInfo.label}
                     </span>
+                    {aiBadge && (
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${aiBadge.class}`}>
+                        {aiBadge.label}
+                      </span>
+                    )}
                     <h3 className="truncate text-sm font-semibold text-foreground">
                       {resume.title}
                     </h3>
@@ -154,7 +196,12 @@ export function ResumesList({ resumes, ventasPorResume, ingresosPorResume }: Res
                   <span className="text-sm font-bold text-accent-700">
                     ${Number(resume.price).toLocaleString("es-AR")}
                   </span>
-                  <ResumeActionsMenu resumeId={resume.id} resumeTitle={resume.title} />
+                  <ResumeActionsMenu
+                    resumeId={resume.id}
+                    resumeTitle={resume.title}
+                    aiStatus={aiStatus}
+                    onIngest={() => handleIngest(resume.id)}
+                  />
                 </div>
               </div>
             );

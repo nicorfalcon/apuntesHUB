@@ -6,12 +6,16 @@ import { MoreVertical } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ConfirmDeleteResumeDialog } from "./confirm-delete-resume-dialog";
 
+type IngestionStatus = "pending" | "processing" | "done" | "failed";
+
 interface ResumeActionsMenuProps {
   resumeId: string;
   resumeTitle: string;
+  aiStatus?: IngestionStatus;
+  onIngest?: () => void;
 }
 
-export function ResumeActionsMenu({ resumeId, resumeTitle }: ResumeActionsMenuProps) {
+export function ResumeActionsMenu({ resumeId, resumeTitle, aiStatus, onIngest }: ResumeActionsMenuProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -67,6 +71,11 @@ export function ResumeActionsMenu({ resumeId, resumeTitle }: ResumeActionsMenuPr
   function handleEdit() {
     setOpen(false);
     router.push(`/sell/${resumeId}/edit`);
+  }
+
+  function handleIngestClick() {
+    setOpen(false);
+    onIngest?.();
   }
 
   function handleDeleteClick() {
@@ -125,8 +134,25 @@ export function ResumeActionsMenu({ resumeId, resumeTitle }: ResumeActionsMenuPr
           >
             Editar apunte
           </button>
+          {onIngest && (
+            <button
+              ref={(el) => { itemRefs.current[1] = el; }}
+              role="menuitem"
+              type="button"
+              tabIndex={-1}
+              disabled={aiStatus === "processing" || aiStatus === "pending"}
+              onClick={handleIngestClick}
+              className="flex w-full items-center px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 focus:bg-gray-50 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {aiStatus === "processing" || aiStatus === "pending"
+                ? "Procesando con IA..."
+                : aiStatus === "done"
+                  ? "Reprocesar con IA"
+                  : "Procesar con IA"}
+            </button>
+          )}
           <button
-            ref={(el) => { itemRefs.current[1] = el; }}
+            ref={(el) => { itemRefs.current[onIngest ? 2 : 1] = el; }}
             role="menuitem"
             type="button"
             tabIndex={-1}

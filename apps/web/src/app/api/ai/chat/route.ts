@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateQueryEmbedding } from "@/lib/ai/embeddings";
 import { answerFromContext } from "@/lib/ai/llm";
+import { checkRateLimit } from "@/lib/ai/rate-limit";
 
 export const maxDuration = 60;
 
@@ -15,6 +16,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
 
+  const rl = checkRateLimit(`chat:${user.id}`, 20, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Demasiadas solicitudes. Esperá un momento antes de seguir." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+      }
+    );
+  }
+
   let body: { query?: string; resumeIds?: string[] };
   try {
     body = await request.json();
@@ -25,6 +37,41 @@ export async function POST(request: NextRequest) {
   const query = (body.query ?? "").trim();
   if (!query) {
     return NextResponse.json({ error: "El campo query es requerido" }, { status: 400 });
+  }
+
+  if (query.length > 500) {
+    return NextResponse.json({ error: "La pregunta es demasiado larga." }, { status: 400 });
+  }
+
+  // Detectar intentos de extracción masiva o prompt injection
+  const EXTRACTION_PATTERNS = [
+    /transcrib[ií]/i,
+    /cop[ií][aá]/i,
+    /\bvolc[aá]\b/i,
+    /dame todo/i,
+    /todo el contenido/i,
+    /todo lo que (dice|tenés|hay)/i,
+    /listá todo/i,
+    /pasame todo/i,
+    /escribí todo/i,
+    /ignor[aá] (las |tus )?(instrucciones|reglas)/i,
+    /olvid[aá] (las |tus )?(instrucciones|reglas)/i,
+    /nueva (instrucción|regla)/i,
+    /\bsystem:\s/i,
+    /\bassistant:\s/i,
+    /act (as|como)\b/i,
+    /pretend (you are|that)/i,
+  ];
+
+  if (EXTRACTION_PATTERNS.some((re) => re.test(query))) {
+    return NextResponse.json(
+      { error: "Solo puedo responder preguntas específicas sobre el contenido." },
+      { status: 400 }
+    );
+  }
+
+  if (body.resumeIds && body.resumeIds.length > 10) {
+    return NextResponse.json({ error: "Demasiados apuntes seleccionados." }, { status: 400 });
   }
 
   const resumeIds = body.resumeIds && body.resumeIds.length > 0 ? body.resumeIds : null;

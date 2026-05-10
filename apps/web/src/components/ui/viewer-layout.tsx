@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { StarRating } from "@/components/ui/star-rating";
+import { AiChatPanel } from "@/components/ui/ai-chat-panel";
 import type { TocItem } from "@/components/ui/pdf-viewer";
 
 // Dynamic import — react-pdf solo funciona en el cliente
@@ -162,6 +163,7 @@ function TocList({
 
 export interface ViewerLayoutProps {
   pdfUrl: string;
+  resumeId: string;
   userEmail: string;
   userDisplayName: string;
   userAvatarUrl: string | null;
@@ -181,12 +183,14 @@ export interface ViewerLayoutProps {
   };
   ratingAvg: number;
   ratingCount: number;
+  aiReady: boolean;
 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function ViewerLayout({
   pdfUrl,
+  resumeId,
   userEmail,
   userDisplayName,
   userAvatarUrl,
@@ -194,6 +198,7 @@ export function ViewerLayout({
   seller,
   ratingAvg,
   ratingCount,
+  aiReady,
 }: ViewerLayoutProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [zoom, setZoom] = useState(100);
@@ -527,6 +532,8 @@ export function ViewerLayout({
           <div className="h-8" />
         </main>
       </div>
+
+      <AiChatPanel resumeId={resumeId} resumeTitle={resume.title} aiReady={aiReady} />
     </div>
   );
 }

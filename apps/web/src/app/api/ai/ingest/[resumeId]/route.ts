@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { extractPdfText } from "@/lib/ai/pdf-extractor";
 import { chunkText } from "@/lib/ai/chunker";
 import { generateEmbeddings } from "@/lib/ai/embeddings";
+import { checkRateLimit } from "@/lib/ai/rate-limit";
 
 export const maxDuration = 60;
 
@@ -37,6 +38,17 @@ export async function POST(
     return NextResponse.json(
       { error: "Solo el vendedor del apunte puede iniciar la ingesta" },
       { status: 403 }
+    );
+  }
+
+  const rl = checkRateLimit(`ingest:${user.id}`, 5, 60 * 60 * 1000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Límite de procesamientos alcanzado. Podés volver a intentarlo en una hora." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+      }
     );
   }
 
