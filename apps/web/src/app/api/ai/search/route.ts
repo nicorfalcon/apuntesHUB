@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { generateEmbeddings } from "@/lib/ai/embeddings";
+import { generateQueryEmbedding } from "@/lib/ai/embeddings";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
   // 1. Generar embedding de la query
   let queryEmbedding: number[];
   try {
-    [queryEmbedding] = await generateEmbeddings([query]);
+    queryEmbedding = await generateQueryEmbedding(query);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json(

@@ -1,15 +1,14 @@
-import OpenAI from "openai";
+import { CohereClient } from "cohere-ai";
 
-export const EMBEDDING_MODEL = "text-embedding-ada-002";
-export const EMBEDDING_DIM = 1536;
+export const EMBEDDING_MODEL = "embed-multilingual-v3.0";
+export const EMBEDDING_DIM = 1024;
 
-// OpenAI acepta hasta 2048 inputs por request, pero limitamos a 100 para no superar el límite de tokens
-const BATCH_LIMIT = 100;
+const BATCH_LIMIT = 96;
 
-function getClient(): OpenAI {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("OPENAI_API_KEY no está configurada");
-  return new OpenAI({ apiKey });
+function getClient(): CohereClient {
+  const apiKey = process.env.COHERE_API_KEY;
+  if (!apiKey) throw new Error("COHERE_API_KEY no está configurada");
+  return new CohereClient({ token: apiKey });
 }
 
 export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
@@ -18,16 +17,37 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
 
   for (let i = 0; i < texts.length; i += BATCH_LIMIT) {
     const batch = texts.slice(i, i + BATCH_LIMIT);
-    const response = await client.embeddings.create({
+    const response = await client.embed({
       model: EMBEDDING_MODEL,
-      input: batch,
+      texts: batch,
+      inputType: "search_document",
     });
-    // la API devuelve los embeddings en el mismo orden que el input
-    const sorted = response.data.sort((a, b) => a.index - b.index);
-    for (const item of sorted) {
-      allEmbeddings.push(item.embedding);
+
+    const embeddings = response.embeddings as number[][];
+    if (!embeddings?.length) {
+      throw new Error("Cohere no devolvió embeddings válidos");
+    }
+
+    for (const vec of embeddings) {
+      allEmbeddings.push(vec);
     }
   }
 
   return allEmbeddings;
+}
+
+export async function generateQueryEmbedding(text: string): Promise<number[]> {
+  const client = getClient();
+  const response = await client.embed({
+    model: EMBEDDING_MODEL,
+    texts: [text],
+    inputType: "search_query",
+  });
+
+  const embeddings = response.embeddings as number[][];
+  if (!embeddings?.length) {
+    throw new Error("Cohere no devolvió embeddings válidos");
+  }
+
+  return embeddings[0];
 }

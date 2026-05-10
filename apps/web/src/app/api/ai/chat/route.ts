@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { generateEmbeddings } from "@/lib/ai/embeddings";
+import { generateQueryEmbedding } from "@/lib/ai/embeddings";
 import { answerFromContext } from "@/lib/ai/llm";
 
 export const maxDuration = 60;
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
   // 1. Generar embedding de la pregunta
   let queryEmbedding: number[];
   try {
-    [queryEmbedding] = await generateEmbeddings([query]);
+    queryEmbedding = await generateQueryEmbedding(query);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     {
       query_embedding: JSON.stringify(queryEmbedding),
       match_count: 5,
-      min_similarity: 0.3,
+      min_similarity: 0.5,
       resume_ids: resumeIds,
     }
   );

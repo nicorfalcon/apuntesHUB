@@ -125,10 +125,20 @@ export function DemoClient({ resumes }: { resumes: ResumeOption[] }) {
                   <div className="mt-2 border-t border-gray-100 pt-2">
                     <p className="text-xs text-gray-400">
                       Fuentes:{" "}
-                      {m.sources.map((s, j) => (
+                      {Object.values(
+                        m.sources.reduce<Record<string, { resumeId: string; similarity: number }>>(
+                          (acc, s) => {
+                            if (!acc[s.resumeId] || s.similarity > acc[s.resumeId].similarity) {
+                              acc[s.resumeId] = s;
+                            }
+                            return acc;
+                          },
+                          {}
+                        )
+                      ).map((s, j) => (
                         <span key={j}>
                           {j > 0 && ", "}
-                          {resumeTitle(s.resumeId)} ({(s.similarity * 100).toFixed(0)}%)
+                          {resumeTitle(s.resumeId)}
                         </span>
                       ))}
                     </p>

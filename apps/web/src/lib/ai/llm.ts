@@ -1,11 +1,11 @@
-import OpenAI from "openai";
+import Groq from "groq-sdk";
 
-const CHAT_MODEL = "gpt-3.5-turbo";
+const CHAT_MODEL = "llama-3.1-8b-instant";
 
-function getClient(): OpenAI {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("OPENAI_API_KEY no está configurada");
-  return new OpenAI({ apiKey });
+function getClient(): Groq {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error("GROQ_API_KEY no está configurada");
+  return new Groq({ apiKey });
 }
 
 export interface ChunkContext {
