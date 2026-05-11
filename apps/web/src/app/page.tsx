@@ -46,7 +46,7 @@ export default async function LandingPage() {
       {/* 9. Precios */}
       <Pricing />
 
-      {/* 10. FAQ */}
+      {/* 10. FAQ  */}
       <FAQ />
 
       {/* 11. CTA final */}
