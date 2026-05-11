@@ -72,15 +72,17 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
 
   return (
     <>
-      {/* Botón flotante */}
-      <button
-        onClick={() => setOpen((v) => !v)}
-        aria-label={open ? "Cerrar asistente IA" : "Abrir asistente IA"}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-accent-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
-      >
-        <SparkleIcon />
-        {open ? "Cerrar IA" : "Asistente IA"}
-      </button>
+      {/* Botón flotante — solo visible cuando el panel está cerrado */}
+      {!open && (
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Abrir asistente IA"
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-accent-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
+        >
+          <SparkleIcon />
+          Asistente IA
+        </button>
+      )}
 
       {/* Panel lateral */}
       {open && (

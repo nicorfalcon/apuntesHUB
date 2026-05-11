@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { generateQueryEmbedding } from "@/lib/ai/embeddings";
 import { answerFromContext } from "@/lib/ai/llm";
 import { checkRateLimit } from "@/lib/ai/rate-limit";
+import { isExtractionAttempt } from "@/lib/ai/extraction-guard";
 
 export const maxDuration = 60;
 
@@ -43,27 +44,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "La pregunta es demasiado larga." }, { status: 400 });
   }
 
-  // Detectar intentos de extracción masiva o prompt injection
-  const EXTRACTION_PATTERNS = [
-    /transcrib[ií]/i,
-    /cop[ií][aá]/i,
-    /\bvolc[aá]\b/i,
-    /dame todo/i,
-    /todo el contenido/i,
-    /todo lo que (dice|tenés|hay)/i,
-    /listá todo/i,
-    /pasame todo/i,
-    /escribí todo/i,
-    /ignor[aá] (las |tus )?(instrucciones|reglas)/i,
-    /olvid[aá] (las |tus )?(instrucciones|reglas)/i,
-    /nueva (instrucción|regla)/i,
-    /\bsystem:\s/i,
-    /\bassistant:\s/i,
-    /act (as|como)\b/i,
-    /pretend (you are|that)/i,
-  ];
-
-  if (EXTRACTION_PATTERNS.some((re) => re.test(query))) {
+  if (isExtractionAttempt(query)) {
     return NextResponse.json(
       { error: "Solo puedo responder preguntas específicas sobre el contenido." },
       { status: 400 }
