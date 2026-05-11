@@ -66,15 +66,26 @@ export default async function ViewPurchasePage({
     .eq("status", "published");
 
   // Perfil del comprador (para el avatar en el navbar)
-  const { data: userProfile } = await supabase
-    .from("profiles")
-    .select("display_name, avatar_url")
-    .eq("id", user.id)
-    .single();
+  const [{ data: userProfile }, { data: ingestionJob }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("display_name, avatar_url")
+      .eq("id", user.id)
+      .single(),
+    supabase
+      .from("ingestion_jobs")
+      .select("status")
+      .eq("resume_id", params.id)
+      .maybeSingle(),
+  ]);
+
+  const aiReady = ingestionJob?.status === "done";
 
   return (
     <ViewerLayout
       pdfUrl={`/api/pdf/${params.id}`}
+      resumeId={params.id}
+      aiReady={aiReady}
       userEmail={user.email ?? ""}
       userDisplayName={userProfile?.display_name ?? user.email ?? ""}
       userAvatarUrl={userProfile?.avatar_url ?? null}

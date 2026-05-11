@@ -47,6 +47,8 @@ next-env.d.ts
 !/supabase/migrations/0011_login_intents.sql
 !/supabase/migrations/0012_tutoring_and_courses.sql
 !/supabase/migrations/0012_tutoring_and_courses_rollback.sql
+!/supabase/migrations/0016_ai_study_assistant.sql
+!/supabase/migrations/0017_cohere_embeddings_1024.sql
 !/docs/
 !/docs/device-login-flow.md
 !/docs/etapa2-codex-brief.md
