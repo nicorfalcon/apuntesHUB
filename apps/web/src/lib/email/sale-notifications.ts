@@ -1,4 +1,5 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
+import { generateGoogleCalendarUrl } from "@/lib/calendar";
 import { sendTransactionalEmail } from "./resend";
 import { buildSellerSaleEmail } from "./templates";
 
@@ -144,7 +145,7 @@ export async function sendTutoringBookingNotifications(
   bookingId: string,
   paymentId: string
 ) {
-  const { data: booking } = await admin
+  const { data: booking, error: bookingError } = await admin
     .from("tutor_bookings")
     .select(
       "id, student_id, tutor_id, scheduled_at, duration_minutes, modality, amount, status, meeting_url, location_details, subjects(name)"
@@ -153,6 +154,11 @@ export async function sendTutoringBookingNotifications(
     .eq("payment_id", paymentId)
     .eq("status", "confirmed")
     .maybeSingle();
+
+  if (bookingError) {
+    console.error("Error recuperando booking para emails de tutoría:", bookingError);
+    return;
+  }
 
   if (!booking || !booking.scheduled_at) return;
 
@@ -187,8 +193,24 @@ export async function sendTutoringBookingNotifications(
   });
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://apunteshub.com";
-  const dashboardUrl = `${appUrl}/tutores/dashboard`; // Or wherever the tutor's dashboard is
+  const dashboardUrl = `${appUrl}/profile/profesor`;
   const successUrl = `${appUrl}/checkout/clase/success?booking_id=${booking.id}`;
+  const calendarUrl = generateGoogleCalendarUrl({
+    title: `Clase de ${subjectName} con ${studentName}`,
+    description: [
+      `Materia: ${subjectName}`,
+      `Alumno: ${studentName}`,
+      studentEmail ? `Email del alumno: ${studentEmail}` : "",
+      `Modalidad: ${booking.modality ?? "online"}`,
+      `Reserva: ${dashboardUrl}`,
+    ].filter(Boolean).join("\n"),
+    location:
+      booking.meeting_url ||
+      booking.location_details ||
+      "Datos de acceso pendientes",
+    startDate: scheduledDate,
+    durationMinutes: booking.duration_minutes ?? 60,
+  });
 
   const sendPromises: Promise<unknown>[] = [];
 
@@ -206,6 +228,7 @@ export async function sendTutoringBookingNotifications(
       modality: booking.modality ?? "online",
       price: Number(booking.amount),
       dashboardUrl,
+      calendarUrl,
     });
 
     sendPromises.push(

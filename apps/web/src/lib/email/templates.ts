@@ -130,6 +130,7 @@ interface TutorBookingEmailInput {
   modality: string;
   price: number;
   dashboardUrl: string;
+  calendarUrl: string;
 }
 
 export function buildTutorBookingEmail(input: TutorBookingEmailInput) {
@@ -181,6 +182,11 @@ export function buildTutorBookingEmail(input: TutorBookingEmailInput) {
                         Ver panel de clases
                       </a>
                     </div>
+                    <div style="text-align:center;margin:0 0 26px;">
+                      <a href="${input.calendarUrl}" style="display:inline-block;background:#ffffff;color:#111b3a;text-decoration:none;font-size:14px;font-weight:800;padding:14px 28px;border-radius:7px;border:1px solid #dbe4ef;">
+                        Agendar en Google Calendar
+                      </a>
+                    </div>
                   </td>
                 </tr>
               </table>
@@ -203,6 +209,7 @@ export function buildTutorBookingEmail(input: TutorBookingEmailInput) {
     `Duración: ${input.durationMinutes} minutos`,
     `Modalidad: ${input.modality}`,
     `Panel: ${input.dashboardUrl}`,
+    `Google Calendar: ${input.calendarUrl}`,
   ].join("\n");
 
   return { subject, html, text };

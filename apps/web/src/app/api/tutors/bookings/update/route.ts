@@ -224,11 +224,12 @@ export async function POST(request: NextRequest) {
     // Fetch existing details to see if they changed
     const { data: currentBooking, error: currentError } = await admin
       .from("tutor_bookings")
-      .select("meeting_url, location_details, scheduled_at, duration_minutes, subjects(name), profiles!student_id(display_name, email), profiles!tutor_id(display_name)")
+      .select("meeting_url, location_details, scheduled_at, duration_minutes, subjects(name)")
       .eq("id", booking_id)
       .single();
 
     if (currentError || !currentBooking) {
+      console.error("Error al recuperar datos actuales del booking:", currentError);
       return NextResponse.json({ error: "Error al recuperar datos actuales" }, { status: 500 });
     }
 
