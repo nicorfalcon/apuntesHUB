@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft,
-  BadgeCheck,
   CalendarDays,
   GraduationCap,
   MapPin,
@@ -14,7 +13,7 @@ import {
   formatArs,
   summarizeModalities,
 } from "@/components/tutors/format";
-import { ContactTutorDialog } from "@/components/tutors/contact-tutor-dialog";
+import { BookTutorDialog } from "@/components/tutors/book-tutor-dialog";
 import { TutorProfileSections } from "@/components/tutors/tutor-profile-sections";
 import type {
   Profile,
@@ -119,7 +118,6 @@ export default async function TutorProfilePage({
     tutorSubjectItems.length > 0
       ? Math.min(...tutorSubjectItems.map((item) => item.hourly_rate_ars))
       : null;
-  const verified = Boolean(profile.tutor_verified_at);
   const bio = profile.tutor_bio || profile.bio;
 
   return (
@@ -149,11 +147,6 @@ export default async function TutorProfilePage({
                     {initials(profile.display_name)}
                   </div>
                 )}
-                {verified && (
-                  <span className="absolute bottom-1.5 right-1.5 rounded-full bg-accent-600 p-1.5 text-white ring-2 ring-white dark:bg-accent-300 dark:text-[#071713] dark:ring-[#0f1e1a]">
-                    <BadgeCheck className="h-4 w-4" />
-                  </span>
-                )}
               </div>
 
               <div className="min-w-0">
@@ -161,15 +154,6 @@ export default async function TutorProfilePage({
                   <h1 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">
                     {profile.display_name}
                   </h1>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      verified
-                        ? "bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-100"
-                        : "bg-gray-50 text-gray-500 dark:bg-white/5 dark:text-gray-300"
-                    }`}
-                  >
-                    {verified ? "Tutor verificado" : "Verificación pendiente"}
-                  </span>
                 </div>
 
                 {(profile.university || profile.career) && (
@@ -189,15 +173,17 @@ export default async function TutorProfilePage({
               </div>
             </div>
 
-            <aside className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-white/10 dark:bg-white/5">
-              <p className="text-xs font-semibold uppercase text-muted-foreground">
-                Tarifa
+            <aside className="rounded-2xl border border-gray-200 bg-gray-50 p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:border-white/10 dark:bg-white/5">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent-700 dark:text-accent-100">
+                Reservá una clase
               </p>
               <p className="mt-1 text-3xl font-bold text-foreground">
                 {minHourlyRate ? `$${formatArs(minHourlyRate)}` : "A coordinar"}
               </p>
               {minHourlyRate && (
-                <p className="text-sm text-muted-foreground">ARS / hora</p>
+                <p className="text-sm text-muted-foreground">
+                  ARS / hora, según materia y duración
+                </p>
               )}
 
               <div className="my-5 border-t border-gray-200 dark:border-white/10" />
@@ -209,13 +195,11 @@ export default async function TutorProfilePage({
                 </p>
                 <p className="flex items-center gap-2">
                   <CalendarDays className="h-4 w-4" />
-                  {availability.length > 0
-                    ? `${availability.length} horario${availability.length === 1 ? "" : "s"} publicado${availability.length === 1 ? "" : "s"}`
-                    : "Horarios a coordinar"}
+                  Horarios reales al reservar
                 </p>
               </div>
 
-              <ContactTutorDialog
+              <BookTutorDialog
                 tutorId={profile.id}
                 tutorName={profile.display_name}
                 subjects={tutorSubjectItems.map((item) => ({
@@ -224,6 +208,10 @@ export default async function TutorProfilePage({
                   hourlyRate: item.hourly_rate_ars,
                 }))}
               />
+
+              <p className="mt-3 text-center text-xs leading-5 text-muted-foreground">
+                Después del pago vas a poder coordinar los detalles por mensajes.
+              </p>
             </aside>
           </div>
         </section>

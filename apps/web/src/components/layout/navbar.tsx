@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { BookOpen, Library, MessageCircle, PenLine } from "lucide-react";
+import { BookOpen, CalendarDays, GraduationCap, Library, MessageCircle, PenLine } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import type { Profile } from "@/lib/database.types";
@@ -62,6 +62,7 @@ export function Navbar() {
     }
     let cancelled = false;
     async function fetchUnread() {
+      if (document.visibilityState !== "visible") return;
       try {
         const res = await fetch("/api/messages/unread-count", { cache: "no-store" });
         if (!res.ok) return;
@@ -72,10 +73,12 @@ export function Navbar() {
       }
     }
     fetchUnread();
-    const interval = setInterval(fetchUnread, 30_000);
+    window.addEventListener("focus", fetchUnread);
+    document.addEventListener("visibilitychange", fetchUnread);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      window.removeEventListener("focus", fetchUnread);
+      document.removeEventListener("visibilitychange", fetchUnread);
     };
   }, [user, pathname]);
 
@@ -123,6 +126,12 @@ export function Navbar() {
                 label: "Vender",
                 icon: PenLine,
                 active: pathname.startsWith("/sell"),
+              },
+              {
+                href: "/clases",
+                label: "Clases",
+                icon: CalendarDays,
+                active: pathname.startsWith("/clases"),
               },
             ]
           : []),
@@ -241,6 +250,13 @@ export function Navbar() {
                       Panel de ventas
                     </Link>
                     <Link
+                      href="/profile/profesor"
+                      onClick={() => setDropdownOpen(false)}
+                      className="block px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-500/35 dark:text-sand-100 dark:hover:bg-white/10"
+                    >
+                      Perfil de profesor
+                    </Link>
+                    <Link
                       href="/reputation"
                       onClick={() => setDropdownOpen(false)}
                       className="block px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-500/35 dark:text-sand-100 dark:hover:bg-white/10"
@@ -336,6 +352,7 @@ export function Navbar() {
                     )}
                   </Link>
                   <Link href="/profile" onClick={() => setMenuOpen(false)} className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${pathname === "/profile" ? "bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-100" : "text-gray-600 hover:bg-gray-50 dark:text-sand-300/75 dark:hover:bg-white/10"}`}>Mi perfil</Link>
+                  <Link href="/profile/profesor" onClick={() => setMenuOpen(false)} className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${pathname === "/profile/profesor" ? "bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-100" : "text-gray-600 hover:bg-gray-50 dark:text-sand-300/75 dark:hover:bg-white/10"}`}><GraduationCap className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />Perfil de profesor</Link>
                   <Link href="/sell/dashboard" onClick={() => setMenuOpen(false)} className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${pathname === "/sell/dashboard" ? "bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-100" : "text-gray-600 hover:bg-gray-50 dark:text-sand-300/75 dark:hover:bg-white/10"}`}>Panel de ventas</Link>
                   <Link href="/reputation" onClick={() => setMenuOpen(false)} className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${pathname === "/reputation" ? "bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-100" : "text-gray-600 hover:bg-gray-50 dark:text-sand-300/75 dark:hover:bg-white/10"}`}>Reputación</Link>
                   <button

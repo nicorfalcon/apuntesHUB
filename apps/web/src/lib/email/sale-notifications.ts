@@ -134,3 +134,118 @@ export async function sendCourseSaleNotification(
     idempotencyKey: `seller-sale-course-${enrollmentId}-${paymentId}`,
   });
 }
+
+// ==========================================
+// TUTORING EMAIL NOTIFICATIONS
+// ==========================================
+
+export async function sendTutoringBookingNotifications(
+  admin: AdminClient,
+  bookingId: string,
+  paymentId: string
+) {
+  const { data: booking } = await admin
+    .from("tutor_bookings")
+    .select(
+      "id, student_id, tutor_id, scheduled_at, duration_minutes, modality, amount, status, meeting_url, location_details, subjects(name)"
+    )
+    .eq("id", bookingId)
+    .eq("payment_id", paymentId)
+    .eq("status", "confirmed")
+    .maybeSingle();
+
+  if (!booking || !booking.scheduled_at) return;
+
+  const [tutorEmail, studentEmail] = await Promise.all([
+    getUserEmail(admin, booking.tutor_id),
+    getUserEmail(admin, booking.student_id),
+  ]);
+
+  if (!tutorEmail && !studentEmail) return;
+
+  const [tutorName, studentName] = await Promise.all([
+    getProfileName(admin, booking.tutor_id, "Profesor"),
+    getProfileName(admin, booking.student_id, "Alumno"),
+  ]);
+
+  const subject = booking.subjects as unknown as { name: string } | { name: string }[] | null;
+  const subjectName = Array.isArray(subject) ? subject[0]?.name : subject?.name ?? "Materia";
+  
+  // Format date/time using the same robust logic as the frontend but locally
+  const scheduledDate = new Date(booking.scheduled_at);
+  let dateLabel = scheduledDate.toLocaleDateString("es-AR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "America/Argentina/Buenos_Aires",
+  });
+  dateLabel = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
+  const timeLabel = scheduledDate.toLocaleTimeString("es-AR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Argentina/Buenos_Aires",
+  });
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://apunteshub.com";
+  const dashboardUrl = `${appUrl}/tutores/dashboard`; // Or wherever the tutor's dashboard is
+  const successUrl = `${appUrl}/checkout/clase/success?booking_id=${booking.id}`;
+
+  const sendPromises: Promise<unknown>[] = [];
+
+  // 1. Send Email to Tutor
+  if (tutorEmail) {
+    const { buildTutorBookingEmail } = await import("./templates");
+    const tutorEmailContent = buildTutorBookingEmail({
+      tutorName,
+      studentName,
+      studentEmail: studentEmail ?? undefined,
+      subjectName,
+      dateLabel,
+      timeLabel,
+      durationMinutes: booking.duration_minutes ?? 60,
+      modality: booking.modality ?? "online",
+      price: Number(booking.amount),
+      dashboardUrl,
+    });
+
+    sendPromises.push(
+      sendTransactionalEmail({
+        to: tutorEmail,
+        subject: tutorEmailContent.subject,
+        html: tutorEmailContent.html,
+        text: tutorEmailContent.text,
+        idempotencyKey: `tutor-booking-new-tutor-${booking.id}-${paymentId}`,
+      })
+    );
+  }
+
+  // 2. Send Email to Student
+  if (studentEmail) {
+    const { buildStudentBookingEmail } = await import("./templates");
+    const studentEmailContent = buildStudentBookingEmail({
+      studentName,
+      tutorName,
+      subjectName,
+      dateLabel,
+      timeLabel,
+      durationMinutes: booking.duration_minutes ?? 60,
+      modality: booking.modality ?? "online",
+      price: Number(booking.amount),
+      successUrl,
+      meetingUrl: booking.meeting_url,
+      locationDetails: booking.location_details,
+    });
+
+    sendPromises.push(
+      sendTransactionalEmail({
+        to: studentEmail,
+        subject: studentEmailContent.subject,
+        html: studentEmailContent.html,
+        text: studentEmailContent.text,
+        idempotencyKey: `tutor-booking-new-student-${booking.id}-${paymentId}`,
+      })
+    );
+  }
+
+  await Promise.allSettled(sendPromises);
+}

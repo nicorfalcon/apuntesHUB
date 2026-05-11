@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ResumesList } from "./resumes-list";
 import { CoursesList } from "./courses-list";
-import { BookingsList } from "./bookings-list";
 import { SellerDashboardWorkspace } from "./seller-dashboard-workspace";
 
 export default async function DashboardPage() {
@@ -56,7 +55,7 @@ export default async function DashboardPage() {
     supabase
       .from("tutor_bookings")
       .select(
-        "id, scheduled_at, duration_minutes, hourly_rate_ars, status, subjects(name), profiles!student_id(display_name)"
+        "id, scheduled_at, duration_minutes, hourly_rate_ars, amount, status, modality, meeting_url, location_details, initial_message, student_id, subjects(name), profiles!student_id(display_name)"
       )
       .eq("tutor_id", user.id)
       .order("scheduled_at", { ascending: false, nullsFirst: false })
@@ -146,11 +145,6 @@ export default async function DashboardPage() {
           ventasPorCurso={ventasPorCurso}
           ingresosPorCurso={ingresosPorCurso}
         />
-      }
-      clasesContent={
-        showTutorSection ? (
-          <BookingsList bookings={(bookings ?? []) as never} />
-        ) : undefined
       }
     />
   );

@@ -11,6 +11,7 @@ export function NavbarWrapper() {
   if (AUTH_PATHS.includes(pathname)) return null;
   if (pathname === "/") return null;
   if (/^\/my-purchases\/.+\/view$/.test(pathname)) return null;
+  if (pathname === "/profile/profesor") return <Navbar />;
   if (/^\/profile\/.+$/.test(pathname)) return null;
   if (pathname === "/sell/new") return null;
   if (/^\/sell\/.+\/edit$/.test(pathname)) return null;
