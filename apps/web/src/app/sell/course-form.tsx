@@ -931,10 +931,17 @@ export function CourseForm({ userId, profile }: CourseFormProps) {
         </div>
       )}
 
-        <div className="flex items-center justify-between border-t border-gray-100 px-6 py-4 dark:border-white/10 sm:px-8">
-          <span className="text-xs text-gray-400 dark:text-sand-300/65">
-            Paso {currentStep + 1} de {COURSE_STEPS.length}
-          </span>
+        <div className="flex flex-col gap-3 border-t border-gray-100 px-6 py-4 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-gray-400 dark:text-sand-300/65">
+              Paso {currentStep + 1} de {COURSE_STEPS.length}
+            </span>
+            {currentStep < COURSE_STEPS.length - 1 && currentStepError() && (
+              <span className="text-xs font-medium text-amber-600 dark:text-amber-200/85">
+                Falta: {currentStepError()}
+              </span>
+            )}
+          </div>
 
           <div className="flex items-center gap-3">
             {currentStep > 0 && (

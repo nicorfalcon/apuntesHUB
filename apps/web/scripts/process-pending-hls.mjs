@@ -90,7 +90,14 @@ async function pickNextPending({ supabase, moduleId }) {
 async function claimPending({ supabase, assetId }) {
   const { data, error } = await supabase
     .from("course_video_assets")
-    .update({ processing_status: "processing" })
+    .update({
+      processing_status: "processing",
+      processing_stage: "downloading",
+      processing_progress: 5,
+      processing_started_at: new Date().toISOString(),
+      processing_completed_at: null,
+      error_message: null,
+    })
     .eq("id", assetId)
     .eq("processing_status", "pending")
     .select("id");

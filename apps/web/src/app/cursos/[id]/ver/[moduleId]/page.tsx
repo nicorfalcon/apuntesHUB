@@ -99,6 +99,9 @@ export default async function CoursePlayerPage({
   const videoUnavailableMessage = blockMp4ForProcessing
     ? "El video se está procesando, intentá nuevamente en unos minutos."
     : null;
+  const hlsProcessingStatusEndpoint = blockMp4ForProcessing
+    ? `/api/courses/${course.id}/modules/${currentModule.id}/hls/status`
+    : null;
   const playerModules: CourseModuleSummary[] = modules.map((courseModule) => ({
     id: courseModule.id,
     position: courseModule.position,
@@ -123,6 +126,7 @@ export default async function CoursePlayerPage({
       moduleProgress={moduleProgress}
       isAuthorPreview={isAuthor && !enrollmentId}
       videoUnavailableMessage={videoUnavailableMessage}
+      hlsProcessingStatusEndpoint={hlsProcessingStatusEndpoint}
     />
   );
 }

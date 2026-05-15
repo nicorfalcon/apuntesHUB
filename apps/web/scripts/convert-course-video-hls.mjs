@@ -102,6 +102,10 @@ async function createProcessingAsset({
     module_id: moduleId,
     original_video_storage_key: originalVideoStorageKey,
     processing_status: "processing",
+    processing_stage: "downloading",
+    processing_progress: 5,
+    processing_started_at: new Date().toISOString(),
+    processing_completed_at: null,
     is_active: false,
   });
 

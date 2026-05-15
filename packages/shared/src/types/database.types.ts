@@ -212,6 +212,77 @@ export type Database = {
           },
         ]
       }
+      course_video_assets: {
+        Row: {
+          activated_at: string | null
+          created_at: string
+          duration_seconds: number | null
+          encryption_key_id: string
+          error_message: string | null
+          hls_key_storage_key: string | null
+          hls_playlist_storage_key: string | null
+          hls_segment_prefix: string | null
+          id: string
+          is_active: boolean
+          module_id: string
+          original_video_storage_key: string | null
+          processing_completed_at: string | null
+          processing_progress: number | null
+          processing_stage: string | null
+          processing_started_at: string | null
+          processing_status: "pending" | "processing" | "ready" | "failed"
+          updated_at: string
+        }
+        Insert: {
+          activated_at?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          encryption_key_id?: string
+          error_message?: string | null
+          hls_key_storage_key?: string | null
+          hls_playlist_storage_key?: string | null
+          hls_segment_prefix?: string | null
+          id?: string
+          is_active?: boolean
+          module_id: string
+          original_video_storage_key?: string | null
+          processing_completed_at?: string | null
+          processing_progress?: number | null
+          processing_stage?: string | null
+          processing_started_at?: string | null
+          processing_status?: "pending" | "processing" | "ready" | "failed"
+          updated_at?: string
+        }
+        Update: {
+          activated_at?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          encryption_key_id?: string
+          error_message?: string | null
+          hls_key_storage_key?: string | null
+          hls_playlist_storage_key?: string | null
+          hls_segment_prefix?: string | null
+          id?: string
+          is_active?: boolean
+          module_id?: string
+          original_video_storage_key?: string | null
+          processing_completed_at?: string | null
+          processing_progress?: number | null
+          processing_stage?: string | null
+          processing_started_at?: string | null
+          processing_status?: "pending" | "processing" | "ready" | "failed"
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_video_assets_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "course_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_chunks: {
         Row: {
           chunk_index: number
@@ -1394,3 +1465,4 @@ export type CourseModule = Database["public"]["Tables"]["course_modules"]["Row"]
 export type CourseEnrollment = Database["public"]["Tables"]["course_enrollments"]["Row"]
 export type CourseProgress = Database["public"]["Tables"]["course_progress"]["Row"]
 export type CourseReview = Database["public"]["Tables"]["course_reviews"]["Row"]
+export type CourseVideoAsset = Database["public"]["Tables"]["course_video_assets"]["Row"]

@@ -169,6 +169,7 @@ async function enqueueHlsAsset({
       .from("course_video_assets")
       .update({
         processing_status: "failed",
+        processing_stage: "failed",
         error_message: "superseded by new upload",
         is_active: false,
       })
@@ -182,6 +183,8 @@ async function enqueueHlsAsset({
       module_id: moduleId,
       original_video_storage_key: storageKey,
       processing_status: "pending",
+      processing_stage: "pending",
+      processing_progress: 0,
       is_active: false,
       error_message: null,
     });

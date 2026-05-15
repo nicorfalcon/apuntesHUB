@@ -1,8 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, CheckCircle2, PlayCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle2,
+  Loader2,
+  PlayCircle,
+  RefreshCw,
+} from "lucide-react";
 import { formatDuration } from "./format";
 import type { CourseModuleSummary } from "./types";
 import type Hls from "hls.js";
@@ -36,7 +44,34 @@ interface CoursePlayerProps {
    * hay sources, se muestra el placeholder genérico "todavía no tiene video".
    */
   videoUnavailableMessage?: string | null;
+  hlsProcessingStatusEndpoint?: string | null;
 }
+
+type HlsProcessingStage =
+  | "pending"
+  | "downloading"
+  | "transcoding"
+  | "uploading"
+  | "ready"
+  | "failed";
+
+type HlsProcessingStatus = {
+  status: "pending" | "processing" | "ready" | "failed";
+  stage: HlsProcessingStage;
+  progress: number | null;
+  message: string;
+};
+
+const HLS_PROCESSING_POLL_MS = 7000;
+
+const HLS_PROCESSING_MESSAGES: Record<HlsProcessingStage, string> = {
+  pending: "El video está en cola de procesamiento.",
+  downloading: "Preparando el video...",
+  transcoding: "Convirtiendo el video a HLS...",
+  uploading: "Subiendo los segmentos protegidos...",
+  ready: "El video ya está listo.",
+  failed: "No pudimos procesar el video todavía.",
+};
 
 // Posiciones que va rotando el watermark cada 30s (esquinas/centro).
 const WATERMARK_POSITIONS = [
@@ -56,6 +91,202 @@ function getHlsStatusCode(errorData: unknown) {
   return data.response?.code ?? data.networkDetails?.status ?? null;
 }
 
+function isHlsProcessingStage(stage: unknown): stage is HlsProcessingStage {
+  return (
+    stage === "pending" ||
+    stage === "downloading" ||
+    stage === "transcoding" ||
+    stage === "uploading" ||
+    stage === "ready" ||
+    stage === "failed"
+  );
+}
+
+function parseHlsProcessingStatus(data: unknown): HlsProcessingStatus | null {
+  if (!data || typeof data !== "object") return null;
+
+  const raw = data as Record<string, unknown>;
+  const status = raw.status;
+  const stage = raw.stage;
+
+  if (
+    status !== "pending" &&
+    status !== "processing" &&
+    status !== "ready" &&
+    status !== "failed"
+  ) {
+    return null;
+  }
+
+  const safeStage = isHlsProcessingStage(stage)
+    ? stage
+    : status === "processing"
+      ? "transcoding"
+      : status;
+  const progress =
+    typeof raw.progress === "number" && Number.isFinite(raw.progress)
+      ? Math.max(0, Math.min(100, Math.round(raw.progress)))
+      : null;
+  const message =
+    typeof raw.message === "string" && raw.message.trim()
+      ? raw.message
+      : HLS_PROCESSING_MESSAGES[safeStage];
+
+  return {
+    status,
+    stage: safeStage,
+    progress,
+    message,
+  };
+}
+
+function HlsProcessingPlaceholder({
+  initialMessage,
+  statusEndpoint,
+}: {
+  initialMessage: string;
+  statusEndpoint: string | null;
+}) {
+  const router = useRouter();
+  const [processingStatus, setProcessingStatus] =
+    useState<HlsProcessingStatus | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (!statusEndpoint) return;
+
+    const endpoint = statusEndpoint;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let activeController: AbortController | null = null;
+
+    function scheduleNextPoll() {
+      timer = setTimeout(() => {
+        void pollStatus();
+      }, HLS_PROCESSING_POLL_MS);
+    }
+
+    async function pollStatus() {
+      activeController?.abort();
+      activeController = new AbortController();
+
+      try {
+        const response = await fetch(endpoint, {
+          method: "GET",
+          cache: "no-store",
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+          },
+          signal: activeController.signal,
+        });
+
+        if (cancelled) return;
+
+        if (response.status === 401 || response.status === 403) {
+          setProcessingStatus({
+            status: "failed",
+            stage: "failed",
+            progress: null,
+            message: "No pudimos consultar el estado del video.",
+          });
+          return;
+        }
+
+        if (response.ok) {
+          const data = parseHlsProcessingStatus(
+            await response.json().catch(() => null)
+          );
+
+          if (data) {
+            setProcessingStatus(data);
+            if (data.status === "ready" || data.status === "failed") {
+              return;
+            }
+          }
+        }
+
+        scheduleNextPoll();
+      } catch (error) {
+        const aborted =
+          error instanceof DOMException && error.name === "AbortError";
+        if (!cancelled && !aborted) {
+          scheduleNextPoll();
+        }
+      }
+    }
+
+    void pollStatus();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      activeController?.abort();
+    };
+  }, [statusEndpoint]);
+
+  const stage = processingStatus?.stage ?? "pending";
+  const progress = processingStatus?.progress;
+  const isReady = processingStatus?.status === "ready";
+  const isFailed = processingStatus?.status === "failed";
+  const message =
+    processingStatus?.message ??
+    (statusEndpoint ? HLS_PROCESSING_MESSAGES[stage] : initialMessage);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    router.refresh();
+  };
+
+  return (
+    <div className="w-full max-w-md text-white">
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-white/10">
+        {isReady ? (
+          <CheckCircle2 className="h-6 w-6 text-green-300" />
+        ) : isFailed ? (
+          <AlertTriangle className="h-6 w-6 text-amber-300" />
+        ) : (
+          <Loader2 className="h-6 w-6 animate-spin text-white/85" />
+        )}
+      </div>
+      <p className="text-sm font-semibold text-white/85">{message}</p>
+      {typeof progress === "number" && (
+        <div className="mt-5">
+          <div
+            className="h-2 overflow-hidden rounded-full bg-white/15"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress}
+            aria-label="Progreso del procesamiento HLS"
+          >
+            <div
+              className="h-full rounded-full bg-accent-300 transition-[width] duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="mt-2 text-xs font-bold text-white/70">{progress}%</p>
+        </div>
+      )}
+      {isReady && (
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold text-gray-950 transition-colors hover:bg-white/90 disabled:cursor-wait disabled:opacity-70"
+        >
+          {isRefreshing ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4" />
+          )}
+          Reproducir ahora
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function CoursePlayer({
   courseId,
   courseTitle,
@@ -71,6 +302,7 @@ export function CoursePlayer({
   moduleProgress,
   isAuthorPreview,
   videoUnavailableMessage = null,
+  hlsProcessingStatusEndpoint = null,
 }: CoursePlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [watermarkIndex, setWatermarkIndex] = useState(0);
@@ -523,8 +755,15 @@ export function CoursePlayer({
               />
             ) : (
               <div className="flex aspect-video w-full items-center justify-center bg-black px-6 text-center text-sm font-semibold text-white/80">
-                {videoUnavailableMessage ??
-                  "Este módulo todavía no tiene video cargado."}
+                {videoUnavailableMessage && hlsProcessingStatusEndpoint ? (
+                  <HlsProcessingPlaceholder
+                    initialMessage={videoUnavailableMessage}
+                    statusEndpoint={hlsProcessingStatusEndpoint}
+                  />
+                ) : (
+                  videoUnavailableMessage ??
+                  "Este módulo todavía no tiene video cargado."
+                )}
               </div>
             )}
             {/* Watermark overlay: rota posición cada 30s, no interactúa con controles */}
