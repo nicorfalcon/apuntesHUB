@@ -104,6 +104,24 @@ export async function POST(
     courseModule.video_storage_key &&
     courseModule.video_storage_key !== storageKey
   ) {
+    const deactivateError = await deactivateStaleActiveHlsAssets({
+      admin,
+      moduleId,
+      storageKey,
+    });
+
+    if (deactivateError) {
+      return NextResponse.json(
+        { error: "No pudimos actualizar los assets HLS del módulo." },
+        { status: 500 }
+      );
+    }
+  }
+
+  if (
+    courseModule.video_storage_key &&
+    courseModule.video_storage_key !== storageKey
+  ) {
     await deleteCourseVideo(courseModule.video_storage_key).catch(() => undefined);
   }
 
@@ -124,6 +142,42 @@ type ExistingAssetRow = {
   original_video_storage_key: string | null;
 };
 
+async function deactivateStaleActiveHlsAssets({
+  admin,
+  moduleId,
+  storageKey,
+}: {
+  admin: ReturnType<typeof createAdminClient>;
+  moduleId: string;
+  storageKey: string;
+}) {
+  const { data: activeAssets, error: listError } = await admin
+    .from("course_video_assets")
+    .select("id, original_video_storage_key")
+    .eq("module_id", moduleId)
+    .eq("is_active", true);
+
+  if (listError) {
+    return listError;
+  }
+
+  const staleAssetIds = (activeAssets ?? [])
+    .filter((asset) => asset.original_video_storage_key !== storageKey)
+    .map((asset) => asset.id);
+
+  if (staleAssetIds.length === 0) {
+    return null;
+  }
+
+  const { error } = await admin
+    .from("course_video_assets")
+    .update({ is_active: false })
+    .eq("module_id", moduleId)
+    .in("id", staleAssetIds);
+
+  return error;
+}
+
 async function enqueueHlsAsset({
   admin,
   moduleId,
@@ -143,6 +197,16 @@ async function enqueueHlsAsset({
   }
 
   const rows = (existing ?? []) as ExistingAssetRow[];
+  const deactivateError = await deactivateStaleActiveHlsAssets({
+    admin,
+    moduleId,
+    storageKey,
+  });
+
+  if (deactivateError) {
+    throw new Error(deactivateError.message);
+  }
+
   const sameKey = rows.filter(
     (a) => a.original_video_storage_key === storageKey
   );

@@ -62,7 +62,10 @@ export async function GET(
     return jsonResponse({ error: "Video no encontrado" }, 404);
   }
 
-  const hlsStatus = await getModuleHlsStatus(access.module.id);
+  const hlsStatus = await getModuleHlsStatus(
+    access.module.id,
+    access.module.video_storage_key
+  );
   if (hlsStatus.hasActiveHlsAsset && !access.isAuthor) {
     return jsonResponse(
       { error: "El módulo usa HLS; el fallback MP4 no está disponible." },

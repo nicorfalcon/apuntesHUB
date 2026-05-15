@@ -67,7 +67,10 @@ export default async function CoursePlayerPage({
 
   // Watermark: usamos el email del usuario (lo que tenemos en sesión).
   const watermarkEmail = user.email ?? "";
-  const hlsStatus = await getModuleHlsStatus(currentModule.id);
+  const hlsStatus = await getModuleHlsStatus(
+    currentModule.id,
+    currentModule.video_storage_key
+  );
   // Compradores/alumnos no reciben MP4 mientras el HLS se está procesando.
   // Autores/admins sí pueden seguir viendo MP4 para revisión/debug.
   const blockMp4ForProcessing =

@@ -805,6 +805,44 @@ export async function processAsset({
  * Devuelve true si quedó activo, false si ya había uno activo o si hubo conflicto.
  */
 export async function maybeActivateAsset({ supabase, assetId, moduleId }) {
+  const { data: asset, error: assetError } = await supabase
+    .from("course_video_assets")
+    .select("id, original_video_storage_key")
+    .eq("id", assetId)
+    .eq("module_id", moduleId)
+    .maybeSingle();
+
+  if (assetError || !asset) {
+    console.warn(
+      `No pude verificar el asset ${assetId} antes de activarlo: ${
+        assetError?.message ?? "no data"
+      }`
+    );
+    return false;
+  }
+
+  const { data: courseModule, error: moduleError } = await supabase
+    .from("course_modules")
+    .select("video_storage_key")
+    .eq("id", moduleId)
+    .maybeSingle();
+
+  if (moduleError || !courseModule) {
+    console.warn(
+      `No pude verificar el módulo ${moduleId} antes de activar asset: ${
+        moduleError?.message ?? "no data"
+      }`
+    );
+    return false;
+  }
+
+  if (courseModule.video_storage_key !== asset.original_video_storage_key) {
+    console.warn(
+      `No activé asset ${assetId}: el video del módulo cambió durante el procesamiento.`
+    );
+    return false;
+  }
+
   const { data: activeOthers, error: selectError } = await supabase
     .from("course_video_assets")
     .select("id")

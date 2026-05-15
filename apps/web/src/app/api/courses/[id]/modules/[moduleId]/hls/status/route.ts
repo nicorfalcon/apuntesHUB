@@ -24,6 +24,7 @@ type HlsStatusAsset = {
   processing_stage: string | null;
   processing_progress: number | null;
   is_active: boolean;
+  original_video_storage_key: string | null;
   created_at: string;
 };
 
@@ -109,8 +110,9 @@ export async function GET(
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
+  let access;
   try {
-    await assertCourseModuleAccess({
+    access = await assertCourseModuleAccess({
       supabase,
       userId: user.id,
       courseId,
@@ -121,13 +123,21 @@ export async function GET(
     return accessErrorResponse(error);
   }
 
+  if (!access.module.video_storage_key) {
+    return NextResponse.json(
+      { error: "Asset HLS no encontrado" },
+      { status: 404 }
+    );
+  }
+
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("course_video_assets")
     .select(
-      "id, processing_status, processing_stage, processing_progress, is_active, created_at"
+      "id, processing_status, processing_stage, processing_progress, is_active, original_video_storage_key, created_at"
     )
     .eq("module_id", moduleId)
+    .eq("original_video_storage_key", access.module.video_storage_key)
     .in("processing_status", ["pending", "processing", "ready", "failed"])
     .order("created_at", { ascending: false });
 

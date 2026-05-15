@@ -17,6 +17,7 @@ type CourseVideoAsset = {
   id: string;
   module_id: string;
   hls_key_storage_key: string | null;
+  original_video_storage_key: string | null;
   processing_status: string;
   is_active: boolean;
 };
@@ -24,6 +25,7 @@ type CourseVideoAsset = {
 type CourseModuleRef = {
   id: string;
   course_id: string;
+  video_storage_key: string | null;
 };
 
 function accessErrorResponse(error: CourseModuleAccessError) {
@@ -43,7 +45,9 @@ async function getAssetAndModule(assetId: string) {
   const admin = createAdminClient();
   const { data: rawAsset, error: assetError } = await admin
     .from("course_video_assets")
-    .select("id, module_id, hls_key_storage_key, processing_status, is_active")
+    .select(
+      "id, module_id, hls_key_storage_key, original_video_storage_key, processing_status, is_active"
+    )
     .eq("id", assetId)
     .maybeSingle();
 
@@ -58,7 +62,7 @@ async function getAssetAndModule(assetId: string) {
   const asset = rawAsset as CourseVideoAsset;
   const { data: rawModule, error: moduleError } = await admin
     .from("course_modules")
-    .select("id, course_id")
+    .select("id, course_id, video_storage_key")
     .eq("id", asset.module_id)
     .maybeSingle();
 
@@ -120,6 +124,13 @@ export async function GET(
   }
 
   if (!asset.is_active && !access.isAuthor) {
+    return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+  }
+
+  if (
+    !access.isAuthor &&
+    asset.original_video_storage_key !== courseModule.video_storage_key
+  ) {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
 

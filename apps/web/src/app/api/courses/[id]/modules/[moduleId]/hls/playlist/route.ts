@@ -23,6 +23,7 @@ type CourseVideoAsset = {
   hls_playlist_storage_key: string | null;
   hls_segment_prefix: string | null;
   hls_key_storage_key: string | null;
+  original_video_storage_key: string | null;
   processing_status: string;
   is_active: boolean;
 };
@@ -44,16 +45,22 @@ async function findReadyHlsAsset({
   moduleId,
   assetId,
   canUseInactiveAsset,
+  currentVideoStorageKey,
 }: {
   moduleId: string;
   assetId: string | null;
   canUseInactiveAsset: boolean;
+  currentVideoStorageKey: string | null;
 }) {
+  if (!assetId && !currentVideoStorageKey) {
+    return { data: null, error: null };
+  }
+
   const admin = createAdminClient();
   let query = admin
     .from("course_video_assets")
     .select(
-      "id, module_id, hls_playlist_storage_key, hls_segment_prefix, hls_key_storage_key, processing_status, is_active"
+      "id, module_id, hls_playlist_storage_key, hls_segment_prefix, hls_key_storage_key, original_video_storage_key, processing_status, is_active"
     )
     .eq("module_id", moduleId)
     .eq("processing_status", "ready");
@@ -64,7 +71,9 @@ async function findReadyHlsAsset({
     }
     query = query.eq("id", assetId);
   } else {
-    query = query.eq("is_active", true);
+    query = query
+      .eq("is_active", true)
+      .eq("original_video_storage_key", currentVideoStorageKey);
   }
 
   const { data, error } = await query.maybeSingle();
@@ -199,6 +208,7 @@ export async function GET(
     moduleId,
     assetId: requestedAssetId,
     canUseInactiveAsset: access.isAuthor,
+    currentVideoStorageKey: access.module.video_storage_key,
   });
 
   if (error) {
@@ -213,6 +223,13 @@ export async function GET(
   }
 
   if (!asset.is_active && !access.isAuthor) {
+    return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+  }
+
+  if (
+    !access.isAuthor &&
+    asset.original_video_storage_key !== access.module.video_storage_key
+  ) {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
 
