@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import {
+  assertCourseModuleAccess,
+  CourseModuleAccessError,
+} from "@/lib/courses/access";
 
 /**
  * POST /api/courses/[id]/progress
@@ -32,40 +36,38 @@ export async function POST(
 
   const watched = Math.max(0, Math.floor(Number(body.watched_seconds ?? 0)));
 
-  // Verificar enrollment activo del alumno para este curso
-  const { data: enrollment } = await supabase
-    .from("course_enrollments")
-    .select("id")
-    .eq("course_id", courseId)
-    .eq("student_id", user.id)
-    .eq("status", "completed")
-    .maybeSingle();
-
-  if (!enrollment) {
-    return NextResponse.json({ error: "Sin inscripción" }, { status: 403 });
-  }
-
-  // Verificar que el módulo pertenezca al curso
-  const { data: courseModule } = await supabase
-    .from("course_modules")
-    .select("id, duration_seconds")
-    .eq("id", body.module_id)
-    .eq("course_id", courseId)
-    .maybeSingle();
-
-  if (!courseModule) {
-    return NextResponse.json({ error: "Módulo no válido" }, { status: 404 });
+  let access;
+  try {
+    access = await assertCourseModuleAccess({
+      supabase,
+      userId: user.id,
+      courseId,
+      moduleId: body.module_id,
+      requireEnrollment: true,
+    });
+  } catch (error) {
+    if (!(error instanceof CourseModuleAccessError)) throw error;
+    const statusByCode = {
+      unauthenticated: 401,
+      forbidden: 403,
+      not_found: 404,
+    } as const;
+    return NextResponse.json(
+      { error: error.message },
+      { status: statusByCode[error.code] }
+    );
   }
 
   const { data: existingProgress } = await supabase
     .from("course_progress")
     .select("completed_at")
-    .eq("enrollment_id", enrollment.id)
+    .eq("enrollment_id", access.enrollmentId)
     .eq("module_id", body.module_id)
     .maybeSingle();
 
   const nextCompletedAt =
-    body.completed || (courseModule.duration_seconds > 0 && watched >= courseModule.duration_seconds - 5)
+    body.completed ||
+    (access.module.duration_seconds > 0 && watched >= access.module.duration_seconds - 5)
       ? new Date().toISOString()
       : existingProgress?.completed_at ?? null;
 
@@ -73,7 +75,7 @@ export async function POST(
     .from("course_progress")
     .upsert(
       {
-        enrollment_id: enrollment.id,
+        enrollment_id: access.enrollmentId,
         module_id: body.module_id,
         watched_seconds: watched,
         completed_at: nextCompletedAt,

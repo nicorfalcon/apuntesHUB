@@ -1,8 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { CoursePlayer } from "@/components/courses/course-player";
-import { createCourseVideoReadUrl } from "@/lib/backblaze/client";
 import type { CourseModuleSummary } from "@/components/courses/types";
+import { createCourseVideoReadUrl } from "@/lib/backblaze/client";
+import {
+  assertCourseModuleAccess,
+  CourseModuleAccessError,
+} from "@/lib/courses/access";
+import { getModuleHlsStatus } from "@/lib/courses/hls";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,60 +27,20 @@ export default async function CoursePlayerPage({
     redirect(`/login?redirect=/cursos/${courseId}`);
   }
 
-  // 1. Curso + módulos
-  const { data: rawCourse } = await supabase
-    .from("recorded_courses")
-    .select(
-      "id, title, author_id, is_published, deleted_at, course_modules(id, position, title, description, duration_seconds, video_storage_key)"
-    )
-    .eq("id", courseId)
-    .is("deleted_at", null)
-    .single();
-
-  if (!rawCourse) notFound();
-
-  const course = rawCourse as {
-    id: string;
-    title: string;
-    author_id: string;
-    is_published: boolean;
-    course_modules: CourseModuleSummary[] | null;
-  };
-
-  const isAuthor = user.id === course.author_id;
-
-  // 2. Inscripción completada del alumno (autor también pasa, para previsualizar)
-  let hasAccess = isAuthor;
-  let enrollmentId: string | null = null;
-
-  if (!isAuthor) {
-    const { data: enrollment } = await supabase
-      .from("course_enrollments")
-      .select("id, status")
-      .eq("course_id", courseId)
-      .eq("student_id", user.id)
-      .eq("status", "completed")
-      .maybeSingle();
-
-    if (enrollment) {
-      hasAccess = true;
-      enrollmentId = enrollment.id;
-    }
-  }
-
-  if (!hasAccess) {
-    // Sin enrollment ni autoría: 403 (renderizamos notFound como 404 amigable).
+  const access = await assertCourseModuleAccess({
+    supabase,
+    userId: user.id,
+    courseId,
+    moduleId,
+  }).catch((error) => {
+    if (!(error instanceof CourseModuleAccessError)) throw error;
+    if (error.code === "not_found") notFound();
     redirect(`/cursos/${courseId}`);
-  }
+  });
 
-  const modules = [...(course.course_modules ?? [])].sort(
-    (a, b) => a.position - b.position
-  );
-  const currentModule = modules.find((m) => m.id === moduleId);
+  const { course, modules, module: currentModule, isAuthor, enrollmentId } = access;
 
-  if (!currentModule) notFound();
-
-  // 3. Progreso previo (solo aplica si hay enrollment del alumno)
+  // Progreso previo (solo aplica si hay enrollment del alumno)
   let initialWatchedSeconds = 0;
   let moduleProgress: Record<string, { watchedSeconds: number; completed: boolean }> = {};
   if (enrollmentId) {
@@ -102,21 +67,62 @@ export default async function CoursePlayerPage({
 
   // Watermark: usamos el email del usuario (lo que tenemos en sesión).
   const watermarkEmail = user.email ?? "";
-  const videoSrc = currentModule.video_storage_key
+  const hlsStatus = await getModuleHlsStatus(currentModule.id);
+  // Compradores/alumnos no reciben MP4 mientras el HLS se está procesando.
+  // Autores/admins sí pueden seguir viendo MP4 para revisión/debug.
+  const blockMp4ForProcessing =
+    hlsStatus.hasPendingOrProcessingHlsAsset &&
+    !hlsStatus.hasActiveHlsAsset &&
+    !isAuthor;
+  const hlsSrc = hlsStatus.hasActiveHlsAsset
+    ? `/api/courses/${course.id}/modules/${currentModule.id}/hls/playlist`
+    : null;
+  const canUseMp4Source =
+    !hlsStatus.hasActiveHlsAsset && !blockMp4ForProcessing;
+  const mp4Src = canUseMp4Source && currentModule.video_storage_key
     ? await createCourseVideoReadUrl(currentModule.video_storage_key)
     : null;
+  // Con HLS activo, el fallback/refresh MP4 queda restringido a autores/admins
+  // (el endpoint también valida esto en server). Sin HLS, cualquier usuario con
+  // acceso puede refrescar la signed URL si la inicial expira, salvo que el
+  // asset esté pending/processing (en ese caso solo el autor refresca).
+  const allowMp4Fallback = blockMp4ForProcessing
+    ? false
+    : hlsStatus.hasActiveHlsAsset
+      ? isAuthor
+      : true;
+  const mp4FallbackUrlEndpoint =
+    currentModule.video_storage_key && allowMp4Fallback
+      ? `/api/courses/${course.id}/modules/${currentModule.id}/video-url`
+      : null;
+  const playbackType = hlsSrc ? "hls" : "mp4";
+  const videoUnavailableMessage = blockMp4ForProcessing
+    ? "El video se está procesando, intentá nuevamente en unos minutos."
+    : null;
+  const playerModules: CourseModuleSummary[] = modules.map((courseModule) => ({
+    id: courseModule.id,
+    position: courseModule.position,
+    title: courseModule.title,
+    description: courseModule.description,
+    duration_seconds: courseModule.duration_seconds,
+  }));
 
   return (
     <CoursePlayer
       courseId={course.id}
       courseTitle={course.title}
-      modules={modules}
+      modules={playerModules}
       currentModuleId={currentModule.id}
       initialWatchedSeconds={initialWatchedSeconds}
-      videoSrc={videoSrc}
+      playbackType={playbackType}
+      hlsSrc={hlsSrc}
+      mp4Src={mp4Src}
+      mp4FallbackUrlEndpoint={mp4FallbackUrlEndpoint}
+      allowMp4Fallback={allowMp4Fallback}
       watermarkEmail={watermarkEmail}
       moduleProgress={moduleProgress}
       isAuthorPreview={isAuthor && !enrollmentId}
+      videoUnavailableMessage={videoUnavailableMessage}
     />
   );
 }

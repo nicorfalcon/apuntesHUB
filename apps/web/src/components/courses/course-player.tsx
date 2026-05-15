@@ -5,6 +5,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, CheckCircle2, PlayCircle } from "lucide-react";
 import { formatDuration } from "./format";
 import type { CourseModuleSummary } from "./types";
+import type Hls from "hls.js";
+
+type PlaybackType = "hls" | "mp4";
 
 interface CoursePlayerProps {
   courseId: string;
@@ -12,11 +15,27 @@ interface CoursePlayerProps {
   modules: CourseModuleSummary[];
   currentModuleId: string;
   initialWatchedSeconds: number;
-  videoSrc: string | null;
+  playbackType: PlaybackType;
+  hlsSrc: string | null;
+  mp4Src: string | null;
+  mp4FallbackUrlEndpoint?: string | null;
+  /**
+   * Política explícita: si es false, el player NO intentará pedir signed URLs
+   * MP4 cuando HLS falla. Para alumnos en módulos con HLS activo, esto debe
+   * venir en false; el endpoint server también devuelve 403, esto es defensa
+   * adicional en cliente.
+   */
+  allowMp4Fallback?: boolean;
   watermarkEmail: string;
   moduleProgress: Record<string, { watchedSeconds: number; completed: boolean }>;
   /** Si el visitante es el autor sin enrollment, no se persiste progreso. */
   isAuthorPreview: boolean;
+  /**
+   * Mensaje a mostrar en el placeholder cuando no hay video reproducible
+   * (por ejemplo: HLS pending/processing para un comprador). Si es null y no
+   * hay sources, se muestra el placeholder genérico "todavía no tiene video".
+   */
+  videoUnavailableMessage?: string | null;
 }
 
 // Posiciones que va rotando el watermark cada 30s (esquinas/centro).
@@ -28,21 +47,36 @@ const WATERMARK_POSITIONS = [
   "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
 ] as const;
 
+function getHlsStatusCode(errorData: unknown) {
+  const data = errorData as {
+    response?: { code?: number };
+    networkDetails?: { status?: number };
+  };
+
+  return data.response?.code ?? data.networkDetails?.status ?? null;
+}
+
 export function CoursePlayer({
   courseId,
   courseTitle,
   modules,
   currentModuleId,
   initialWatchedSeconds,
-  videoSrc,
+  playbackType,
+  hlsSrc,
+  mp4Src,
+  mp4FallbackUrlEndpoint,
+  allowMp4Fallback = true,
   watermarkEmail,
   moduleProgress,
   isAuthorPreview,
+  videoUnavailableMessage = null,
 }: CoursePlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [watermarkIndex, setWatermarkIndex] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [progressByModule, setProgressByModule] = useState(moduleProgress);
+  const [playbackNotice, setPlaybackNotice] = useState<string | null>(null);
 
   const currentModule = useMemo(
     () => modules.find((m) => m.id === currentModuleId),
@@ -70,6 +104,300 @@ export function CoursePlayer({
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    let cancelled = false;
+    let hls: Hls | null = null;
+    let fallbackRequested = false;
+
+    const clearVideoSource = () => {
+      if (cancelled) return;
+      video.removeAttribute("src");
+      video.load();
+    };
+
+    const setVideoSource = (src: string) => {
+      if (cancelled) return;
+      video.src = src;
+      video.load();
+    };
+
+    const showAuthorizationError = () => {
+      if (cancelled) return;
+      clearVideoSource();
+      setPlaybackNotice("No tenés autorización para reproducir este video.");
+    };
+
+    const loadMp4Fallback = async (message: string) => {
+      if (cancelled || fallbackRequested) return;
+      fallbackRequested = true;
+      console.warn(message);
+
+      if (!allowMp4Fallback) {
+        clearVideoSource();
+        setPlaybackNotice(
+          "No pudimos reproducir el video. Probá recargar la página."
+        );
+        return;
+      }
+
+      if (mp4Src) {
+        setPlaybackNotice("No pudimos cargar HLS. Reproduciendo fallback MP4.");
+        setVideoSource(mp4Src);
+        return;
+      }
+
+      if (!mp4FallbackUrlEndpoint) {
+        setPlaybackNotice(message);
+        clearVideoSource();
+        return;
+      }
+
+      setPlaybackNotice("No pudimos cargar HLS. Intentando fallback MP4.");
+
+      try {
+        const response = await fetch(mp4FallbackUrlEndpoint, {
+          method: "GET",
+          cache: "no-store",
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+          },
+        });
+
+        if (cancelled) return;
+
+        if (response.status === 401 || response.status === 403) {
+          showAuthorizationError();
+          return;
+        }
+
+        if (!response.ok) {
+          clearVideoSource();
+          setPlaybackNotice("No pudimos cargar el fallback MP4.");
+          return;
+        }
+
+        const data = (await response.json().catch(() => null)) as {
+          videoUrl?: unknown;
+        } | null;
+
+        if (cancelled) return;
+
+        if (typeof data?.videoUrl !== "string" || !data.videoUrl) {
+          clearVideoSource();
+          setPlaybackNotice("No pudimos cargar el fallback MP4.");
+          return;
+        }
+
+        setPlaybackNotice("No pudimos cargar HLS. Reproduciendo fallback MP4.");
+        setVideoSource(data.videoUrl);
+      } catch {
+        if (!cancelled) {
+          clearVideoSource();
+          setPlaybackNotice("No pudimos cargar el fallback MP4.");
+        }
+      }
+    };
+
+    setPlaybackNotice(null);
+
+    if (playbackType !== "hls" || !hlsSrc) {
+      const mediaElement = video;
+      let lastRefreshAt = 0;
+      let refreshing = false;
+      const REFRESH_COOLDOWN_MS = 30_000;
+
+      const refreshMp4 = async () => {
+        if (cancelled || refreshing) return;
+        if (!mp4FallbackUrlEndpoint) {
+          setPlaybackNotice("No pudimos cargar el video.");
+          return;
+        }
+        const now = Date.now();
+        if (lastRefreshAt && now - lastRefreshAt < REFRESH_COOLDOWN_MS) {
+          setPlaybackNotice("No pudimos cargar el video. Probá recargar la página.");
+          return;
+        }
+        refreshing = true;
+        lastRefreshAt = now;
+
+        const savedTime = mediaElement.currentTime || 0;
+        const wasPlaying = !mediaElement.paused && !mediaElement.ended;
+
+        try {
+          const response = await fetch(mp4FallbackUrlEndpoint, {
+            method: "GET",
+            cache: "no-store",
+            credentials: "same-origin",
+            headers: { Accept: "application/json" },
+          });
+
+          if (cancelled) return;
+
+          if (response.status === 401 || response.status === 403) {
+            showAuthorizationError();
+            return;
+          }
+
+          if (!response.ok) {
+            setPlaybackNotice("No pudimos renovar el video.");
+            return;
+          }
+
+          const data = (await response.json().catch(() => null)) as {
+            videoUrl?: unknown;
+          } | null;
+
+          if (cancelled) return;
+
+          if (typeof data?.videoUrl !== "string" || !data.videoUrl) {
+            setPlaybackNotice("No pudimos renovar el video.");
+            return;
+          }
+
+          const onReady = () => {
+            mediaElement.removeEventListener("loadedmetadata", onReady);
+            if (cancelled) return;
+            try {
+              mediaElement.currentTime = Math.max(0, savedTime - 1);
+            } catch {
+              // Ignorar si el browser no permite seek inmediato.
+            }
+            if (wasPlaying) {
+              void mediaElement.play().catch(() => {
+                // Autoplay puede ser bloqueado; el usuario podrá darle play manual.
+              });
+            }
+          };
+
+          mediaElement.addEventListener("loadedmetadata", onReady, { once: true });
+          setPlaybackNotice(null);
+          setVideoSource(data.videoUrl);
+        } catch {
+          if (!cancelled) {
+            setPlaybackNotice("No pudimos renovar el video.");
+          }
+        } finally {
+          refreshing = false;
+        }
+      };
+
+      const onMp4Error = () => {
+        if (cancelled) return;
+        void refreshMp4();
+      };
+
+      if (mp4Src) {
+        mediaElement.addEventListener("error", onMp4Error);
+        setVideoSource(mp4Src);
+      } else {
+        clearVideoSource();
+      }
+
+      return () => {
+        cancelled = true;
+        mediaElement.removeEventListener("error", onMp4Error);
+      };
+    }
+
+    const hlsSource = hlsSrc;
+    const mediaElement = video;
+
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      const onNativeError = () => {
+        if (cancelled) return;
+        video.removeEventListener("error", onNativeError);
+        void loadMp4Fallback("No pudimos cargar HLS nativo.");
+      };
+
+      const setupNativeHls = async () => {
+        try {
+          const response = await fetch(hlsSource, {
+            method: "GET",
+            cache: "no-store",
+            credentials: "same-origin",
+          });
+
+          if (cancelled) return;
+
+          if (response.status === 401 || response.status === 403) {
+            showAuthorizationError();
+            return;
+          }
+
+          if (!response.ok) {
+            void loadMp4Fallback(
+              `No pudimos cargar HLS. Status: ${response.status}.`
+            );
+            return;
+          }
+
+          mediaElement.addEventListener("error", onNativeError);
+          setVideoSource(hlsSource);
+        } catch {
+          if (!cancelled) {
+            void loadMp4Fallback("No pudimos cargar HLS nativo.");
+          }
+        }
+      };
+
+      void setupNativeHls();
+
+      return () => {
+        cancelled = true;
+        mediaElement.removeEventListener("error", onNativeError);
+      };
+    }
+
+    async function setupHlsJs() {
+      try {
+        const HlsConstructor = (await import("hls.js")).default;
+        if (cancelled) return;
+
+        if (!HlsConstructor.isSupported()) {
+          void loadMp4Fallback("HLS no está soportado en este navegador.");
+          return;
+        }
+
+        hls = new HlsConstructor();
+        hls.on(HlsConstructor.Events.ERROR, (_event, data) => {
+          if (!data.fatal) return;
+
+          const statusCode = getHlsStatusCode(data);
+          hls?.destroy();
+          hls = null;
+
+          if (statusCode === 401 || statusCode === 403) {
+            showAuthorizationError();
+            return;
+          }
+
+          void loadMp4Fallback(
+            statusCode
+              ? `No pudimos cargar HLS. Status: ${statusCode}.`
+              : "No pudimos cargar HLS."
+          );
+        });
+        hls.loadSource(hlsSource);
+        hls.attachMedia(mediaElement);
+      } catch {
+        if (!cancelled) {
+          void loadMp4Fallback("No pudimos inicializar HLS.");
+        }
+      }
+    }
+
+    void setupHlsJs();
+
+    return () => {
+      cancelled = true;
+      hls?.destroy();
+    };
+  }, [allowMp4Fallback, currentModuleId, hlsSrc, mp4FallbackUrlEndpoint, mp4Src, playbackType]);
+
   // Setear posición inicial del video al watched_seconds previo.
   useEffect(() => {
     const video = videoRef.current;
@@ -87,7 +415,7 @@ export function CoursePlayer({
     else video.addEventListener("loadedmetadata", apply, { once: true });
 
     return () => video.removeEventListener("loadedmetadata", apply);
-  }, [initialWatchedSeconds]);
+  }, [currentModuleId, initialWatchedSeconds]);
 
   // Persistir progreso cada 10s mientras se reproduce.
   useEffect(() => {
@@ -184,10 +512,9 @@ export function CoursePlayer({
           </nav>
 
           <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-black shadow-sm dark:border-white/10">
-            {videoSrc ? (
+            {hlsSrc || mp4Src ? (
               <video
                 ref={videoRef}
-                src={videoSrc}
                 controls
                 controlsList="nodownload"
                 playsInline
@@ -196,7 +523,8 @@ export function CoursePlayer({
               />
             ) : (
               <div className="flex aspect-video w-full items-center justify-center bg-black px-6 text-center text-sm font-semibold text-white/80">
-                Este módulo todavía no tiene video cargado.
+                {videoUnavailableMessage ??
+                  "Este módulo todavía no tiene video cargado."}
               </div>
             )}
             {/* Watermark overlay: rota posición cada 30s, no interactúa con controles */}
@@ -214,6 +542,11 @@ export function CoursePlayer({
               </div>
             )}
           </div>
+          {playbackNotice && (
+            <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">
+              {playbackNotice}
+            </p>
+          )}
 
           <div className="mt-5">
             <p className="text-sm font-semibold text-accent-700 dark:text-accent-100">

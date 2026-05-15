@@ -107,5 +107,86 @@ export async function POST(
     await deleteCourseVideo(courseModule.video_storage_key).catch(() => undefined);
   }
 
+  await enqueueHlsAsset({ admin, moduleId, storageKey }).catch((err) => {
+    console.error(
+      "[video confirm] enqueue HLS asset failed:",
+      err instanceof Error ? err.message : err
+    );
+  });
+
   return NextResponse.json({ ok: true, storage_key: storageKey });
+}
+
+type ExistingAssetRow = {
+  id: string;
+  processing_status: "pending" | "processing" | "ready" | "failed";
+  is_active: boolean;
+  original_video_storage_key: string | null;
+};
+
+async function enqueueHlsAsset({
+  admin,
+  moduleId,
+  storageKey,
+}: {
+  admin: ReturnType<typeof createAdminClient>;
+  moduleId: string;
+  storageKey: string;
+}) {
+  const { data: existing, error: listError } = await admin
+    .from("course_video_assets")
+    .select("id, processing_status, is_active, original_video_storage_key")
+    .eq("module_id", moduleId);
+
+  if (listError) {
+    throw new Error(listError.message);
+  }
+
+  const rows = (existing ?? []) as ExistingAssetRow[];
+  const sameKey = rows.filter(
+    (a) => a.original_video_storage_key === storageKey
+  );
+
+  const sameKeyInFlight = sameKey.find(
+    (a) => a.processing_status === "pending" || a.processing_status === "processing"
+  );
+  const sameKeyActiveReady = sameKey.find(
+    (a) => a.processing_status === "ready" && a.is_active === true
+  );
+
+  if (sameKeyInFlight || sameKeyActiveReady) {
+    return;
+  }
+
+  const staleInFlight = rows.filter(
+    (a) =>
+      (a.processing_status === "pending" || a.processing_status === "processing") &&
+      a.original_video_storage_key !== storageKey
+  );
+
+  for (const stale of staleInFlight) {
+    await admin
+      .from("course_video_assets")
+      .update({
+        processing_status: "failed",
+        error_message: "superseded by new upload",
+        is_active: false,
+      })
+      .eq("id", stale.id)
+      .in("processing_status", ["pending", "processing"]);
+  }
+
+  const { error: insertError } = await admin
+    .from("course_video_assets")
+    .insert({
+      module_id: moduleId,
+      original_video_storage_key: storageKey,
+      processing_status: "pending",
+      is_active: false,
+      error_message: null,
+    });
+
+  if (insertError) {
+    throw new Error(insertError.message);
+  }
 }

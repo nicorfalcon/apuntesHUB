@@ -96,7 +96,7 @@ export default async function CoursePage({
   const { data: rawCourse } = await supabase
     .from("recorded_courses")
     .select(
-      "*, profiles!author_id(id, display_name, avatar_url, university, career), subjects(id, name, university, career), course_modules(id, position, title, description, duration_seconds, video_storage_key)"
+      "*, profiles!author_id(id, display_name, avatar_url, university, career), subjects(id, name, university, career), course_modules(id, position, title, description, duration_seconds)"
     )
     .eq("id", id)
     .is("deleted_at", null)

@@ -9,7 +9,9 @@
     "dev": "npm run dev -w @apunteshub/web",
     "build": "npm run build -w @apunteshub/web",
     "start": "npm run start -w @apunteshub/web",
-    "lint": "npm run lint -w @apunteshub/web"
+    "lint": "npm run lint -w @apunteshub/web",
+    "hls:convert": "node apps/web/scripts/convert-course-video-hls.mjs",
+    "hls:process-pending": "node apps/web/scripts/process-pending-hls.mjs"
   },
   "devDependencies": {
     "supabase": "^2.98.0"

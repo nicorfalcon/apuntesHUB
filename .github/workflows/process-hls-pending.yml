@@ -1,0 +1,68 @@
+# Procesa assets HLS pending generados por uploads de video.
+#
+# Disparadores:
+#   - schedule: corre cada 15 minutos (cron en UTC).
+#   - workflow_dispatch: permite correrlo manualmente desde la UI de GitHub
+#     Actions o con `gh workflow run process-hls-pending.yml`.
+#
+# Secrets requeridos (Settings → Secrets and variables → Actions):
+#   - SUPABASE_SERVICE_ROLE_KEY    (service role; nunca exponer al cliente)
+#   - NEXT_PUBLIC_SUPABASE_URL     (o SUPABASE_URL si lo preferís)
+#   - B2_BUCKET_NAME
+#   - B2_ENDPOINT
+#   - B2_REGION
+#   - B2_ACCESS_KEY_ID
+#   - B2_SECRET_ACCESS_KEY
+#
+# El worker (`npm run hls:process-pending`) usa la lib de
+# `apps/web/scripts/lib/hls-conversion.mjs`: reclama assets en estado
+# 'pending', genera HLS AES-128 con FFmpeg, sube a B2 y marca 'ready' (o
+# 'failed' con error_message). Si no hay assets pending, termina OK.
+#
+# Importante: no imprimir secrets. El workflow no hace echo de variables
+# sensibles y los logs del worker tampoco lo hacen.
+
+name: process-hls-pending
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+concurrency:
+  group: process-hls-pending
+  cancel-in-progress: false
+
+jobs:
+  run-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          ffmpeg -version | head -n 1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Process pending HLS assets
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+          B2_ENDPOINT: ${{ secrets.B2_ENDPOINT }}
+          B2_REGION: ${{ secrets.B2_REGION }}
+          B2_ACCESS_KEY_ID: ${{ secrets.B2_ACCESS_KEY_ID }}
+          B2_SECRET_ACCESS_KEY: ${{ secrets.B2_SECRET_ACCESS_KEY }}
+        run: npm run hls:process-pending
