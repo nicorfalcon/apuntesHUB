@@ -8,7 +8,7 @@ const BATCH_LIMIT = 96;
 // Quita diacríticos antes de vectorizar para que "Le Chatelier" y "Le Châtelier"
 // produzcan embeddings compatibles. El contenido original se guarda sin tocar en la DB.
 function normalizeForEmbedding(text: string): string {
-  return text.normalize("NFD").replace(/\p{Mn}/gu, "");
+  return text.normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
 function getClient(): CohereClient {
