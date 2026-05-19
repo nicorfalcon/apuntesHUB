@@ -271,6 +271,11 @@ export function ExploreTabs({
   const [tutorAvailability, setTutorAvailability] =
     useState<TutorAvailabilityFilter>("all");
   const [tutorRateRange, setTutorRateRange] = useState<TutorRateRange>("all");
+  const [aiSearch, setAiSearch] = useState(false);
+  const [aiResultIds, setAiResultIds] = useState<string[] | null>(null);
+  const [aiScores, setAiScores] = useState<Record<string, number>>({});
+  const [aiSearchLoading, setAiSearchLoading] = useState(false);
+
   const [courseQuery, setCourseQuery] = useState("");
   const [selectedCourseTypes, setSelectedCourseTypes] = useState<
     Set<CourseTypeFilter>
@@ -291,6 +296,55 @@ export function ExploreTabs({
       .filter((career) => career.toLowerCase().includes(needle));
     if (matchedCareers.length > 0) setSelectedCareers(new Set(matchedCareers));
   }, [initialCareer, resumes]);
+
+  useEffect(() => {
+    if (!aiSearch || !query.trim()) {
+      setAiResultIds(null);
+      setAiScores({});
+      setAiSearchLoading(false);
+      return;
+    }
+
+    setAiSearchLoading(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/ai/browse-search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: query.trim() }),
+        });
+
+        if (!res.ok) {
+          setAiResultIds([]);
+          return;
+        }
+
+        const data = await res.json();
+        const results: Array<{ resumeId: string; similarity: number }> =
+          data.results ?? [];
+
+        setAiResultIds(results.map((r) => r.resumeId));
+        setAiScores(
+          Object.fromEntries(results.map((r) => [r.resumeId, r.similarity]))
+        );
+      } catch {
+        setAiResultIds([]);
+      } finally {
+        setAiSearchLoading(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [query, aiSearch]);
+
+  function handleAiSearchChange(value: boolean) {
+    setAiSearch(value);
+    if (!value) {
+      setAiResultIds(null);
+      setAiScores({});
+    }
+  }
 
   const purchasedSet = useMemo(() => new Set(purchasedIds), [purchasedIds]);
 
@@ -334,49 +388,53 @@ export function ExploreTabs({
   );
 
   const filteredResumes = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const visible = resumes.filter((resume) => {
-      if (
-        selectedUniversities.size > 0 &&
-        !selectedUniversities.has(resume.university)
-      ) {
-        return false;
-      }
-      if (selectedCareers.size > 0 && !selectedCareers.has(resume.career)) {
-        return false;
-      }
-      if (selectedSubjects.size > 0 && !selectedSubjects.has(resume.subject)) {
-        return false;
-      }
-      if (!matchesPriceRange(Number(resume.price), priceRange)) return false;
+    let result = [...resumes];
 
-      if (normalizedQuery) {
-        const sellerName = resume.profiles?.display_name ?? "";
-        const haystack = [
-          resume.title,
-          resume.subject,
-          resume.university,
-          resume.career,
-          sellerName,
-        ]
-          .join(" ")
-          .toLowerCase();
-        if (!haystack.includes(normalizedQuery)) return false;
+    if (aiSearch) {
+      if (aiResultIds === null) {
+        result = query.trim() ? [] : result;
+      } else if (aiResultIds.length === 0) {
+        result = [];
+      } else {
+        const idSet = new Set(aiResultIds);
+        result = result.filter((r) => idSet.has(r.id));
+        result.sort((a, b) => (aiScores[b.id] ?? 0) - (aiScores[a.id] ?? 0));
       }
+    } else {
+      const normalizedQuery = query.trim().toLowerCase();
+      result = result.filter((resume) => {
+        if (
+          selectedUniversities.size > 0 &&
+          !selectedUniversities.has(resume.university)
+        ) return false;
+        if (selectedCareers.size > 0 && !selectedCareers.has(resume.career)) return false;
+        if (selectedSubjects.size > 0 && !selectedSubjects.has(resume.subject)) return false;
+        if (!matchesPriceRange(Number(resume.price), priceRange)) return false;
 
-      return true;
-    });
+        if (normalizedQuery) {
+          const sellerName = resume.profiles?.display_name ?? "";
+          const haystack = [resume.title, resume.subject, resume.university, resume.career, sellerName]
+            .join(" ")
+            .toLowerCase();
+          if (!haystack.includes(normalizedQuery)) return false;
+        }
 
-    return [...visible].sort((a, b) => {
-      if (sort === "price_asc") return Number(a.price) - Number(b.price);
-      if (sort === "price_desc") return Number(b.price) - Number(a.price);
-      if (sort === "rating") {
-        const ratingDiff = Number(b.rating_avg ?? 0) - Number(a.rating_avg ?? 0);
-        if (ratingDiff !== 0) return ratingDiff;
-        return Number(b.rating_count ?? 0) - Number(a.rating_count ?? 0);
-      }
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
+        return true;
+      });
+
+      result.sort((a, b) => {
+        if (sort === "price_asc") return Number(a.price) - Number(b.price);
+        if (sort === "price_desc") return Number(b.price) - Number(a.price);
+        if (sort === "rating") {
+          const ratingDiff = Number(b.rating_avg ?? 0) - Number(a.rating_avg ?? 0);
+          if (ratingDiff !== 0) return ratingDiff;
+          return Number(b.rating_count ?? 0) - Number(a.rating_count ?? 0);
+        }
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    }
+
+    return result;
   }, [
     resumes,
     query,
@@ -385,6 +443,9 @@ export function ExploreTabs({
     selectedSubjects,
     priceRange,
     sort,
+    aiSearch,
+    aiResultIds,
+    aiScores,
   ]);
 
   const activeFilterCount =
@@ -503,6 +564,9 @@ export function ExploreTabs({
     setSelectedCareers(new Set());
     setSelectedSubjects(new Set());
     setPriceRange("all");
+    setAiSearch(false);
+    setAiResultIds(null);
+    setAiScores({});
   }
 
   function clearTutorFilters() {
@@ -613,6 +677,9 @@ export function ExploreTabs({
               onToggleSubject={(value) => toggleSetValue(setSelectedSubjects, value)}
               onPriceRangeChange={setPriceRange}
               onClear={clearFilters}
+              aiSearch={aiSearch}
+              onAiSearchChange={handleAiSearchChange}
+              aiSearchLoading={aiSearchLoading}
             />
           ) : activeTab === "particulares" ? (
             <ParticularesToolbar
@@ -703,22 +770,48 @@ export function ExploreTabs({
 
         <div className="mt-6">
           {activeTab === "apuntes" ? (
-            filteredResumes.length === 0 ? (
+            aiSearchLoading ? (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="h-[220px] animate-pulse rounded-2xl bg-gray-100 dark:bg-white/5" />
+                ))}
+              </div>
+            ) : filteredResumes.length === 0 ? (
               <div className="rounded-[28px] border border-dashed border-gray-200 bg-white/70 px-6 py-16 text-center dark:border-white/10 dark:bg-white/[0.03]">
-                <p className="text-3xl font-bold text-foreground">
-                  No encontramos apuntes
-                </p>
-                <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
-                  Probá limpiar filtros o buscar por otra materia, autor o
-                  universidad.
-                </p>
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="mt-6 rounded-full bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 dark:bg-accent-300 dark:text-[#071713]"
-                >
-                  Limpiar filtros
-                </button>
+                {aiSearch && query.trim() ? (
+                  <>
+                    <p className="text-3xl font-bold text-foreground">
+                      No encontramos apuntes sobre ese tema
+                    </p>
+                    <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
+                      Probá con otros términos o desactivá &ldquo;Buscar por tema&rdquo; para buscar por título.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleAiSearchChange(false)}
+                      className="mt-6 rounded-full border border-gray-200 px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-gray-50"
+                    >
+                      Buscar por título
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-3xl font-bold text-foreground">
+                      No encontramos apuntes
+                    </p>
+                    <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
+                      Probá limpiar filtros o buscar por otra materia, autor o
+                      universidad.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="mt-6 rounded-full bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 dark:bg-accent-300 dark:text-[#071713]"
+                    >
+                      Limpiar filtros
+                    </button>
+                  </>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
