@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     {
       query_embedding: JSON.stringify(queryEmbedding),
       match_count: 5,
-      min_similarity: 0.5,
+      min_similarity: 0.35,
       resume_ids: resumeIds,
     }
   );
