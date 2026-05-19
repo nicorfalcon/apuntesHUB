@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { Bell, CreditCard, LockKeyhole, UserRound } from "lucide-react";
+import { Bell, CreditCard, LockKeyhole, UserRound, Cpu } from "lucide-react";
 
 function AccessibilityNewIcon({ className }: { className?: string }) {
   return (
@@ -17,11 +17,13 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { ProfileForm } from "./profile-form";
 import { MpConnectSection } from "./mp-connect-section";
 import { SecuritySection } from "./security-section";
+import { ModelosIASection } from "./modelos-ia-section";
 import type { Profile } from "@/lib/database.types";
 
 type ProfileSection =
   | "profile"
   | "accessibility"
+  | "ai-models"
   | "payments"
   | "security"
   | "notifications";
@@ -48,6 +50,12 @@ const sections = [
     label: "Accesibilidad",
     description: "Tema y lectura",
     icon: AccessibilityNewIcon,
+  },
+  {
+    id: "ai-models",
+    label: "Modelos IA",
+    description: "API keys propias",
+    icon: Cpu,
   },
   {
     id: "payments",
@@ -180,6 +188,8 @@ export function ProfileSettingsShell({
         )}
 
         {activeSection === "accessibility" && <AccessibilityPanel />}
+
+        {activeSection === "ai-models" && <ModelosIASection />}
 
         {activeSection === "payments" && (
           <section>

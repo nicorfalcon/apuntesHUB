@@ -1,10 +1,15 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useAIModels } from "@/hooks/use-ai-models";
+import { ModelSelector } from "./model-selector";
+import { SourcePills } from "./source-pills";
+import type { Source } from "./source-pills";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+  sources?: Source[];
 }
 
 interface AiChatPanelProps {
@@ -38,6 +43,8 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const { models, selectedModel, setSelectedModel, loading: modelsLoading, goToAddKey } = useAIModels();
+
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading, open]);
@@ -55,13 +62,30 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q, resumeIds: [resumeId] }),
+        body: JSON.stringify({
+          query: q,
+          resumeIds: [resumeId],
+          apiKeyId: selectedModel.id,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Error desconocido");
+        // Si la key fue eliminada mientras el panel estaba abierto, caer al modelo platform
+        if (res.status === 404 && selectedModel.id !== "platform") {
+          setSelectedModel(models.find((m) => m.id === "platform") ?? selectedModel);
+          setError("La API key ya no existe. Se cambió al modelo por defecto de apuntesHUB.");
+        } else {
+          setError(data.error ?? "Error desconocido");
+        }
       } else {
-        setMessages((prev) => [...prev, { role: "assistant", content: data.answer }]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: data.answer,
+            sources: data.sources,
+          },
+        ]);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -72,7 +96,7 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
 
   return (
     <>
-      {/* Botón flotante — solo visible cuando el panel está cerrado */}
+      {/* Botón flotante */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
@@ -86,9 +110,9 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
 
       {/* Panel lateral */}
       {open && (
-        <div className="fixed right-0 top-14 z-30 flex h-[calc(100vh-56px)] w-96 flex-col border-l border-gray-200 bg-white shadow-xl">
+        <div className="fixed right-0 top-14 z-30 flex h-[calc(100vh-56px)] w-96 flex-col border-l border-gray-200 bg-white shadow-xl dark:border-white/10 dark:bg-[#0f1e1a]">
           {/* Header */}
-          <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3">
+          <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-white/10">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-foreground">Asistente IA</p>
               <p className="truncate text-xs text-gray-400">{resumeTitle}</p>
@@ -96,7 +120,7 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
             <button
               onClick={() => setOpen(false)}
               aria-label="Cerrar panel"
-              className="ml-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+              className="ml-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10"
             >
               <XIcon />
             </button>
@@ -104,45 +128,60 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
 
           {!aiReady ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400 dark:bg-white/10">
                 <SparkleIcon />
               </div>
-              <p className="text-sm font-medium text-gray-700">Apunte no procesado</p>
-              <p className="text-xs leading-relaxed text-gray-400">
+              <p className="text-sm font-medium text-gray-700 dark:text-sand-200">Apunte no procesado</p>
+              <p className="text-xs leading-relaxed text-gray-400 dark:text-sand-300/60">
                 El vendedor todavía no activó el asistente IA para este apunte.
               </p>
             </div>
           ) : (
             <>
+              {/* Selector de modelo */}
+              {!modelsLoading && (
+                <ModelSelector
+                  models={models}
+                  selected={selectedModel}
+                  onChange={setSelectedModel}
+                  onAddKey={goToAddKey}
+                />
+              )}
+
               {/* Mensajes */}
               <div className="flex-1 space-y-3 overflow-y-auto p-4">
                 {messages.length === 0 && (
-                  <p className="mt-8 text-center text-xs text-gray-400">
-                    Hacé una pregunta sobre este apunte
+                  <p className="mt-8 text-center text-xs text-gray-400 dark:text-sand-300/50">
+                    {selectedModel.hasWebSearch
+                      ? "Preguntá sobre el apunte o cualquier tema relacionado. Voy a combinar el apunte con búsqueda en internet."
+                      : "Hacé una pregunta sobre este apunte"}
                   </p>
                 )}
                 {messages.map((m, i) => (
-                  <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                  <div key={i} className={m.role === "user" ? "flex justify-end" : "flex flex-col items-start"}>
                     <div
                       className={`max-w-[85%] rounded-2xl px-3 py-2.5 text-sm ${
                         m.role === "user"
                           ? "bg-accent-600 text-white"
-                          : "border border-gray-200 bg-gray-50 text-gray-800"
+                          : "border border-gray-200 bg-gray-50 text-gray-800 dark:border-white/10 dark:bg-white/5 dark:text-sand-100"
                       }`}
                     >
                       <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
                     </div>
+                    {m.role === "assistant" && m.sources && m.sources.length > 0 && (
+                      <SourcePills sources={m.sources} />
+                    )}
                   </div>
                 ))}
                 {loading && (
                   <div className="flex justify-start">
-                    <div className="rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-400">
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-400 dark:border-white/10 dark:bg-white/5">
                       Pensando...
                     </div>
                   </div>
                 )}
                 {error && (
-                  <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-400">
                     {error}
                   </div>
                 )}
@@ -150,15 +189,19 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
               </div>
 
               {/* Input */}
-              <div className="shrink-0 border-t border-gray-100 p-3">
+              <div className="shrink-0 border-t border-gray-100 p-3 dark:border-white/10">
                 <div className="flex gap-2">
                   <input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && onSend()}
-                    placeholder="Preguntá sobre este apunte..."
+                    placeholder={
+                      selectedModel.hasWebSearch
+                        ? "Preguntá sobre el apunte o cualquier tema..."
+                        : "Preguntá sobre este apunte..."
+                    }
                     disabled={loading}
-                    className="flex-1 rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500/30 disabled:opacity-40"
+                    className="flex-1 rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500/30 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:text-sand-100 dark:placeholder:text-sand-300/40"
                   />
                   <button
                     onClick={onSend}
