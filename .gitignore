@@ -55,3 +55,6 @@ next-env.d.ts
 !/docs/device-login-flow.md
 !/docs/etapa2-codex-brief.md
 /supabase/migrations
+!/supabase/migrations/
+/supabase/migrations/*
+!/supabase/migrations/0021_material_questions.sql

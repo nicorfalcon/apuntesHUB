@@ -449,6 +449,203 @@ export type Database = {
         }
         Relationships: []
       }
+      material_answer_helpful_votes: {
+        Row: {
+          answer_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          answer_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          answer_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_answer_helpful_votes_answer_id_fkey"
+            columns: ["answer_id"]
+            isOneToOne: false
+            referencedRelation: "material_question_answers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_answer_helpful_votes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      material_question_answers: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          id: string
+          is_official: boolean
+          question_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          id?: string
+          is_official?: boolean
+          question_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          is_official?: boolean
+          question_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_question_answers_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_question_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "material_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      material_question_me_toos: {
+        Row: {
+          created_at: string
+          id: string
+          question_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          question_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          question_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_question_me_toos_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "material_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_question_me_toos_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      material_questions: {
+        Row: {
+          anchor_page: number | null
+          anchor_seconds: number | null
+          author_id: string
+          body: string
+          course_id: string | null
+          created_at: string
+          id: string
+          is_anonymous_to_buyers: boolean
+          module_id: string | null
+          resume_id: string | null
+          status: string
+          target_type: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          anchor_page?: number | null
+          anchor_seconds?: number | null
+          author_id: string
+          body: string
+          course_id?: string | null
+          created_at?: string
+          id?: string
+          is_anonymous_to_buyers?: boolean
+          module_id?: string | null
+          resume_id?: string | null
+          status?: string
+          target_type: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          anchor_page?: number | null
+          anchor_seconds?: number | null
+          author_id?: string
+          body?: string
+          course_id?: string | null
+          created_at?: string
+          id?: string
+          is_anonymous_to_buyers?: boolean
+          module_id?: string | null
+          resume_id?: string | null
+          status?: string
+          target_type?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_questions_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_questions_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "recorded_courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_questions_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "course_modules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_questions_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1190,6 +1387,51 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_answer_material_question: {
+        Args: { p_question_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      can_answer_material_target: {
+        Args: {
+          p_course_id: string | null
+          p_resume_id: string | null
+          p_target_type: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
+      can_ask_material_question: {
+        Args: {
+          p_course_id: string | null
+          p_resume_id: string | null
+          p_target_type: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
+      can_react_to_material_answer: {
+        Args: { p_answer_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      can_react_to_material_question: {
+        Args: { p_question_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      can_view_material_answer: {
+        Args: { p_question_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      can_view_material_question: {
+        Args: {
+          p_author_id: string
+          p_course_id: string | null
+          p_resume_id: string | null
+          p_status: string
+          p_target_type: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
       can_view_recorded_course: {
         Args: { p_course_id: string; p_user_id: string }
         Returns: boolean
@@ -1250,8 +1492,16 @@ export type Database = {
         Args: { p_course_id: string; p_user_id: string }
         Returns: boolean
       }
+      has_completed_resume_purchase: {
+        Args: { p_resume_id: string; p_user_id: string }
+        Returns: boolean
+      }
       is_recorded_course_author: {
         Args: { p_course_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      is_resume_seller: {
+        Args: { p_resume_id: string; p_user_id: string }
         Returns: boolean
       }
       purchase_resume: { Args: { p_resume_id: string }; Returns: Json }
@@ -1466,3 +1716,14 @@ export type CourseEnrollment = Database["public"]["Tables"]["course_enrollments"
 export type CourseProgress = Database["public"]["Tables"]["course_progress"]["Row"]
 export type CourseReview = Database["public"]["Tables"]["course_reviews"]["Row"]
 export type CourseVideoAsset = Database["public"]["Tables"]["course_video_assets"]["Row"]
+
+// ============================================
+// Tipos derivados — consultas privadas por material
+// ============================================
+export type MaterialQuestion = Database["public"]["Tables"]["material_questions"]["Row"]
+export type MaterialQuestionAnswer =
+  Database["public"]["Tables"]["material_question_answers"]["Row"]
+export type MaterialQuestionMeToo =
+  Database["public"]["Tables"]["material_question_me_toos"]["Row"]
+export type MaterialAnswerHelpfulVote =
+  Database["public"]["Tables"]["material_answer_helpful_votes"]["Row"]

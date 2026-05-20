@@ -65,6 +65,22 @@ export default async function ResumePage({
     .order("created_at", { ascending: false })
     .limit(10);
 
+  const [{ count: privateQuestionCount }, { count: answeredQuestionCount }] =
+    await Promise.all([
+      admin
+        .from("material_questions")
+        .select("*", { count: "exact", head: true })
+        .eq("target_type", "resume")
+        .eq("resume_id", id)
+        .neq("status", "hidden"),
+      admin
+        .from("material_questions")
+        .select("*", { count: "exact", head: true })
+        .eq("target_type", "resume")
+        .eq("resume_id", id)
+        .in("status", ["answered", "resolved"]),
+    ]);
+
   const isOwnResume = user?.id === resumeWithSeller.seller_id;
 
   return (
@@ -174,6 +190,23 @@ export default async function ResumePage({
                 <span className="font-medium">{resumeWithSeller.subject}</span>
               </div>
             </div>
+
+            {((privateQuestionCount ?? 0) > 0 || (answeredQuestionCount ?? 0) > 0) && (
+              <div className="space-y-2 border-t border-gray-100 pt-4 text-sm">
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-500">Consultas privadas</span>
+                  <span className="text-right font-medium">
+                    Incluye {privateQuestionCount ?? 0}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-gray-500">Respondidas</span>
+                  <span className="text-right font-medium">
+                    {answeredQuestionCount ?? 0} por el autor
+                  </span>
+                </div>
+              </div>
+            )}
 
             <div className="border-t border-gray-100 pt-4">
               <div className="text-2xl font-bold text-accent-700">

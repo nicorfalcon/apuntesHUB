@@ -9,6 +9,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { StarRating } from "@/components/ui/star-rating";
 import { EnrollButton } from "@/components/courses/enroll-button";
 import { CourseReviewsSection } from "@/components/courses/course-reviews-section";
@@ -199,6 +200,23 @@ export default async function CoursePage({
     .order("created_at", { ascending: false })
     .limit(20);
 
+  const admin = createAdminClient();
+  const [{ count: privateQuestionCount }, { count: answeredQuestionCount }] =
+    await Promise.all([
+      admin
+        .from("material_questions")
+        .select("*", { count: "exact", head: true })
+        .eq("target_type", "course")
+        .eq("course_id", course.id)
+        .neq("status", "hidden"),
+      admin
+        .from("material_questions")
+        .select("*", { count: "exact", head: true })
+        .eq("target_type", "course")
+        .eq("course_id", course.id)
+        .in("status", ["answered", "resolved"]),
+    ]);
+
   type ReviewRow = {
     id: string;
     rating: number;
@@ -376,6 +394,23 @@ export default async function CoursePage({
                   </div>
                 </div>
               </div>
+
+              {((privateQuestionCount ?? 0) > 0 || (answeredQuestionCount ?? 0) > 0) && (
+                <div className="mt-6 space-y-2 border-t border-gray-100 pt-5 text-sm dark:border-white/10">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Consultas privadas</span>
+                    <span className="text-right font-semibold text-foreground">
+                      Incluye {privateQuestionCount ?? 0}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Respondidas</span>
+                    <span className="text-right font-semibold text-foreground">
+                      {answeredQuestionCount ?? 0} por el autor
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {enrollment?.status === "completed" && !isAuthor && (
                 <div className="mt-6 border-t border-gray-100 pt-5 dark:border-white/10">

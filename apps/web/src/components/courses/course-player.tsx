@@ -11,6 +11,7 @@ import {
   PlayCircle,
   RefreshCw,
 } from "lucide-react";
+import { MaterialQuestionsPanel } from "@/components/material-questions";
 import { formatDuration } from "./format";
 import type { CourseModuleSummary } from "./types";
 import type Hls from "hls.js";
@@ -309,6 +310,7 @@ export function CoursePlayer({
   const [completed, setCompleted] = useState(false);
   const [progressByModule, setProgressByModule] = useState(moduleProgress);
   const [playbackNotice, setPlaybackNotice] = useState<string | null>(null);
+  const [currentSecond, setCurrentSecond] = useState(initialWatchedSeconds);
 
   const currentModule = useMemo(
     () => modules.find((m) => m.id === currentModuleId),
@@ -327,6 +329,22 @@ export function CoursePlayer({
   useEffect(() => {
     setCompleted(Boolean(moduleProgress[currentModuleId]?.completed));
   }, [currentModuleId, moduleProgress]);
+
+  useEffect(() => {
+    setCurrentSecond(initialWatchedSeconds);
+  }, [currentModuleId, initialWatchedSeconds]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleTimeUpdate = () => {
+      setCurrentSecond(Math.max(0, Math.floor(video.currentTime || 0)));
+    };
+
+    video.addEventListener("timeupdate", handleTimeUpdate);
+    return () => video.removeEventListener("timeupdate", handleTimeUpdate);
+  }, [currentModuleId, hlsSrc, mp4Src]);
 
   // Rotar la posición del watermark cada 30s.
   useEffect(() => {
@@ -729,6 +747,18 @@ export function CoursePlayer({
 
   if (!currentModule) return null;
 
+  const jumpToSecond = (seconds: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    try {
+      video.currentTime = Math.max(0, seconds);
+      void video.play().catch(() => undefined);
+    } catch {
+      // Si el browser todavía no cargó metadata, el usuario puede reintentar.
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 lg:flex-row lg:py-10">
@@ -818,6 +848,15 @@ export function CoursePlayer({
               </div>
             )}
           </div>
+
+          <MaterialQuestionsPanel
+            targetType="course"
+            courseId={courseId}
+            currentModuleId={currentModuleId}
+            currentSeconds={currentSecond}
+            onJumpToSeconds={jumpToSecond}
+            className="mt-8"
+          />
         </div>
 
         <aside className="lg:w-80 lg:shrink-0">

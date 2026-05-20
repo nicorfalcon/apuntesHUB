@@ -8,15 +8,21 @@ import {
   BookOpen,
   GraduationCap,
   Library,
+  MessageCircleQuestion,
   PlayCircle,
   Plus,
   WalletCards,
 } from "lucide-react";
 
-type DashboardTab = "apuntes" | "cursos" | "clases";
+type DashboardTab = "apuntes" | "cursos" | "consultas" | "clases";
 
 function normalizeDashboardTab(value: string | null): DashboardTab | null {
-  if (value === "apuntes" || value === "cursos" || value === "clases") {
+  if (
+    value === "apuntes" ||
+    value === "cursos" ||
+    value === "consultas" ||
+    value === "clases"
+  ) {
     return value;
   }
   return null;
@@ -31,11 +37,14 @@ interface SellerDashboardWorkspaceProps {
   totalVentasApuntes: number;
   totalVentasCursos: number;
   totalTutorias: number;
+  totalConsultas: number;
+  totalConsultasPendientes: number;
   ingresosApuntes: number;
   ingresosCursos: number;
   ingresosTutorias: number;
   apuntesContent: ReactNode;
   cursosContent: ReactNode;
+  consultasContent: ReactNode;
 }
 
 function formatMoney(value: number) {
@@ -137,11 +146,14 @@ export function SellerDashboardWorkspace({
   totalVentasApuntes,
   totalVentasCursos,
   totalTutorias,
+  totalConsultas,
+  totalConsultasPendientes,
   ingresosApuntes,
   ingresosCursos,
   ingresosTutorias,
   apuntesContent,
   cursosContent,
+  consultasContent,
 }: SellerDashboardWorkspaceProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -179,7 +191,9 @@ export function SellerDashboardWorkspace({
       ? apuntesContent
       : activeTab === "cursos"
         ? cursosContent
-        : null;
+        : activeTab === "consultas"
+          ? consultasContent
+          : null;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -295,6 +309,16 @@ export function SellerDashboardWorkspace({
                 }`}
                 icon={PlayCircle}
                 onClick={() => selectTab("cursos")}
+              />
+              <TabButton
+                active={activeTab === "consultas"}
+                label="Consultas"
+                count={totalConsultas}
+                detail={`${totalConsultasPendientes} pendiente${
+                  totalConsultasPendientes === 1 ? "" : "s"
+                }`}
+                icon={MessageCircleQuestion}
+                onClick={() => selectTab("consultas")}
               />
               {showTutorSection && (
                 <TabButton

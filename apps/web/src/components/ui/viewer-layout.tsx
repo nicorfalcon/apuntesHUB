@@ -6,6 +6,7 @@ import Image from "next/image";
 import dynamic from "next/dynamic";
 import { StarRating } from "@/components/ui/star-rating";
 import { AiChatPanel } from "@/components/ui/ai-chat-panel";
+import { MaterialQuestionsPanel } from "@/components/material-questions";
 import type { TocItem } from "@/components/ui/pdf-viewer";
 
 // Dynamic import — react-pdf solo funciona en el cliente
@@ -207,6 +208,7 @@ export function ViewerLayout({
   // null = todavía cargando; [] = sin índice; [...] = índice disponible
   const [outline, setOutline] = useState<TocItem[] | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<"contenido" | "consultas">("contenido");
 
   useEffect(() => {
     const handleFsChange = () => {
@@ -367,50 +369,82 @@ export function ViewerLayout({
 
           <div className="mx-5 h-px shrink-0 bg-gray-100" />
 
-          {/* ── Sección de contenido (TOC / descripción) ── */}
+          {/* ── Sección de contenido / consultas ── */}
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="shrink-0 px-5 pb-2 pt-4">
-              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-                Contenido
-              </p>
+            <div className="shrink-0 px-5 pb-3 pt-4">
+              <div className="grid grid-cols-2 rounded-xl bg-gray-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab("contenido")}
+                  className={`rounded-lg px-2 py-2 text-xs font-bold transition-colors ${
+                    sidebarTab === "contenido"
+                      ? "bg-white text-foreground shadow-sm"
+                      : "text-gray-500 hover:text-foreground"
+                  }`}
+                >
+                  Contenido
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab("consultas")}
+                  className={`rounded-lg px-2 py-2 text-xs font-bold transition-colors ${
+                    sidebarTab === "consultas"
+                      ? "bg-white text-foreground shadow-sm"
+                      : "text-gray-500 hover:text-foreground"
+                  }`}
+                >
+                  Consultas
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto px-3 pb-3">
-              {/* TOC cargando */}
-              {outlineLoading && (
-                <div className="space-y-1.5 px-2 pt-1">
-                  {[80, 60, 70, 55, 65].map((w, i) => (
-                    <div
-                      key={i}
-                      className="h-3 animate-pulse rounded bg-gray-100"
-                      style={{ width: `${w}%` }}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* TOC con entradas */}
-              {hasOutline && (
-                <TocList
-                  items={outline!}
-                  currentPage={currentPage}
-                  onNavigate={goTo}
-                />
-              )}
-
-              {/* Sin TOC: mostrar descripción o mensaje */}
-              {!outlineLoading && !hasOutline && (
+              {sidebarTab === "contenido" ? (
                 <>
-                  {resume.description ? (
-                    <p className="px-2 text-sm leading-relaxed text-gray-500">
-                      {resume.description}
-                    </p>
-                  ) : (
-                    <p className="px-2 text-xs text-gray-400">
-                      Este apunte no tiene índice disponible.
-                    </p>
+                  {/* TOC cargando */}
+                  {outlineLoading && (
+                    <div className="space-y-1.5 px-2 pt-1">
+                      {[80, 60, 70, 55, 65].map((w, i) => (
+                        <div
+                          key={i}
+                          className="h-3 animate-pulse rounded bg-gray-100"
+                          style={{ width: `${w}%` }}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* TOC con entradas */}
+                  {hasOutline && (
+                    <TocList
+                      items={outline!}
+                      currentPage={currentPage}
+                      onNavigate={goTo}
+                    />
+                  )}
+
+                  {/* Sin TOC: mostrar descripción o mensaje */}
+                  {!outlineLoading && !hasOutline && (
+                    <>
+                      {resume.description ? (
+                        <p className="px-2 text-sm leading-relaxed text-gray-500">
+                          {resume.description}
+                        </p>
+                      ) : (
+                        <p className="px-2 text-xs text-gray-400">
+                          Este apunte no tiene índice disponible.
+                        </p>
+                      )}
+                    </>
                   )}
                 </>
+              ) : (
+                <MaterialQuestionsPanel
+                  targetType="resume"
+                  resumeId={resumeId}
+                  currentPage={currentPage}
+                  className="px-2 pb-2"
+                />
               )}
             </div>
           </div>
