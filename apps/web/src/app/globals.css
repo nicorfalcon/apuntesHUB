@@ -66,6 +66,17 @@ select {
   transition-timing-function: ease;
 }
 
+.dark select,
+.dark option {
+  background-color: hsl(160 14% 12%);
+  color: hsl(var(--foreground));
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: hsl(156 10% 66% / 0.68);
+}
+
 .dark .bg-white {
   background-color: hsl(160 14% 12%);
 }

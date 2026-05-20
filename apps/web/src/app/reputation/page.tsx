@@ -218,14 +218,14 @@ export default async function ReputacionPage({
     : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-background">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white">
+      <div className="border-b border-gray-200 bg-white dark:border-white/10 dark:bg-[#0f1e1a]">
         <div className="mx-auto max-w-3xl px-4 py-10">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
             Reputación
           </h1>
-          <p className="mt-1.5 text-sm text-gray-500">
+          <p className="mt-1.5 text-sm text-gray-500 dark:text-sand-300/75">
             {tab === "profesor"
               ? "Cómo te ven tus alumnos de clases particulares."
               : "Cómo te ven tus compradores."}
@@ -233,7 +233,7 @@ export default async function ReputacionPage({
 
           {/* Tabs */}
           {showTutorTab && (
-            <div className="mt-6 inline-flex items-center gap-1 rounded-lg bg-gray-100 p-1">
+            <div className="mt-6 inline-flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-white/5">
               <TabLink
                 href="/reputation?tab=vendedor"
                 active={tab === "vendedor"}
@@ -252,7 +252,7 @@ export default async function ReputacionPage({
       <div className="mx-auto max-w-3xl px-4 py-10 space-y-5">
         {/* Score card */}
         {hasReviews ? (
-          <div className="rounded-2xl border border-gray-200 bg-white p-6">
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-[#0f1e1a]">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
               {/* Número grande + estrellas */}
               <div className="flex flex-col items-center sm:min-w-[128px]">
@@ -262,15 +262,15 @@ export default async function ReputacionPage({
                 <div className="mt-2">
                   <StarRating rating={active.avg} size="md" />
                 </div>
-                <span className="mt-2 text-xs text-gray-400">
+                <span className="mt-2 text-xs text-gray-400 dark:text-sand-300/65">
                   {active.count} {active.count === 1 ? "reseña" : "reseñas"}
-                  <span className="mx-1.5 text-gray-300">·</span>
+                  <span className="mx-1.5 text-gray-300 dark:text-sand-300/35">·</span>
                   {active.salesLabel}
                 </span>
               </div>
 
               {/* Separador */}
-              <div className="hidden h-20 w-px bg-gray-100 sm:block" />
+              <div className="hidden h-20 w-px bg-gray-100 dark:bg-white/10 sm:block" />
 
               {/* Barras */}
               <div className="flex-1 space-y-2.5">
@@ -281,7 +281,7 @@ export default async function ReputacionPage({
                       : 0;
                   return (
                     <div key={star} className="flex items-center gap-2.5">
-                      <span className="w-3 text-right text-xs text-gray-400">
+                      <span className="w-3 text-right text-xs text-gray-400 dark:text-sand-300/60">
                         {star}
                       </span>
                       <svg
@@ -291,13 +291,13 @@ export default async function ReputacionPage({
                       >
                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                       </svg>
-                      <div className="flex-1 overflow-hidden rounded-full bg-gray-100 h-1.5">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
                         <div
                           className="h-full rounded-full bg-amber-400 transition-all duration-500"
                           style={{ width: `${pct}%` }}
                         />
                       </div>
-                      <span className="w-5 text-right text-xs text-gray-400">
+                      <span className="w-5 text-right text-xs text-gray-400 dark:text-sand-300/60">
                         {count}
                       </span>
                     </div>
@@ -307,8 +307,8 @@ export default async function ReputacionPage({
             </div>
 
             {recommendationRate > 0 && (
-              <p className="mt-5 border-t border-gray-100 pt-4 text-xs text-gray-500">
-                <span className="font-semibold text-accent-700">
+              <p className="mt-5 border-t border-gray-100 pt-4 text-xs text-gray-500 dark:border-white/10 dark:text-sand-300/75">
+                <span className="font-semibold text-accent-700 dark:text-accent-100">
                   {recommendationRate}%
                 </span>{" "}
                 de tus {tab === "profesor" ? "alumnos" : "compradores"} te calificaron con 4 o más estrellas.
@@ -316,10 +316,10 @@ export default async function ReputacionPage({
             )}
           </div>
         ) : (
-          <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-14 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-14 text-center dark:border-white/10 dark:bg-[#0f1e1a]">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-white/5">
               <svg
-                className="h-6 w-6 text-gray-300"
+                className="h-6 w-6 text-gray-300 dark:text-sand-300/50"
                 fill="none"
                 viewBox="0 0 24 24"
                 strokeWidth={1.5}
@@ -335,11 +335,11 @@ export default async function ReputacionPage({
             <p className="mt-4 text-sm font-semibold text-foreground">
               Todavía no tenés reseñas
             </p>
-            <p className="mt-1 text-sm text-gray-400">
+            <p className="mt-1 text-sm text-gray-400 dark:text-sand-300/65">
               Cuando tus {tab === "profesor" ? "alumnos" : "compradores"} dejen reseñas, tu reputación aparecerá acá.
             </p>
             {active.emptyHint && (
-              <p className="mt-3 text-xs text-gray-400">{active.emptyHint}</p>
+              <p className="mt-3 text-xs text-gray-400 dark:text-sand-300/60">{active.emptyHint}</p>
             )}
           </div>
         )}
@@ -347,7 +347,7 @@ export default async function ReputacionPage({
         {/* Lista de reseñas */}
         {activeReviews.length > 0 && (
           <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-sand-300/60">
               Reseñas recibidas
             </p>
             <div className="space-y-3">
@@ -360,7 +360,7 @@ export default async function ReputacionPage({
                 return (
                   <div
                     key={review.id}
-                    className="rounded-xl border border-gray-200 bg-white p-4"
+                    className="rounded-xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-[#0f1e1a]"
                   >
                     <div className="flex items-start gap-3">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-50 text-sm font-semibold text-accent-700">
@@ -372,7 +372,7 @@ export default async function ReputacionPage({
                             <p className="text-sm font-medium text-foreground">
                               {review.reviewerName}
                             </p>
-                            <p className="mt-0.5 truncate text-xs text-gray-400">
+                            <p className="mt-0.5 truncate text-xs text-gray-400 dark:text-sand-300/60">
                               {subtitle}
                             </p>
                           </div>
@@ -380,12 +380,12 @@ export default async function ReputacionPage({
                         </div>
 
                         {review.comment && (
-                          <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                          <p className="mt-3 text-sm leading-relaxed text-gray-600 dark:text-sand-100/85">
                             {review.comment}
                           </p>
                         )}
 
-                        <p className="mt-2.5 text-xs text-gray-400">
+                        <p className="mt-2.5 text-xs text-gray-400 dark:text-sand-300/60">
                           {formatRelative(review.created_at)}
                           {review.updated_at && (
                             <span className="ml-1.5 italic">· editada</span>
@@ -418,8 +418,8 @@ function TabLink({
       href={href}
       className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
         active
-          ? "bg-white text-foreground shadow-sm"
-          : "text-gray-500 hover:text-gray-700"
+          ? "bg-white text-foreground shadow-sm dark:bg-accent-300/15 dark:text-accent-100"
+          : "text-gray-500 hover:text-gray-700 dark:text-sand-300/75 dark:hover:text-sand-50"
       }`}
     >
       {label}

@@ -127,11 +127,11 @@ export default function ExplorarClient({
   };
 
   const filterPanel = (
-    <div className="rounded-xl bg-gray-50 p-4">
+    <div className="rounded-xl bg-gray-50 p-4 dark:bg-white/[0.04]">
       <div className="mb-4 flex items-center justify-between">
-        <span className="font-semibold text-gray-900">Filtros</span>
+        <span className="font-semibold text-gray-900 dark:text-sand-50">Filtros</span>
         {activeTags.length > 0 && (
-          <button onClick={clearAll} className="text-sm text-gray-500 hover:text-gray-700">
+          <button onClick={clearAll} className="text-sm text-gray-500 hover:text-gray-700 dark:text-sand-300/70 dark:hover:text-sand-50">
             Limpiar todo
           </button>
         )}
@@ -142,10 +142,10 @@ export default function ExplorarClient({
           {activeTags.map((tag) => (
             <span
               key={`${tag.type}-${tag.label}`}
-              className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-700"
+              className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-sand-100"
             >
               {tag.label}
-              <button onClick={() => removeTag(tag)} className="ml-0.5 hover:text-gray-900">
+              <button onClick={() => removeTag(tag)} className="ml-0.5 hover:text-gray-900 dark:hover:text-sand-50">
                 <X className="h-3 w-3" />
               </button>
             </span>
@@ -153,16 +153,16 @@ export default function ExplorarClient({
         </div>
       )}
 
-      <hr className="mb-4 border-gray-200" />
+      <hr className="mb-4 border-gray-200 dark:border-white/10" />
 
       {/* Universidad */}
       <div className="mb-4">
         <button
           onClick={() => setUniversityOpen((v) => !v)}
-          className="flex w-full items-center justify-between py-1 text-sm font-medium text-gray-900"
+          className="flex w-full items-center justify-between py-1 text-sm font-medium text-gray-900 dark:text-sand-50"
         >
           Universidad
-          {universityOpen ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
+          {universityOpen ? <ChevronUp className="h-4 w-4 text-gray-500 dark:text-sand-300/70" /> : <ChevronDown className="h-4 w-4 text-gray-500 dark:text-sand-300/70" />}
         </button>
 
         {universityOpen && (
@@ -174,12 +174,12 @@ export default function ExplorarClient({
                 value={universitySearch}
                 onChange={(e) => setUniversitySearch(e.target.value)}
                 placeholder="Buscar universidad..."
-                className="w-full rounded-md border border-gray-200 py-1.5 pl-8 pr-3 text-sm outline-none focus:border-gray-400"
+                className="w-full rounded-md border border-gray-200 bg-white py-1.5 pl-8 pr-3 text-sm text-foreground outline-none placeholder:text-gray-400 focus:border-gray-400 dark:border-white/10 dark:bg-[#071713] dark:placeholder:text-sand-300/45 dark:focus:border-accent-300"
               />
             </div>
             <div className="space-y-1.5">
               {filteredUniversities.map(([u, count]) => (
-                <label key={u} className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+                <label key={u} className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-sand-100">
                   <input
                     type="checkbox"
                     checked={selectedUniversities.has(u)}
@@ -187,7 +187,7 @@ export default function ExplorarClient({
                     className="h-4 w-4 rounded border-gray-300 accent-[#1a4731]"
                   />
                   <span className="flex-1">{u}</span>
-                  <span className="text-gray-400">({count})</span>
+                  <span className="text-gray-400 dark:text-sand-300/60">({count})</span>
                 </label>
               ))}
             </div>
@@ -195,22 +195,22 @@ export default function ExplorarClient({
         )}
       </div>
 
-      <hr className="mb-4 border-gray-200" />
+      <hr className="mb-4 border-gray-200 dark:border-white/10" />
 
       {/* Carrera */}
       <div className="mb-4">
         <button
           onClick={() => setCareerOpen((v) => !v)}
-          className="flex w-full items-center justify-between py-1 text-sm font-medium text-gray-900"
+          className="flex w-full items-center justify-between py-1 text-sm font-medium text-gray-900 dark:text-sand-50"
         >
           Carrera
-          {careerOpen ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
+          {careerOpen ? <ChevronUp className="h-4 w-4 text-gray-500 dark:text-sand-300/70" /> : <ChevronDown className="h-4 w-4 text-gray-500 dark:text-sand-300/70" />}
         </button>
 
         {careerOpen && (
           <div className="mt-2 space-y-1.5">
             {Array.from(careerCounts.entries()).map(([c, count]) => (
-              <label key={c} className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+              <label key={c} className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-sand-100">
                 <input
                   type="checkbox"
                   checked={selectedCareers.has(c)}
@@ -218,7 +218,7 @@ export default function ExplorarClient({
                   className="h-4 w-4 rounded border-gray-300 accent-[#1a4731]"
                 />
                 <span className="flex-1">{c}</span>
-                <span className="text-gray-400">({count})</span>
+                <span className="text-gray-400 dark:text-sand-300/60">({count})</span>
               </label>
             ))}
           </div>
@@ -228,12 +228,12 @@ export default function ExplorarClient({
   );
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-background">
       <div className="mx-auto max-w-7xl px-4 py-10">
         {/* Page header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Explorar apuntes</h1>
-          <p className="mt-1 text-gray-500">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-sand-50">Explorar apuntes</h1>
+          <p className="mt-1 text-gray-500 dark:text-sand-300/75">
             Encontrá el material que necesitás para tu próximo examen.
           </p>
         </div>
@@ -242,7 +242,7 @@ export default function ExplorarClient({
         <div className="mb-4 lg:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:text-sand-100 dark:hover:bg-white/10"
           >
             <SlidersHorizontal className="h-4 w-4" />
             Filtros
@@ -261,10 +261,10 @@ export default function ExplorarClient({
               className="fixed inset-0 z-40 bg-black/40 lg:hidden"
               onClick={() => setSidebarOpen(false)}
             />
-            <div className="fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto bg-white p-5 shadow-xl lg:hidden">
+            <div className="fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto bg-white p-5 shadow-xl dark:bg-[#0f1e1a] dark:shadow-black/35 lg:hidden">
               <div className="mb-4 flex items-center justify-between">
-                <span className="text-base font-semibold text-gray-900">Filtros</span>
-                <button onClick={() => setSidebarOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <span className="text-base font-semibold text-gray-900 dark:text-sand-50">Filtros</span>
+                <button onClick={() => setSidebarOpen(false)} className="text-gray-400 hover:text-gray-600 dark:text-sand-300/70 dark:hover:text-sand-50">
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -297,21 +297,21 @@ export default function ExplorarClient({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Buscar apuntes por tema o autor..."
-                  className="w-full rounded-full border border-gray-200 py-2.5 pl-11 pr-4 text-sm outline-none focus:border-gray-300"
+                className="w-full rounded-full border border-gray-200 bg-white py-2.5 pl-11 pr-4 text-sm text-foreground outline-none placeholder:text-gray-400 focus:border-gray-300 dark:border-white/10 dark:bg-[#071713] dark:placeholder:text-sand-300/45 dark:focus:border-accent-300"
                 />
               </div>
             </div>
 
             {/* Count */}
-            <p className="mb-5 text-sm text-gray-500">
+            <p className="mb-5 text-sm text-gray-500 dark:text-sand-300/75">
               Mostrando{" "}
-              <span className="font-bold text-gray-900">{filteredResumes.length}</span>{" "}
+              <span className="font-bold text-gray-900 dark:text-sand-50">{filteredResumes.length}</span>{" "}
               de {resumes.length} apuntes
             </p>
 
             {/* Grid */}
             {filteredResumes.length === 0 ? (
-              <div className="py-16 text-center text-gray-400">
+              <div className="py-16 text-center text-gray-400 dark:text-sand-300/65">
                 <p className="text-lg">No se encontraron apuntes.</p>
                 <p className="mt-1 text-sm">Intentá con otros filtros.</p>
                 <Link

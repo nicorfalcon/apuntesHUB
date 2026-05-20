@@ -13,6 +13,7 @@ export function AnswerComposer({
   const [body, setBody] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const textareaId = `material-answer-${questionId}`;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,24 +48,36 @@ export function AnswerComposer({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 space-y-2">
+    <form
+      onSubmit={handleSubmit}
+      className="mt-3 rounded-xl border border-gray-100 bg-gray-50/70 p-3 dark:border-white/10 dark:bg-white/[0.035]"
+    >
+      <label
+        htmlFor={textareaId}
+        className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground"
+      >
+        Respuesta oficial
+      </label>
       <textarea
+        id={textareaId}
         value={body}
         onChange={(event) => setBody(event.target.value)}
         maxLength={4000}
         rows={3}
-        placeholder="Responder oficialmente..."
-        className="min-h-[92px] w-full resize-y rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm leading-6 text-foreground outline-none transition-colors placeholder:text-gray-400 focus:border-accent-500 dark:border-white/10 dark:bg-white/[0.04]"
+        placeholder="Escribí una respuesta clara para todos los compradores."
+        className="mt-2 min-h-[88px] w-full resize-y rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm leading-6 text-foreground outline-none transition-colors placeholder:text-gray-400 focus:border-accent-400 dark:border-white/10 dark:bg-white/[0.04]"
       />
       {error && <p className="text-xs font-medium text-red-600">{error}</p>}
-      <button
-        type="submit"
-        disabled={isSubmitting || body.trim().length === 0}
-        className="inline-flex items-center gap-2 rounded-xl bg-accent-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-accent-300 dark:text-[#071713]"
-      >
-        <SendHorizontal className="h-4 w-4" />
-        {isSubmitting ? "Publicando..." : "Responder"}
-      </button>
+      <div className="mt-2 flex justify-end">
+        <button
+          type="submit"
+          disabled={isSubmitting || body.trim().length === 0}
+          className="inline-flex items-center gap-2 rounded-xl bg-accent-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-accent-300 dark:text-[#071713]"
+        >
+          <SendHorizontal className="h-4 w-4" />
+          {isSubmitting ? "Publicando..." : "Responder"}
+        </button>
+      </div>
     </form>
   );
 }

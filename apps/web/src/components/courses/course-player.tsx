@@ -855,7 +855,8 @@ export function CoursePlayer({
             currentModuleId={currentModuleId}
             currentSeconds={currentSecond}
             onJumpToSeconds={jumpToSecond}
-            className="mt-8"
+            surface="embedded"
+            className="mt-7 max-w-4xl"
           />
         </div>
 

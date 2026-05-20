@@ -530,6 +530,51 @@ export type Database = {
           },
         ]
       }
+      material_question_followups: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          id: string
+          question_id: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          id?: string
+          question_id: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          question_id?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_question_followups_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_question_followups_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "material_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       material_question_me_toos: {
         Row: {
           created_at: string

@@ -15,7 +15,7 @@ interface PriceFormProps {
 }
 
 const inputClass =
-  "mt-1 w-full rounded-[9px] border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm outline-none transition-colors focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20";
+  "mt-1 w-full rounded-[9px] border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-gray-400 focus:border-accent-500 focus:ring-2 focus:ring-accent-500/20 dark:border-white/15 dark:bg-white/[0.04] dark:placeholder:text-sand-300/45 dark:focus:border-accent-300 dark:focus:ring-accent-300/15";
 
 export function PriceForm({
   resumeId,
@@ -68,20 +68,20 @@ export function PriceForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Info card */}
-      <div className="rounded-xl border border-gray-200 bg-white p-4">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
         <h3 className="text-sm font-semibold text-foreground">{resumeTitle}</h3>
-        <p className="mt-0.5 text-xs text-gray-400">
+        <p className="mt-0.5 text-xs text-gray-400 dark:text-sand-300/65">
           {resumeSubject} · {resumeUniversity}
         </p>
       </div>
 
       {/* Price input */}
-      <div className="rounded-xl border border-gray-200 bg-white p-5">
-        <label htmlFor="price" className="block text-sm font-medium text-gray-700">
+      <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
+        <label htmlFor="price" className="block text-sm font-medium text-gray-700 dark:text-sand-100">
           Precio en pesos (ARS)
         </label>
         <div className="relative mt-1">
-          <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-medium text-gray-500">
+          <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-medium text-gray-500 dark:text-sand-300/70">
             $
           </span>
           <input
@@ -97,17 +97,17 @@ export function PriceForm({
           />
         </div>
         {price && !isNaN(parseFloat(price)) && (
-          <p className="mt-1.5 text-xs text-gray-400">
-            Precio mostrado: <span className="font-medium text-gray-600">${formatDisplay(price)} ARS</span>
+          <p className="mt-1.5 text-xs text-gray-400 dark:text-sand-300/65">
+            Precio mostrado: <span className="font-medium text-gray-600 dark:text-sand-100">${formatDisplay(price)} ARS</span>
           </p>
         )}
-        <p className="mt-2 text-xs text-gray-400">
-          Recibís el <span className="font-medium text-accent-700">90%</span> de cada venta. La plataforma retiene un 10% de comisión.
+        <p className="mt-2 text-xs text-gray-400 dark:text-sand-300/65">
+          Recibís el <span className="font-medium text-accent-700 dark:text-accent-100">90%</span> de cada venta. La plataforma retiene un 10% de comisión.
           Precio mínimo recomendado: $500 ARS. Podés publicar gratis ingresando 0.
         </p>
 
-        <div className="mt-4 border-t border-gray-100 pt-4">
-          <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+        <div className="mt-4 border-t border-gray-100 pt-4 dark:border-white/10">
+          <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-sand-100">
             Estado de la publicación
           </label>
           <select
@@ -124,7 +124,7 @@ export function PriceForm({
       </div>
 
       {error && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-200">{error}</p>
       )}
 
       {/* Actions */}
@@ -132,16 +132,16 @@ export function PriceForm({
         <button
           type="button"
           onClick={() => router.push("/sell/dashboard")}
-          className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-white/15 dark:text-sand-100 dark:hover:bg-white/5"
         >
           Cancelar
         </button>
         <button
           type="submit"
           disabled={loading}
-          className="rounded-lg bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-lg bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
         >
-          {loading ? "Guardando..." : "Guardar cambios"}
+          {loading ? "Guardando…" : "Guardar cambios"}
         </button>
       </div>
     </form>

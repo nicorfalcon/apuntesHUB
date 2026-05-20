@@ -6,6 +6,7 @@ import {
   getQuestionAccess,
   type MaterialQuestionsClient,
 } from "@/lib/material-questions";
+import { notifyBuyersOfMaterialQuestionAnswer } from "@/lib/email/material-question-notifications";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -64,5 +65,12 @@ export async function POST(
     });
 
   if (error) return jsonError(error.message, 500);
+
+  try {
+    await notifyBuyersOfMaterialQuestionAnswer(admin, answerId);
+  } catch (notifyError) {
+    console.warn("[material-question] answer notify failed", notifyError);
+  }
+
   return NextResponse.json({ id: answerId }, { status: 201 });
 }

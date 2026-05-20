@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArchiveRestore,
   CheckCircle2,
@@ -8,12 +10,17 @@ import {
   FileText,
   GraduationCap,
   MessageCircleReply,
+  Search,
   ThumbsUp,
   UserRound,
 } from "lucide-react";
 import { AnswerComposer } from "./answer-composer";
 import { QuestionContextBadge, formatSeconds } from "./question-context-badge";
-import type { MaterialQuestionStatus, MaterialTargetType } from "./types";
+import type {
+  MaterialQuestionStatus,
+  MaterialQuestionsPagination,
+  MaterialTargetType,
+} from "./types";
 
 export interface OwnerMaterialQuestionItem {
   id: string;
@@ -45,23 +52,40 @@ export interface OwnerMaterialQuestionItem {
   };
 }
 
-type OwnerFilter =
+export type OwnerStatusFilter =
   | "all"
   | "open"
   | "answered"
   | "resolved"
-  | "hidden"
-  | "resume"
-  | "course";
+  | "hidden";
+export type OwnerTargetFilter = "all" | "resume" | "course";
+export type OwnerSortOption =
+  | "default"
+  | "recent"
+  | "most_me_too"
+  | "answered_first"
+  | "unresolved_first";
 
-const FILTERS: Array<{ id: OwnerFilter; label: string }> = [
+const STATUS_FILTERS: Array<{ id: OwnerStatusFilter; label: string }> = [
   { id: "all", label: "Todas" },
   { id: "open", label: "Pendientes" },
   { id: "answered", label: "Respondidas" },
   { id: "resolved", label: "Resueltas" },
   { id: "hidden", label: "Ocultas" },
+];
+
+const TARGET_FILTERS: Array<{ id: OwnerTargetFilter; label: string }> = [
+  { id: "all", label: "Apuntes y cursos" },
   { id: "resume", label: "Apuntes" },
   { id: "course", label: "Cursos" },
+];
+
+const SORT_OPTIONS_OWNER: Array<{ id: OwnerSortOption; label: string }> = [
+  { id: "default", label: "Sugeridas" },
+  { id: "recent", label: "Recientes" },
+  { id: "most_me_too", label: "Más me-too" },
+  { id: "answered_first", label: "Respondidas" },
+  { id: "unresolved_first", label: "Pendientes" },
 ];
 
 const STATUS_LABELS: Record<MaterialQuestionStatus, string> = {
@@ -91,20 +115,71 @@ function formatDate(value: string) {
 
 export function OwnerMaterialQuestionsManager({
   questions,
+  pagination,
+  filters,
 }: {
   questions: OwnerMaterialQuestionItem[];
+  pagination?: MaterialQuestionsPagination;
+  filters?: {
+    query: string;
+    status: OwnerStatusFilter;
+    target: OwnerTargetFilter;
+    sort: OwnerSortOption;
+  };
 }) {
-  const [filter, setFilter] = useState<OwnerFilter>("all");
+  const activeFilters = filters ?? {
+    query: "",
+    status: "all" as OwnerStatusFilter,
+    target: "all" as OwnerTargetFilter,
+    sort: "default" as OwnerSortOption,
+  };
   const [items, setItems] = useState(questions);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState(activeFilters.query);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-  const filteredQuestions = useMemo(() => {
-    return items.filter((question) => {
-      if (filter === "all") return true;
-      if (filter === "resume" || filter === "course") return question.targetType === filter;
-      return question.status === filter;
-    });
-  }, [filter, items]);
+  useEffect(() => {
+    setItems(questions);
+  }, [questions]);
+
+  useEffect(() => {
+    setSearchInput(activeFilters.query);
+  }, [activeFilters.query]);
+
+  const buildHref = (updates: Record<string, string | null>) => {
+    const next = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === null || value === "") next.delete(key);
+      else next.set(key, value);
+    }
+    next.set("inventario", "consultas");
+    return `${pathname}?${next.toString()}#consultas-list`;
+  };
+
+  const navigateWith = (updates: Record<string, string | null>) => {
+    // Filtros server-side: cualquier cambio resetea consultasPage.
+    router.push(buildHref({ ...updates, consultasPage: null }), { scroll: false });
+  };
+
+  useEffect(() => {
+    const trimmed = searchInput.trim().slice(0, 200);
+    if (trimmed === activeFilters.query) return;
+    const timer = window.setTimeout(() => {
+      navigateWith({ consultasQ: trimmed.length > 0 ? trimmed : null });
+    }, 350);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput, activeFilters.query]);
+
+  const loadMoreHref = useMemo(() => {
+    if (!pagination?.hasMore) return null;
+    return buildHref({ consultasPage: String(pagination.page + 1) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagination, pathname, searchParams]);
+
+  const filteredQuestions = items;
 
   const pendingCount = items.filter((question) => question.status === "open").length;
 
@@ -145,22 +220,86 @@ export function OwnerMaterialQuestionsManager({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
+      <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-bold text-foreground">Consultas</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {pendingCount} pendiente{pendingCount === 1 ? "" : "s"} por responder.
+              {pendingCount} pendiente{pendingCount === 1 ? "" : "s"} por responder en esta vista.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {FILTERS.map((item) => (
+          <label className="relative block w-full sm:w-72">
+            <span className="sr-only">Buscar en consultas</span>
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="search"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Buscar en consultas..."
+              maxLength={200}
+              className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus-visible:border-accent-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/20 dark:border-white/10 dark:bg-white/[0.03] dark:focus-visible:border-accent-300/40"
+            />
+          </label>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+              Estado
+            </span>
+            {STATUS_FILTERS.map((item) => (
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setFilter(item.id)}
-                className={`rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${
-                  filter === item.id
+                onClick={() =>
+                  navigateWith({ consultasStatus: item.id === "all" ? null : item.id })
+                }
+                className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                  activeFilters.status === item.id
+                    ? "border-accent-300 bg-accent-50 text-accent-700 dark:border-accent-300/30 dark:bg-accent-300/10 dark:text-accent-100"
+                    : "border-gray-200 text-muted-foreground hover:border-accent-200 hover:text-accent-700 dark:border-white/10"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+              Material
+            </span>
+            {TARGET_FILTERS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() =>
+                  navigateWith({ consultasTarget: item.id === "all" ? null : item.id })
+                }
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                  activeFilters.target === item.id
+                    ? "border-accent-300 bg-accent-50 text-accent-700 dark:border-accent-300/30 dark:bg-accent-300/10 dark:text-accent-100"
+                    : "border-gray-200 text-muted-foreground hover:border-accent-200 hover:text-accent-700 dark:border-white/10"
+                }`}
+              >
+                {item.id === "resume" && <FileText className="h-3 w-3" />}
+                {item.id === "course" && <GraduationCap className="h-3 w-3" />}
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+              Orden
+            </span>
+            {SORT_OPTIONS_OWNER.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() =>
+                  navigateWith({ consultasSort: item.id === "default" ? null : item.id })
+                }
+                className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                  activeFilters.sort === item.id
                     ? "border-accent-300 bg-accent-50 text-accent-700 dark:border-accent-300/30 dark:bg-accent-300/10 dark:text-accent-100"
                     : "border-gray-200 text-muted-foreground hover:border-accent-200 hover:text-accent-700 dark:border-white/10"
                 }`}
@@ -176,7 +315,11 @@ export function OwnerMaterialQuestionsManager({
         <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center dark:border-white/10 dark:bg-white/[0.03]">
           <MessageCircleReply className="mx-auto h-8 w-8 text-muted-foreground" />
           <p className="mt-3 font-bold text-foreground">
-            No hay consultas para este filtro.
+            {activeFilters.query.length > 0 ||
+            activeFilters.status !== "all" ||
+            activeFilters.target !== "all"
+              ? "No hay consultas que coincidan con la búsqueda."
+              : "Todavía no hay consultas."}
           </p>
         </div>
       ) : (
@@ -318,6 +461,19 @@ export function OwnerMaterialQuestionsManager({
               )}
             </article>
           ))}
+
+          {loadMoreHref && (
+            <div id="consultas-list" className="pt-2">
+              <Link
+                href={loadMoreHref}
+                scroll={false}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs font-bold text-foreground transition-colors hover:border-accent-200 hover:bg-accent-50 hover:text-accent-700 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-accent-300/25 dark:hover:bg-accent-300/10 dark:hover:text-accent-100"
+              >
+                Ver más consultas (
+                {(pagination?.total ?? 0) - items.length} restantes)
+              </Link>
+            </div>
+          )}
         </div>
       )}
     </div>

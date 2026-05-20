@@ -1,6 +1,29 @@
 export type MaterialTargetType = "resume" | "course";
 export type MaterialQuestionStatus = "open" | "answered" | "resolved" | "hidden";
 
+export interface MaterialQuestionsPagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  hasMore: boolean;
+}
+
+export type MaterialFollowUpRole = "buyer" | "owner";
+
+export interface MaterialQuestionFollowupDto {
+  id: string;
+  body: string;
+  role: MaterialFollowUpRole;
+  createdAt: string;
+  author: {
+    id: string | null;
+    displayName: string;
+    avatarUrl: string | null;
+    isAnonymous: boolean;
+  };
+}
+
 export interface MaterialQuestionAnswerDto {
   id: string;
   body: string;
@@ -42,6 +65,9 @@ export interface MaterialQuestionDto {
     canModerate: boolean;
     hasMeToo: boolean;
     isOwner: boolean;
+    canFollowUp: boolean;
+    followUpRole: MaterialFollowUpRole | null;
   };
   answers: MaterialQuestionAnswerDto[];
+  followups: MaterialQuestionFollowupDto[];
 }

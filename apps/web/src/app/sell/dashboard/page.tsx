@@ -48,7 +48,83 @@ function countRowsByKey<T extends Record<string, string | null>>(
   return counts;
 }
 
-export default async function DashboardPage() {
+const CONSULTAS_PAGE_SIZE = 20;
+const CONSULTAS_SEARCH_MAX = 200;
+const CONSULTAS_STATUS_FILTERS = new Set([
+  "all",
+  "open",
+  "answered",
+  "resolved",
+  "hidden",
+] as const);
+type ConsultasStatusFilter =
+  | "all"
+  | "open"
+  | "answered"
+  | "resolved"
+  | "hidden";
+const CONSULTAS_TARGET_FILTERS = new Set(["all", "resume", "course"] as const);
+type ConsultasTargetFilter = "all" | "resume" | "course";
+const CONSULTAS_SORT_OPTIONS = new Set([
+  "default",
+  "recent",
+  "most_me_too",
+  "answered_first",
+  "unresolved_first",
+] as const);
+type ConsultasSortOption =
+  | "default"
+  | "recent"
+  | "most_me_too"
+  | "answered_first"
+  | "unresolved_first";
+
+function pickParam(raw: string | string[] | undefined) {
+  return Array.isArray(raw) ? raw[0] : raw;
+}
+
+function parseConsultasPage(raw: string | string[] | undefined) {
+  const value = pickParam(raw);
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.floor(parsed);
+}
+
+function parseConsultasStatus(raw: string | string[] | undefined): ConsultasStatusFilter {
+  const value = (pickParam(raw) ?? "all").toLowerCase();
+  return CONSULTAS_STATUS_FILTERS.has(value as ConsultasStatusFilter)
+    ? (value as ConsultasStatusFilter)
+    : "all";
+}
+
+function parseConsultasTarget(raw: string | string[] | undefined): ConsultasTargetFilter {
+  const value = (pickParam(raw) ?? "all").toLowerCase();
+  return CONSULTAS_TARGET_FILTERS.has(value as ConsultasTargetFilter)
+    ? (value as ConsultasTargetFilter)
+    : "all";
+}
+
+function parseConsultasSort(raw: string | string[] | undefined): ConsultasSortOption {
+  const value = (pickParam(raw) ?? "default").toLowerCase();
+  return CONSULTAS_SORT_OPTIONS.has(value as ConsultasSortOption)
+    ? (value as ConsultasSortOption)
+    : "default";
+}
+
+function parseConsultasQuery(raw: string | string[] | undefined) {
+  const value = pickParam(raw) ?? "";
+  return value.trim().slice(0, CONSULTAS_SEARCH_MAX);
+}
+
+function escapeIlikePattern(value: string) {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -57,6 +133,13 @@ export default async function DashboardPage() {
   if (!user) redirect("/login?redirect=/sell/dashboard");
 
   const admin = createAdminClient();
+  const resolvedSearchParams = await searchParams;
+  const consultasRequestedPage = parseConsultasPage(resolvedSearchParams.consultasPage);
+  const consultasMaxRows = consultasRequestedPage * CONSULTAS_PAGE_SIZE;
+  const consultasStatus = parseConsultasStatus(resolvedSearchParams.consultasStatus);
+  const consultasTarget = parseConsultasTarget(resolvedSearchParams.consultasTarget);
+  const consultasSort = parseConsultasSort(resolvedSearchParams.consultasSort);
+  const consultasQuery = parseConsultasQuery(resolvedSearchParams.consultasQ);
 
   const [
     { data: resumes },
@@ -145,50 +228,149 @@ export default async function DashboardPage() {
 
   const resumeIds = (resumes ?? []).map((resume) => resume.id);
   const courseIds = (courses ?? []).map((course) => course.id);
-  const [resumeQuestionResult, courseQuestionResult] = await Promise.all([
-    resumeIds.length > 0
-      ? admin
-          .from("material_questions")
-          .select(
-            "id, target_type, resume_id, course_id, module_id, author_id, anchor_page, anchor_seconds, title, body, status, created_at"
-          )
-          .in("resume_id", resumeIds)
+  const ownsAnyMaterial = resumeIds.length > 0 || courseIds.length > 0;
+  const includeResumeQuestions =
+    (consultasTarget === "all" || consultasTarget === "resume") && resumeIds.length > 0;
+  const includeCourseQuestions =
+    (consultasTarget === "all" || consultasTarget === "course") && courseIds.length > 0;
+
+  // Helper que tolera el tipado profundo de supabase-js sin forzar instanciaciones recursivas.
+  const applyConsultasFilters = (builder: unknown) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let next = builder as any;
+    if (consultasStatus !== "all") {
+      next = next.eq("status", consultasStatus);
+    }
+    if (consultasQuery.length > 0) {
+      const pattern = `%${escapeIlikePattern(consultasQuery)}%`;
+      const quoted = pattern.replace(/"/g, '\\"');
+      next = next.or(`title.ilike."${quoted}",body.ilike."${quoted}"`);
+    }
+    return next;
+  };
+
+  const [
+    resumeQuestionResult,
+    courseQuestionResult,
+    { count: resumeQuestionCount },
+    { count: courseQuestionCount },
+  ] = await Promise.all([
+    includeResumeQuestions
+      ? applyConsultasFilters(
+          admin
+            .from("material_questions")
+            .select(
+              "id, target_type, resume_id, course_id, module_id, author_id, anchor_page, anchor_seconds, title, body, status, created_at"
+            )
+            .in("resume_id", resumeIds)
+        )
           .order("created_at", { ascending: false })
+          .limit(consultasMaxRows)
       : Promise.resolve({ data: [] }),
-    courseIds.length > 0
-      ? admin
-          .from("material_questions")
-          .select(
-            "id, target_type, resume_id, course_id, module_id, author_id, anchor_page, anchor_seconds, title, body, status, created_at"
-          )
-          .in("course_id", courseIds)
+    includeCourseQuestions
+      ? applyConsultasFilters(
+          admin
+            .from("material_questions")
+            .select(
+              "id, target_type, resume_id, course_id, module_id, author_id, anchor_page, anchor_seconds, title, body, status, created_at"
+            )
+            .in("course_id", courseIds)
+        )
           .order("created_at", { ascending: false })
+          .limit(consultasMaxRows)
       : Promise.resolve({ data: [] }),
+    includeResumeQuestions
+      ? applyConsultasFilters(
+          admin
+            .from("material_questions")
+            .select("id", { count: "exact", head: true })
+            .in("resume_id", resumeIds)
+        )
+      : Promise.resolve({ count: 0 }),
+    includeCourseQuestions
+      ? applyConsultasFilters(
+          admin
+            .from("material_questions")
+            .select("id", { count: "exact", head: true })
+            .in("course_id", courseIds)
+        )
+      : Promise.resolve({ count: 0 }),
   ]);
 
-  const materialQuestionRows = [
+  const consultasTotal = (resumeQuestionCount ?? 0) + (courseQuestionCount ?? 0);
+  const combinedQuestionRows = [
     ...((resumeQuestionResult.data ?? []) as DashboardQuestionRow[]),
     ...((courseQuestionResult.data ?? []) as DashboardQuestionRow[]),
-  ].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
+  ];
+  const combinedQuestionIds = combinedQuestionRows.map((question) => question.id);
+
+  const { data: combinedMeToosRaw } =
+    combinedQuestionIds.length > 0
+      ? await admin
+          .from("material_question_me_toos")
+          .select("question_id")
+          .in("question_id", combinedQuestionIds)
+      : { data: [] as Array<{ question_id: string }> };
+  const combinedMeToos = (combinedMeToosRaw ?? []) as Array<{ question_id: string }>;
+  const meToosByQuestionAll = new Map<string, number>();
+  for (const row of combinedMeToos) {
+    meToosByQuestionAll.set(
+      row.question_id,
+      (meToosByQuestionAll.get(row.question_id) ?? 0) + 1
+    );
+  }
+
+  const recentCmp = (a: DashboardQuestionRow, b: DashboardQuestionRow) =>
+    new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  const answeredScore = (row: DashboardQuestionRow) =>
+    row.status === "answered" || row.status === "resolved" ? 1 : 0;
+  const openScore = (row: DashboardQuestionRow) => (row.status === "open" ? 1 : 0);
+  const meTooCmp = (a: DashboardQuestionRow, b: DashboardQuestionRow) =>
+    (meToosByQuestionAll.get(b.id) ?? 0) - (meToosByQuestionAll.get(a.id) ?? 0);
+
+  const sortedCombined = [...combinedQuestionRows].sort((a, b) => {
+    switch (consultasSort) {
+      case "recent":
+        return recentCmp(a, b);
+      case "most_me_too": {
+        const cmp = meTooCmp(a, b);
+        return cmp !== 0 ? cmp : recentCmp(a, b);
+      }
+      case "answered_first": {
+        const cmp = answeredScore(b) - answeredScore(a);
+        return cmp !== 0 ? cmp : recentCmp(a, b);
+      }
+      case "unresolved_first": {
+        const cmp = openScore(b) - openScore(a);
+        return cmp !== 0 ? cmp : recentCmp(a, b);
+      }
+      default:
+        return recentCmp(a, b);
+    }
+  });
+  const materialQuestionRows = sortedCombined.slice(0, consultasMaxRows);
+  const consultasTotalPages =
+    consultasTotal > 0 ? Math.ceil(consultasTotal / CONSULTAS_PAGE_SIZE) : 0;
+  const consultasCurrentPage =
+    consultasTotalPages === 0
+      ? 1
+      : Math.min(consultasRequestedPage, consultasTotalPages);
+  const consultasPagination = {
+    page: consultasCurrentPage,
+    pageSize: CONSULTAS_PAGE_SIZE,
+    total: consultasTotal,
+    totalPages: consultasTotalPages,
+    hasMore: ownsAnyMaterial && materialQuestionRows.length < consultasTotal,
+  };
 
   const materialQuestionIds = materialQuestionRows.map((question) => question.id);
-  const [{ data: materialAnswers }, { data: materialMeToos }] =
-    await Promise.all([
-      materialQuestionIds.length > 0
-        ? admin
-            .from("material_question_answers")
-            .select("id, question_id")
-            .in("question_id", materialQuestionIds)
-        : Promise.resolve({ data: [] }),
-      materialQuestionIds.length > 0
-        ? admin
-            .from("material_question_me_toos")
-            .select("question_id")
-            .in("question_id", materialQuestionIds)
-        : Promise.resolve({ data: [] }),
-    ]);
+  const { data: materialAnswers } =
+    materialQuestionIds.length > 0
+      ? await admin
+          .from("material_question_answers")
+          .select("id, question_id")
+          .in("question_id", materialQuestionIds)
+      : { data: [] };
 
   const dashboardAnswers = (materialAnswers ?? []) as DashboardAnswerRow[];
   const answerIds = dashboardAnswers.map((answer) => answer.id);
@@ -212,10 +394,7 @@ export default async function DashboardPage() {
     ]);
 
   const answersByQuestion = countRowsByKey(dashboardAnswers, "question_id");
-  const meToosByQuestion = countRowsByKey(
-    ((materialMeToos ?? []) as Array<{ question_id: string }>),
-    "question_id"
-  );
+  const meToosByQuestion = meToosByQuestionAll;
   const helpfulByAnswer = countRowsByKey(
     ((materialHelpfulVotes ?? []) as Array<{ answer_id: string }>),
     "answer_id"
@@ -342,7 +521,16 @@ export default async function DashboardPage() {
         />
       }
       consultasContent={
-        <OwnerMaterialQuestionsManager questions={materialQuestionsForOwner} />
+        <OwnerMaterialQuestionsManager
+          questions={materialQuestionsForOwner}
+          pagination={consultasPagination}
+          filters={{
+            query: consultasQuery,
+            status: consultasStatus,
+            target: consultasTarget,
+            sort: consultasSort,
+          }}
+        />
       }
     />
   );

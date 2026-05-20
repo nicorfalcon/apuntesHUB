@@ -69,14 +69,18 @@ export async function DELETE(
   const { id } = await params;
   if (!UUID_RE.test(id)) return jsonError("Respuesta inválida.", 400);
 
-  const result = await ensureCanVote(id);
-  if (result.response) return result.response;
+  const supabase = (await createClient()) as MaterialQuestionsClient;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const { error } = await result.supabase
+  if (!user) return jsonError("No autorizado", 401);
+
+  const { error } = await supabase
     .from("material_answer_helpful_votes")
     .delete()
     .eq("answer_id", id)
-    .eq("user_id", result.user.id);
+    .eq("user_id", user.id);
 
   if (error) return jsonError(error.message, 500);
   return NextResponse.json({ ok: true });

@@ -11,6 +11,7 @@ import {
   type MaterialQuestionsClient,
   type MaterialTargetType,
 } from "@/lib/material-questions";
+import { notifyOwnerOfNewMaterialQuestion } from "@/lib/email/material-question-notifications";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -41,6 +42,15 @@ type MaterialAnswerRow = {
   created_at: string;
 };
 
+type MaterialFollowupRow = {
+  id: string;
+  question_id: string;
+  author_id: string;
+  role: string;
+  body: string;
+  created_at: string;
+};
+
 type ProfileRow = {
   id: string;
   display_name: string | null;
@@ -67,6 +77,20 @@ function optionalNonNegativeInteger(value: unknown) {
   const number = Number(value);
   if (!Number.isInteger(number) || number < 0) return NaN;
   return number;
+}
+
+const SEARCH_QUERY_MAX = 200;
+const STATUS_FILTERS = new Set(["all", "open", "answered", "resolved", "hidden"]);
+const SORT_OPTIONS = new Set([
+  "default",
+  "recent",
+  "most_me_too",
+  "answered_first",
+  "unresolved_first",
+]);
+
+function escapeIlikePattern(value: string) {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
 
 function validateText(value: unknown, min: number, max: number, label: string) {
@@ -118,9 +142,32 @@ export async function GET(request: NextRequest) {
     return jsonError("target debe ser resume o course.", 400);
   }
 
-  const page = optionalPositiveInteger(searchParams.get("page"));
-  if (Number.isNaN(page)) {
+  const currentPage = optionalPositiveInteger(searchParams.get("current_page"));
+  if (Number.isNaN(currentPage)) {
+    return jsonError("current_page debe ser mayor a 0.", 400);
+  }
+
+  const PAGE_SIZE_DEFAULT = 20;
+  const PAGE_SIZE_MAX = 50;
+  const pageParam = optionalPositiveInteger(searchParams.get("page"));
+  if (Number.isNaN(pageParam)) {
     return jsonError("page debe ser mayor a 0.", 400);
+  }
+  const pageSizeParam = optionalPositiveInteger(searchParams.get("pageSize"));
+  if (Number.isNaN(pageSizeParam)) {
+    return jsonError("pageSize debe ser mayor a 0.", 400);
+  }
+  const requestedPage = pageParam ?? 1;
+  const requestedPageSize = Math.min(pageSizeParam ?? PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX);
+
+  const rawQuery = (searchParams.get("q") ?? "").trim().slice(0, SEARCH_QUERY_MAX);
+  const statusFilter = (searchParams.get("status") ?? "all").toLowerCase();
+  if (!STATUS_FILTERS.has(statusFilter)) {
+    return jsonError("status inválido.", 400);
+  }
+  const sortOption = (searchParams.get("sort") ?? "default").toLowerCase();
+  if (!SORT_OPTIONS.has(sortOption)) {
+    return jsonError("sort inválido.", 400);
   }
 
   let access;
@@ -151,6 +198,10 @@ export async function GET(request: NextRequest) {
     if (moduleId) query = query.eq("module_id", moduleId);
   }
 
+  if (statusFilter === "hidden" && !access.canModerate) {
+    return jsonError("No podés filtrar consultas ocultas.", 403);
+  }
+
   if (access.canModerate) {
     // Dueño/autor ve también ocultas para auditoría.
   } else if (access.canView) {
@@ -159,23 +210,116 @@ export async function GET(request: NextRequest) {
     query = query.eq("author_id", user.id);
   }
 
+  if (statusFilter !== "all") {
+    query = query.eq("status", statusFilter);
+  }
+
+  if (rawQuery.length > 0) {
+    const pattern = `%${escapeIlikePattern(rawQuery)}%`;
+    const quoted = pattern.replace(/"/g, '\\"');
+    query = query.or(`title.ilike."${quoted}",body.ilike."${quoted}"`);
+  }
+
   const { data: questionRows, error: questionsError } = await query;
   if (questionsError) return jsonError(questionsError.message, 500);
 
-  const questions = (questionRows ?? []) as MaterialQuestionRow[];
-  if (!access.canView && questions.length === 0) {
+  const allQuestions = (questionRows ?? []) as MaterialQuestionRow[];
+  if (!access.canView && allQuestions.length === 0) {
     return jsonError("No tenés acceso a las consultas de este material.", 403);
   }
 
+  // Pre-cargar me-too totals para el sort (sin sub-resources pesados todavía).
+  const allQuestionIds = allQuestions.map((question) => question.id);
+  const meTooTotalsByQuestion = new Map<string, number>();
+  if (allQuestionIds.length > 0) {
+    const { data: allMeTooRows } = await admin
+      .from("material_question_me_toos")
+      .select("question_id")
+      .in("question_id", allQuestionIds);
+    for (const row of (allMeTooRows ?? []) as Array<{ question_id: string }>) {
+      meTooTotalsByQuestion.set(
+        row.question_id,
+        (meTooTotalsByQuestion.get(row.question_id) ?? 0) + 1
+      );
+    }
+  }
+
+  const recentCmp = (a: MaterialQuestionRow, b: MaterialQuestionRow) =>
+    new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  const meTooCmp = (a: MaterialQuestionRow, b: MaterialQuestionRow) =>
+    (meTooTotalsByQuestion.get(b.id) ?? 0) - (meTooTotalsByQuestion.get(a.id) ?? 0);
+  const answeredScore = (row: MaterialQuestionRow) =>
+    row.status === "answered" || row.status === "resolved" ? 1 : 0;
+  const openScore = (row: MaterialQuestionRow) => (row.status === "open" ? 1 : 0);
+
+  const sortedAll = [...allQuestions].sort((a, b) => {
+    const aPageMatch = currentPage !== null && a.anchor_page === currentPage ? 1 : 0;
+    const bPageMatch = currentPage !== null && b.anchor_page === currentPage ? 1 : 0;
+    if (aPageMatch !== bPageMatch) return bPageMatch - aPageMatch;
+
+    switch (sortOption) {
+      case "recent": {
+        const cmp = recentCmp(a, b);
+        if (cmp !== 0) return cmp;
+        break;
+      }
+      case "most_me_too": {
+        const cmp = meTooCmp(a, b);
+        if (cmp !== 0) return cmp;
+        const r = recentCmp(a, b);
+        if (r !== 0) return r;
+        break;
+      }
+      case "answered_first": {
+        const cmp = answeredScore(b) - answeredScore(a);
+        if (cmp !== 0) return cmp;
+        const r = recentCmp(a, b);
+        if (r !== 0) return r;
+        break;
+      }
+      case "unresolved_first": {
+        const cmp = openScore(b) - openScore(a);
+        if (cmp !== 0) return cmp;
+        const r = recentCmp(a, b);
+        if (r !== 0) return r;
+        break;
+      }
+      default: {
+        const aAnswered = answeredScore(a);
+        const bAnswered = answeredScore(b);
+        if (aAnswered !== bAnswered) return bAnswered - aAnswered;
+        const cmp = meTooCmp(a, b);
+        if (cmp !== 0) return cmp;
+        const r = recentCmp(a, b);
+        if (r !== 0) return r;
+      }
+    }
+
+    return 0;
+  });
+
+  const total = sortedAll.length;
+  const totalPages = total > 0 ? Math.ceil(total / requestedPageSize) : 0;
+  const page = total === 0 ? 1 : Math.min(requestedPage, Math.max(totalPages, 1));
+  const sliceStart = (page - 1) * requestedPageSize;
+  const questions = sortedAll.slice(sliceStart, sliceStart + requestedPageSize);
+  const paginationMeta = {
+    page,
+    pageSize: requestedPageSize,
+    total,
+    totalPages,
+    hasMore: page < totalPages,
+  };
+
   const questionIds = questions.map((question) => question.id);
   if (questionIds.length === 0) {
-    return NextResponse.json({ questions: [] });
+    return NextResponse.json({ questions: [], pagination: paginationMeta });
   }
 
   const [
     { data: answerRows },
-    { data: meTooRows },
     { data: viewerMeTooRows },
+    { data: followupRows },
   ] = await Promise.all([
     admin
       .from("material_question_answers")
@@ -185,15 +329,17 @@ export async function GET(request: NextRequest) {
     admin
       .from("material_question_me_toos")
       .select("question_id")
-      .in("question_id", questionIds),
-    admin
-      .from("material_question_me_toos")
-      .select("question_id")
       .eq("user_id", user.id)
       .in("question_id", questionIds),
+    admin
+      .from("material_question_followups")
+      .select("id, question_id, author_id, role, body, created_at")
+      .in("question_id", questionIds)
+      .order("created_at", { ascending: true }),
   ]);
 
   const answers = (answerRows ?? []) as MaterialAnswerRow[];
+  const followups = (followupRows ?? []) as MaterialFollowupRow[];
   const answerIds = answers.map((answer) => answer.id);
   const [{ data: helpfulRows }, { data: viewerHelpfulRows }, { data: profiles }] =
     await Promise.all([
@@ -215,7 +361,13 @@ export async function GET(request: NextRequest) {
         .select("id, display_name, avatar_url")
         .in(
           "id",
-          Array.from(new Set([...questions.map((q) => q.author_id), ...answers.map((a) => a.author_id)]))
+          Array.from(
+            new Set([
+              ...questions.map((q) => q.author_id),
+              ...answers.map((a) => a.author_id),
+              ...followups.map((f) => f.author_id),
+            ])
+          )
         ),
     ]);
 
@@ -226,12 +378,11 @@ export async function GET(request: NextRequest) {
     answersByQuestion.set(answer.question_id, current);
   }
 
-  const meTooCountByQuestion = new Map<string, number>();
-  for (const row of (meTooRows ?? []) as Array<{ question_id: string }>) {
-    meTooCountByQuestion.set(
-      row.question_id,
-      (meTooCountByQuestion.get(row.question_id) ?? 0) + 1
-    );
+  const followupsByQuestion = new Map<string, MaterialFollowupRow[]>();
+  for (const followup of followups) {
+    const current = followupsByQuestion.get(followup.question_id) ?? [];
+    current.push(followup);
+    followupsByQuestion.set(followup.question_id, current);
   }
 
   const helpfulCountByAnswer = new Map<string, number>();
@@ -253,13 +404,24 @@ export async function GET(request: NextRequest) {
 
   const mappedQuestions = questions.map((question) => {
     const questionAnswers = answersByQuestion.get(question.id) ?? [];
-    const viewerCanSeeRealIdentity =
-      access.canModerate || question.author_id === user.id;
+    const questionFollowups = followupsByQuestion.get(question.id) ?? [];
+    const isQuestionAuthor = question.author_id === user.id;
+    const viewerCanSeeRealIdentity = access.canModerate || isQuestionAuthor;
     const author = resolveQuestionAuthor({
       profile: profilesById.get(question.author_id),
       isAnonymousToBuyers: question.is_anonymous_to_buyers,
       viewerCanSeeRealIdentity,
     });
+
+    const status = question.status as MaterialQuestionStatus;
+    let followUpRole: "buyer" | "owner" | null = null;
+    if (status !== "hidden") {
+      if (isQuestionAuthor && status !== "resolved") {
+        followUpRole = "buyer";
+      } else if (access.canAnswer) {
+        followUpRole = "owner";
+      }
+    }
 
     return {
       id: question.id,
@@ -271,18 +433,20 @@ export async function GET(request: NextRequest) {
       anchorSeconds: question.anchor_seconds,
       title: question.title,
       body: question.body,
-      status: question.status as MaterialQuestionStatus,
+      status,
       createdAt: question.created_at,
       author,
       counts: {
         answers: answerCountByQuestion.get(question.id) ?? 0,
-        meToo: meTooCountByQuestion.get(question.id) ?? 0,
+        meToo: meTooTotalsByQuestion.get(question.id) ?? 0,
       },
       viewer: {
-        canAnswer: access.canAnswer && question.status !== "hidden",
+        canAnswer: access.canAnswer && status !== "hidden",
         canModerate: access.canModerate,
         hasMeToo: viewerMeToo.has(question.id),
-        isOwner: question.author_id === user.id,
+        isOwner: isQuestionAuthor,
+        canFollowUp: followUpRole !== null,
+        followUpRole,
       },
       answers: questionAnswers.map((answer) => {
         const answerAuthor = profilesById.get(answer.author_id);
@@ -300,24 +464,35 @@ export async function GET(request: NextRequest) {
           },
         };
       }),
+      followups: questionFollowups.map((followup) => {
+        const followupAuthorProfile = profilesById.get(followup.author_id);
+        const role = followup.role === "owner" ? "owner" : "buyer";
+        const resolvedAuthor =
+          role === "buyer"
+            ? resolveQuestionAuthor({
+                profile: followupAuthorProfile,
+                isAnonymousToBuyers: question.is_anonymous_to_buyers,
+                viewerCanSeeRealIdentity,
+              })
+            : {
+                id: followup.author_id,
+                displayName: profileDisplayName(followupAuthorProfile, "Autor"),
+                avatarUrl: followupAuthorProfile?.avatar_url ?? null,
+                isAnonymous: false,
+              };
+
+        return {
+          id: followup.id,
+          body: followup.body,
+          role,
+          createdAt: followup.created_at,
+          author: resolvedAuthor,
+        };
+      }),
     };
   });
 
-  mappedQuestions.sort((a, b) => {
-    const aPageMatch = page !== null && a.anchorPage === page ? 1 : 0;
-    const bPageMatch = page !== null && b.anchorPage === page ? 1 : 0;
-    if (aPageMatch !== bPageMatch) return bPageMatch - aPageMatch;
-
-    const aAnswered = a.status === "answered" || a.status === "resolved" ? 1 : 0;
-    const bAnswered = b.status === "answered" || b.status === "resolved" ? 1 : 0;
-    if (aAnswered !== bAnswered) return bAnswered - aAnswered;
-
-    if (a.counts.meToo !== b.counts.meToo) return b.counts.meToo - a.counts.meToo;
-
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
-
-  return NextResponse.json({ questions: mappedQuestions });
+  return NextResponse.json({ questions: mappedQuestions, pagination: paginationMeta });
 }
 
 export async function POST(request: NextRequest) {
@@ -394,6 +569,13 @@ export async function POST(request: NextRequest) {
       });
 
     if (error) return jsonError(error.message, 500);
+
+    try {
+      await notifyOwnerOfNewMaterialQuestion(admin, questionId);
+    } catch (notifyError) {
+      console.warn("[material-question] owner notify failed", notifyError);
+    }
+
     return NextResponse.json({ id: questionId }, { status: 201 });
   }
 
@@ -440,5 +622,12 @@ export async function POST(request: NextRequest) {
     });
 
   if (error) return jsonError(error.message, 500);
+
+  try {
+    await notifyOwnerOfNewMaterialQuestion(admin, questionId);
+  } catch (notifyError) {
+    console.warn("[material-question] owner notify failed", notifyError);
+  }
+
   return NextResponse.json({ id: questionId }, { status: 201 });
 }

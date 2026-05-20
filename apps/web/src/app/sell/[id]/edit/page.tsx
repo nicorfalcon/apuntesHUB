@@ -24,8 +24,8 @@ export default async function EditarApuntePage({
   if (!resume) notFound();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Suspense fallback={<div className="h-14 border-b border-gray-200 bg-white" />}>
+    <div className="min-h-screen bg-gray-50 dark:bg-background">
+      <Suspense fallback={<div className="h-14 border-b border-gray-200 bg-white dark:border-white/10 dark:bg-[#101816]" />}>
         <SellNavbar backLabel="Panel de ventas" backHref="/sell/dashboard" />
       </Suspense>
       <div className="mx-auto max-w-2xl px-4 py-10">
@@ -33,7 +33,7 @@ export default async function EditarApuntePage({
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Editar apunte
           </h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-gray-500 dark:text-sand-300/75">
             Modificá los datos de tu resumen.
           </p>
         </div>

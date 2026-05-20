@@ -186,27 +186,27 @@ export function PhotosForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Info card */}
-      <div className="rounded-xl border border-gray-200 bg-white p-4">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
         <h3 className="text-sm font-semibold text-foreground">{resumeTitle}</h3>
-        <p className="mt-0.5 text-xs text-gray-400">
+        <p className="mt-0.5 text-xs text-gray-400 dark:text-sand-300/65">
           {resumeSubject} · {resumeUniversity}
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         {/* Galería */}
-        <div className="rounded-xl border border-gray-200 bg-white p-5">
-          <h2 className="mb-3 text-sm font-semibold text-gray-700">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
+          <h2 className="mb-3 text-sm font-semibold text-gray-700 dark:text-sand-100">
             Foto de portada
           </h2>
-          <p className="mb-4 text-xs text-gray-400">
+          <p className="mb-4 text-xs text-gray-400 dark:text-sand-300/65">
             La foto de portada es la imagen que verán los compradores antes de adquirir tu apunte. Se muestra en los resultados de búsqueda y en la página del apunte.
           </p>
 
           {/* Foto existente */}
           {existingUrl && (
             <div className="mb-4">
-              <p className="mb-2 text-xs font-medium text-gray-500">Foto actual</p>
+              <p className="mb-2 text-xs font-medium text-gray-500 dark:text-sand-300/75">Foto actual</p>
               <div className="relative inline-block">
                 {/* Badge portada */}
                 <div className="absolute left-2 top-2 z-10 flex items-center gap-1 rounded-full bg-accent-600 px-2 py-0.5 text-xs font-medium text-white shadow-sm">
@@ -218,7 +218,7 @@ export function PhotosForm({
                   type="button"
                   onClick={removeExisting}
                   aria-label="Eliminar foto actual"
-                  className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-gray-600 shadow-sm transition-colors hover:bg-red-50 hover:text-red-600"
+                  className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-gray-600 shadow-sm transition-colors hover:bg-red-50 hover:text-red-600 dark:bg-[#071713]/90 dark:text-sand-200 dark:hover:bg-red-500/15 dark:hover:text-red-200"
                 >
                   <X size={12} strokeWidth={2.5} />
                 </button>
@@ -235,7 +235,7 @@ export function PhotosForm({
           {/* Nueva foto (preview) */}
           {newFile && newPreview && (
             <div className="mb-4">
-              <p className="mb-2 text-xs font-medium text-gray-500">
+              <p className="mb-2 text-xs font-medium text-gray-500 dark:text-sand-300/75">
                 {existingUrl ? "Nueva foto (reemplazará la actual)" : "Nueva foto"}
               </p>
               <div className="relative inline-block">
@@ -249,7 +249,7 @@ export function PhotosForm({
                   type="button"
                   onClick={removeNewFile}
                   aria-label="Quitar nueva foto"
-                  className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-gray-600 shadow-sm transition-colors hover:bg-red-50 hover:text-red-600"
+                  className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-gray-600 shadow-sm transition-colors hover:bg-red-50 hover:text-red-600 dark:bg-[#071713]/90 dark:text-sand-200 dark:hover:bg-red-500/15 dark:hover:text-red-200"
                 >
                   <X size={12} strokeWidth={2.5} />
                 </button>
@@ -259,7 +259,7 @@ export function PhotosForm({
                   alt="Nueva foto de portada"
                   className="h-40 w-40 rounded-xl border border-gray-200 object-cover sm:h-48 sm:w-48"
                 />
-                <p className="mt-1 text-xs text-gray-400">
+                <p className="mt-1 text-xs text-gray-400 dark:text-sand-300/65">
                   {newFile.name} · {(newFile.size / 1024 / 1024).toFixed(2)} MB
                 </p>
               </div>
@@ -276,19 +276,19 @@ export function PhotosForm({
               onClick={() => fileInputRef.current?.click()}
               className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors duration-200 ${
                 dragActive
-                  ? "border-accent-500 bg-accent-50"
-                  : "border-gray-300 bg-gray-50 hover:border-accent-400 hover:bg-accent-50"
+                  ? "border-accent-500 bg-accent-50 dark:border-accent-300 dark:bg-accent-300/10"
+                  : "border-gray-300 bg-gray-50 hover:border-accent-400 hover:bg-accent-50 dark:border-white/15 dark:bg-white/[0.03] dark:hover:border-accent-300/35 dark:hover:bg-accent-300/10"
               }`}
             >
               {dragActive ? (
                 <Upload size={28} className="text-accent-500" strokeWidth={1.5} />
               ) : (
-                <ImageIcon size={28} className="text-gray-400" strokeWidth={1.5} />
+                <ImageIcon size={28} className="text-gray-400 dark:text-sand-300/65" strokeWidth={1.5} />
               )}
-              <p className="mt-2 text-sm font-medium text-gray-600">
+              <p className="mt-2 text-sm font-medium text-gray-600 dark:text-sand-100">
                 {existingUrl ? "Subir nueva foto" : "Subir foto de portada"}
               </p>
-              <p className="mt-0.5 text-xs text-gray-400">
+              <p className="mt-0.5 text-xs text-gray-400 dark:text-sand-300/65">
                 Arrastrá una imagen o hacé click · JPG, PNG, WEBP · Máx. {IMAGE_MAX_MB} MB
               </p>
               <input
@@ -305,44 +305,44 @@ export function PhotosForm({
           )}
 
           {!hasAnything && !newFile && (
-            <p className="mt-3 text-xs text-gray-400">
+            <p className="mt-3 text-xs text-gray-400 dark:text-sand-300/65">
               Sin foto de portada, los compradores verán un placeholder genérico.
             </p>
           )}
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-5">
-          <h2 className="mb-3 text-sm font-semibold text-gray-700">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
+          <h2 className="mb-3 text-sm font-semibold text-gray-700 dark:text-sand-100">
             Archivo PDF
           </h2>
-          <p className="mb-4 text-xs text-gray-400">
+          <p className="mb-4 text-xs text-gray-400 dark:text-sand-300/65">
             Reemplazá el archivo del apunte si subiste una versión corregida o más completa.
           </p>
 
           {currentPdfName && (
-            <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-3">
-              <p className="mb-2 text-xs font-medium text-gray-500">PDF actual</p>
+            <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-white/10 dark:bg-white/[0.03]">
+              <p className="mb-2 text-xs font-medium text-gray-500 dark:text-sand-300/75">PDF actual</p>
               <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-accent-600 ring-1 ring-gray-200">
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-accent-600 ring-1 ring-gray-200 dark:bg-white/[0.05] dark:text-accent-100 dark:ring-white/10">
                   <FileText size={20} strokeWidth={1.6} />
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-gray-700">{currentPdfName}</p>
-                  <p className="text-xs text-gray-400">Se mantiene si no elegís otro archivo.</p>
+                  <p className="truncate text-sm font-medium text-gray-700 dark:text-sand-100">{currentPdfName}</p>
+                  <p className="text-xs text-gray-400 dark:text-sand-300/65">Se mantiene si no elegís otro archivo.</p>
                 </div>
               </div>
             </div>
           )}
 
           {newPdfFile ? (
-            <div className="rounded-xl border border-accent-200 bg-accent-50 p-3">
+            <div className="rounded-xl border border-accent-200 bg-accent-50 p-3 dark:border-accent-300/20 dark:bg-accent-300/10">
               <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-accent-600 ring-1 ring-accent-100">
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-accent-600 ring-1 ring-accent-100 dark:bg-white/[0.06] dark:text-accent-100 dark:ring-accent-300/20">
                   <FileText size={20} strokeWidth={1.6} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-gray-800">{newPdfFile.name}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="truncate text-sm font-medium text-gray-800 dark:text-sand-50">{newPdfFile.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-sand-300/75">
                     {(newPdfFile.size / 1024 / 1024).toFixed(2)} MB · Reemplazará el PDF actual
                   </p>
                 </div>
@@ -350,7 +350,7 @@ export function PhotosForm({
                   type="button"
                   onClick={removeNewPdfFile}
                   aria-label="Quitar nuevo PDF"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-gray-500 shadow-sm transition-colors hover:bg-red-50 hover:text-red-600"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-gray-500 shadow-sm transition-colors hover:bg-red-50 hover:text-red-600 dark:bg-[#071713] dark:text-sand-200 dark:hover:bg-red-500/15 dark:hover:text-red-200"
                 >
                   <X size={14} strokeWidth={2.5} />
                 </button>
@@ -365,19 +365,19 @@ export function PhotosForm({
               onClick={() => pdfInputRef.current?.click()}
               className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors duration-200 ${
                 pdfDragActive
-                  ? "border-accent-500 bg-accent-50"
-                  : "border-gray-300 bg-gray-50 hover:border-accent-400 hover:bg-accent-50"
+                  ? "border-accent-500 bg-accent-50 dark:border-accent-300 dark:bg-accent-300/10"
+                  : "border-gray-300 bg-gray-50 hover:border-accent-400 hover:bg-accent-50 dark:border-white/15 dark:bg-white/[0.03] dark:hover:border-accent-300/35 dark:hover:bg-accent-300/10"
               }`}
             >
               {pdfDragActive ? (
                 <Upload size={28} className="text-accent-500" strokeWidth={1.5} />
               ) : (
-                <FileText size={28} className="text-gray-400" strokeWidth={1.5} />
+                <FileText size={28} className="text-gray-400 dark:text-sand-300/65" strokeWidth={1.5} />
               )}
-              <p className="mt-2 text-sm font-medium text-gray-600">
+              <p className="mt-2 text-sm font-medium text-gray-600 dark:text-sand-100">
                 Cambiar archivo PDF
               </p>
-              <p className="mt-0.5 text-xs text-gray-400">
+              <p className="mt-0.5 text-xs text-gray-400 dark:text-sand-300/65">
                 Arrastrá un PDF o hacé click · Máx. {PDF_MAX_MB} MB
               </p>
               <input
@@ -396,7 +396,7 @@ export function PhotosForm({
       </div>
 
       {error && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-200">{error}</p>
       )}
 
       {/* Actions */}
@@ -404,16 +404,16 @@ export function PhotosForm({
         <button
           type="button"
           onClick={() => router.push("/sell/dashboard")}
-          className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-white/15 dark:text-sand-100 dark:hover:bg-white/5"
         >
           Cancelar
         </button>
         <button
           type="submit"
           disabled={loading}
-          className="rounded-lg bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-lg bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
         >
-          {loading ? "Guardando..." : "Guardar cambios"}
+          {loading ? "Guardando…" : "Guardar cambios"}
         </button>
       </div>
     </form>

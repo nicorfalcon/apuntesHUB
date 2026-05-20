@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { SendHorizontal } from "lucide-react";
+import { FormEvent, useId, useState } from "react";
+import { SendHorizontal, ShieldCheck } from "lucide-react";
 import type { MaterialTargetType } from "./types";
 
 export function QuestionForm({
@@ -28,6 +28,15 @@ export function QuestionForm({
   const [anonymous, setAnonymous] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const formId = useId();
+  const titleId = `${formId}-title`;
+  const bodyId = `${formId}-body`;
+  const canSubmit =
+    title.trim().length >= 8 &&
+    title.trim().length <= 140 &&
+    body.trim().length >= 10 &&
+    body.trim().length <= 2000 &&
+    !isSubmitting;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -94,58 +103,86 @@ export function QuestionForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-white/[0.03]"
+      className="rounded-[18px] border border-gray-200 bg-white p-3.5 shadow-[0_12px_32px_-28px_rgba(12,25,20,0.45)] dark:border-white/10 dark:bg-white/[0.035]"
     >
-      <div className="space-y-2">
-        <input
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          maxLength={140}
-          placeholder="Título corto de tu duda"
-          className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-foreground outline-none transition-colors placeholder:font-medium placeholder:text-gray-400 focus:border-accent-500 dark:border-white/10 dark:bg-white/[0.04]"
-        />
-        <textarea
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
-          maxLength={2000}
-          rows={4}
-          placeholder="Contá qué parte no te cierra. Evitá pegar páginas completas del material."
-          className="min-h-[120px] w-full resize-y rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm leading-6 text-foreground outline-none transition-colors placeholder:text-gray-400 focus:border-accent-500 dark:border-white/10 dark:bg-white/[0.04]"
-        />
+      <div className="space-y-3">
+        <div className="space-y-1.5">
+          <label
+            htmlFor={titleId}
+            className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground"
+          >
+            Título
+          </label>
+          <input
+            id={titleId}
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            maxLength={140}
+            placeholder="Qué parte te genera duda"
+            className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50/70 px-3 text-sm font-semibold text-foreground outline-none transition-colors placeholder:font-medium placeholder:text-gray-400 focus:border-accent-400 focus:bg-white dark:border-white/10 dark:bg-white/[0.04]"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label
+            htmlFor={bodyId}
+            className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground"
+          >
+            Detalle
+          </label>
+          <textarea
+            id={bodyId}
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+            maxLength={2000}
+            rows={4}
+            placeholder="Contá el problema con tus palabras."
+            className="min-h-[104px] w-full resize-y rounded-xl border border-gray-200 bg-gray-50/70 px-3 py-2 text-sm leading-6 text-foreground outline-none transition-colors placeholder:text-gray-400 focus:border-accent-400 focus:bg-white dark:border-white/10 dark:bg-white/[0.04]"
+          />
+          <p className="text-[11px] leading-4 text-muted-foreground">
+            Evitá copiar páginas completas del material.
+          </p>
+        </div>
       </div>
 
-      <label className="mt-3 flex items-start gap-2 rounded-xl bg-gray-50 p-3 text-xs leading-5 text-muted-foreground dark:bg-white/[0.04]">
+      <label className="mt-3 flex items-start gap-2 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2.5 text-xs leading-5 text-muted-foreground dark:border-white/10 dark:bg-white/[0.03]">
         <input
           type="checkbox"
           checked={anonymous}
           onChange={(event) => setAnonymous(event.target.checked)}
-          className="mt-1 h-4 w-4 rounded border-gray-300 text-accent-600 focus:ring-accent-500"
+          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-accent-600 focus:ring-accent-500"
         />
-        <span>
-          Publicar anónimo para otros compradores. El dueño del material podrá ver tu identidad.
+        <span className="min-w-0">
+          <span className="block font-semibold text-foreground">
+            Publicar anónimamente para otros compradores
+          </span>
+          <span className="mt-0.5 flex items-center gap-1 text-[11px] leading-4 text-muted-foreground">
+            <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+            El dueño del material seguirá viendo tu identidad.
+          </span>
         </span>
       </label>
 
-      {error && <p className="mt-2 text-xs font-medium text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-xs font-semibold text-red-600">{error}</p>}
 
-      <div className="mt-3 flex items-center gap-2">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="inline-flex items-center gap-2 rounded-xl bg-accent-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-accent-300 dark:text-[#071713]"
-        >
-          <SendHorizontal className="h-4 w-4" />
-          {isSubmitting ? "Enviando..." : "Publicar consulta"}
-        </button>
+      <div className="mt-3 flex items-center justify-end gap-2">
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold text-muted-foreground transition-colors hover:border-gray-300 hover:text-foreground dark:border-white/10"
+            className="rounded-xl px-3 py-2 text-xs font-bold text-muted-foreground transition-colors hover:bg-gray-50 hover:text-foreground dark:hover:bg-white/[0.04]"
           >
             Cancelar
           </button>
         )}
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="inline-flex items-center gap-2 rounded-xl bg-accent-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-accent-300 dark:text-[#071713]"
+        >
+          <SendHorizontal className="h-4 w-4" />
+          {isSubmitting ? "Enviando..." : "Publicar consulta"}
+        </button>
       </div>
     </form>
   );

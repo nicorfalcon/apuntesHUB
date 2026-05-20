@@ -125,13 +125,13 @@ export default async function ResumePage({
                 {reviews.map((review) => {
                   const r = review as Review & { profiles: Pick<Profile, "display_name"> };
                   return (
-                    <div key={r.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                    <div key={r.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-white/10 dark:bg-white/[0.03]">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">{r.profiles.display_name}</span>
                         <StarRating rating={r.rating} />
                       </div>
                       {r.comment && (
-                        <p className="mt-2 text-sm text-gray-600">{r.comment}</p>
+                        <p className="mt-2 text-sm text-gray-600 dark:text-sand-100/85">{r.comment}</p>
                       )}
                       <p className="mt-1 text-xs text-gray-400">
                         {new Date(r.created_at).toLocaleDateString("es-AR")}
@@ -146,18 +146,18 @@ export default async function ResumePage({
 
         {/* Sidebar */}
         <aside className="w-full shrink-0 lg:w-80">
-          <div className="sticky top-20 rounded-xl border border-gray-200 bg-white p-6 space-y-5">
+          <div className="sticky top-20 space-y-5 rounded-xl border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-[#0f1e1a]">
             <div>
               <h1 className="text-xl font-bold text-foreground leading-tight">
                 {resumeWithSeller.title}
               </h1>
               {resumeWithSeller.description && (
-                <p className="mt-2 text-sm text-gray-500">{resumeWithSeller.description}</p>
+                <p className="mt-2 text-sm text-gray-500 dark:text-sand-300/75">{resumeWithSeller.description}</p>
               )}
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-100 text-xs font-semibold text-accent-700">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-100 text-xs font-semibold text-accent-700 dark:bg-accent-300/15 dark:text-accent-100">
                 {seller.display_name?.charAt(0).toUpperCase()}
               </div>
               <div>
@@ -176,31 +176,31 @@ export default async function ResumePage({
               </div>
             </div>
 
-            <div className="space-y-2 border-t border-gray-100 pt-4 text-sm">
+            <div className="space-y-2 border-t border-gray-100 pt-4 text-sm dark:border-white/10">
               <div className="flex justify-between">
-                <span className="text-gray-500">Universidad</span>
+                <span className="text-gray-500 dark:text-sand-300/75">Universidad</span>
                 <span className="font-medium">{resumeWithSeller.university}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Carrera</span>
+                <span className="text-gray-500 dark:text-sand-300/75">Carrera</span>
                 <span className="font-medium">{resumeWithSeller.career}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Materia</span>
+                <span className="text-gray-500 dark:text-sand-300/75">Materia</span>
                 <span className="font-medium">{resumeWithSeller.subject}</span>
               </div>
             </div>
 
             {((privateQuestionCount ?? 0) > 0 || (answeredQuestionCount ?? 0) > 0) && (
-              <div className="space-y-2 border-t border-gray-100 pt-4 text-sm">
+              <div className="space-y-2 border-t border-gray-100 pt-4 text-sm dark:border-white/10">
                 <div className="flex justify-between gap-3">
-                  <span className="text-gray-500">Consultas privadas</span>
+                  <span className="text-gray-500 dark:text-sand-300/75">Consultas privadas</span>
                   <span className="text-right font-medium">
                     Incluye {privateQuestionCount ?? 0}
                   </span>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <span className="text-gray-500">Respondidas</span>
+                  <span className="text-gray-500 dark:text-sand-300/75">Respondidas</span>
                   <span className="text-right font-medium">
                     {answeredQuestionCount ?? 0} por el autor
                   </span>
@@ -208,16 +208,16 @@ export default async function ResumePage({
               </div>
             )}
 
-            <div className="border-t border-gray-100 pt-4">
-              <div className="text-2xl font-bold text-accent-700">
+            <div className="border-t border-gray-100 pt-4 dark:border-white/10">
+              <div className="text-2xl font-bold text-accent-700 dark:text-accent-100">
                 ${resumeWithSeller.price.toLocaleString("es-AR")}{" "}
-                <span className="text-sm font-normal text-gray-400">ARS</span>
+                <span className="text-sm font-normal text-gray-400 dark:text-sand-300/60">ARS</span>
               </div>
 
               {isOwnResume ? (
                 <Link
                   href={`/sell/${resumeWithSeller.id}/edit`}
-                  className="mt-4 flex w-full items-center justify-center rounded-lg border border-accent-600 py-2.5 text-sm font-semibold text-accent-600 hover:bg-accent-50"
+                  className="mt-4 flex w-full items-center justify-center rounded-lg border border-accent-600 py-2.5 text-sm font-semibold text-accent-600 transition-colors hover:bg-accent-50 dark:border-accent-300/35 dark:text-accent-100 dark:hover:bg-accent-300/10"
                 >
                   Editar apunte
                 </Link>

@@ -443,6 +443,7 @@ export function ViewerLayout({
                   targetType="resume"
                   resumeId={resumeId}
                   currentPage={currentPage}
+                  surface="sidebar"
                   className="px-2 pb-2"
                 />
               )}
@@ -450,13 +451,13 @@ export function ViewerLayout({
           </div>
 
           {/* Aviso de seguridad */}
-          <div className="m-4 shrink-0 rounded-xl border border-accent-200 bg-accent-50 p-3.5">
-            <div className="mb-1.5 flex items-center gap-1.5 text-accent-700">
+          <div className="m-4 shrink-0 rounded-xl border border-gray-200 bg-gray-50/70 p-3">
+            <div className="mb-1 flex items-center gap-1.5 text-gray-600">
               <ShieldIcon />
               <span className="text-xs font-semibold">Contenido protegido</span>
             </div>
-            <p className="text-xs leading-relaxed text-gray-500">
-              Marca de agua dinámica vinculada a tu cuenta. Descarga y captura deshabilitadas.
+            <p className="text-[11px] leading-5 text-gray-500">
+              Marca de agua activa. Evitá compartir capturas o descargas.
             </p>
           </div>
         </aside>

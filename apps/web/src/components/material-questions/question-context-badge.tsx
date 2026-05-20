@@ -18,8 +18,8 @@ export function QuestionContextBadge({
 }) {
   if (typeof page === "number") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-md bg-accent-50 px-2 py-1 text-[11px] font-bold text-accent-700 ring-1 ring-accent-100 dark:bg-accent-300/10 dark:text-accent-100 dark:ring-accent-300/15">
-        <FileText className="h-3.5 w-3.5" />
+      <span className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-2 py-1 text-[11px] font-bold text-gray-700 ring-1 ring-gray-200/80 dark:bg-white/[0.06] dark:text-sand-200 dark:ring-white/10">
+        <FileText className="h-3 w-3" />
         {compact ? `Pág. ${page}` : `Página ${page}`}
       </span>
     );
@@ -27,8 +27,8 @@ export function QuestionContextBadge({
 
   if (typeof seconds === "number") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-md bg-accent-50 px-2 py-1 text-[11px] font-bold text-accent-700 ring-1 ring-accent-100 dark:bg-accent-300/10 dark:text-accent-100 dark:ring-accent-300/15">
-        <Clock3 className="h-3.5 w-3.5" />
+      <span className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-2 py-1 font-mono text-[11px] font-bold text-gray-700 ring-1 ring-gray-200/80 dark:bg-white/[0.06] dark:text-sand-200 dark:ring-white/10">
+        <Clock3 className="h-3 w-3" />
         {formatSeconds(seconds)}
       </span>
     );

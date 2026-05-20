@@ -384,3 +384,186 @@ export function buildStudentBookingDetailsEmail(input: StudentBookingDetailsEmai
 
   return { subject, html, text };
 }
+
+// ==========================================
+// MATERIAL QUESTIONS EMAIL TEMPLATES
+// ==========================================
+
+interface OwnerNewMaterialQuestionEmailInput {
+  ownerName: string;
+  studentName: string;
+  materialKind: "resume" | "course";
+  materialTitle: string;
+  questionTitle: string;
+  contextLabel: string | null;
+  dashboardUrl: string;
+}
+
+export function buildOwnerNewMaterialQuestionEmail(
+  input: OwnerNewMaterialQuestionEmailInput
+) {
+  const isCourse = input.materialKind === "course";
+  const kindLabel = isCourse ? "curso" : "apunte";
+  const subject = `Nueva consulta en tu ${kindLabel} "${input.materialTitle}"`;
+  const category = "NUEVA CONSULTA";
+
+  const contextRow = input.contextLabel
+    ? summaryRow("Contexto", input.contextLabel)
+    : "";
+
+  const html = `
+    <!doctype html>
+    <html>
+      <body style="margin:0;background:#eaf1f7;padding:32px 16px;font-family:Inter,Arial,sans-serif;color:#111b3a;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="520" cellspacing="0" cellpadding="0" style="width:100%;max-width:520px;border-collapse:collapse;background:#ffffff;border:1px solid #dbe4ef;">
+                <tr>
+                  <td align="center" style="background:#091735;padding:44px 24px;">
+                    <div style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#ffffff;">
+                      apuntes<span style="color:#08d6ad;">HUB</span><span style="color:#08d6ad;">.</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:34px 32px 28px;">
+                    <p style="margin:0 0 24px;color:#60708a;font-size:13px;letter-spacing:0.14em;">${category}</p>
+                    <h1 style="margin:0 0 18px;font-size:24px;line-height:1.25;color:#111b3a;">
+                      ${escapeHtml(input.studentName)} dejó una consulta en tu ${kindLabel}
+                    </h1>
+                    <p style="margin:0 0 22px;color:#43536d;font-size:15px;line-height:1.65;">
+                      Hola ${escapeHtml(input.ownerName)}, podés revisarla y responder oficialmente desde tu panel.
+                    </p>
+
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:8px 0 28px;">
+                      ${summaryRow(isCourse ? "Curso" : "Apunte", input.materialTitle)}
+                      ${summaryRow("Título de la consulta", input.questionTitle)}
+                      ${contextRow}
+                    </table>
+
+                    <div style="text-align:center;margin:28px 0 26px;">
+                      <a href="${input.dashboardUrl}" style="display:inline-block;background:#08d6ad;color:#071713;text-decoration:none;font-size:14px;font-weight:800;padding:15px 34px;border-radius:7px;">
+                        Responder consulta
+                      </a>
+                    </div>
+
+                    <p style="margin:0;color:#8a99b1;font-size:12px;line-height:1.65;">
+                      Solo compradores con acceso al material pueden hacer estas consultas. Respondé desde el panel para que la respuesta quede registrada como oficial.
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:22px 32px;border-top:1px solid #e6ebf2;color:#8a99b1;font-size:12px;line-height:1.55;">
+                    Por seguridad, nunca te pediremos claves por email. Dudas:
+                    <a href="mailto:soporte@apunteshub.com" style="color:#08b894;text-decoration:none;">soporte@apunteshub.com</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+
+  const text = [
+    `Nueva consulta en tu ${kindLabel} "${input.materialTitle}"`,
+    "",
+    `Hola ${input.ownerName}, ${input.studentName} dejó una consulta sobre tu ${kindLabel}.`,
+    `Título: ${input.questionTitle}`,
+    input.contextLabel ? `Contexto: ${input.contextLabel}` : "",
+    `Responder: ${input.dashboardUrl}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return { subject, html, text };
+}
+
+interface BuyerMaterialQuestionAnsweredEmailInput {
+  buyerName: string;
+  materialKind: "resume" | "course";
+  materialTitle: string;
+  questionTitle: string;
+  viewUrl: string;
+  isMeTooReceiver?: boolean;
+}
+
+export function buildBuyerMaterialQuestionAnsweredEmail(
+  input: BuyerMaterialQuestionAnsweredEmailInput
+) {
+  const isCourse = input.materialKind === "course";
+  const kindLabel = isCourse ? "curso" : "apunte";
+  const subject = input.isMeTooReceiver
+    ? `Respondieron una consulta de "${input.materialTitle}" que también te interesaba`
+    : `Respondieron tu consulta sobre "${input.materialTitle}"`;
+  const category = input.isMeTooReceiver
+    ? "CONSULTA QUE SEGUÍS"
+    : "RESPUESTA OFICIAL";
+  const heading = input.isMeTooReceiver
+    ? `Hay una nueva respuesta en una consulta que marcaste como tuya`
+    : `Respondieron tu consulta`;
+  const lead = input.isMeTooReceiver
+    ? `Hola ${escapeHtml(input.buyerName)}, hay una nueva respuesta oficial en una consulta de tu ${kindLabel} que también te interesaba.`
+    : `Hola ${escapeHtml(input.buyerName)}, el responsable del ${kindLabel} respondió oficialmente tu consulta.`;
+
+  const html = `
+    <!doctype html>
+    <html>
+      <body style="margin:0;background:#eaf1f7;padding:32px 16px;font-family:Inter,Arial,sans-serif;color:#111b3a;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="520" cellspacing="0" cellpadding="0" style="width:100%;max-width:520px;border-collapse:collapse;background:#ffffff;border:1px solid #dbe4ef;">
+                <tr>
+                  <td align="center" style="background:#091735;padding:44px 24px;">
+                    <div style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#ffffff;">
+                      apuntes<span style="color:#08d6ad;">HUB</span><span style="color:#08d6ad;">.</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:34px 32px 28px;">
+                    <p style="margin:0 0 24px;color:#60708a;font-size:13px;letter-spacing:0.14em;">${category}</p>
+                    <h1 style="margin:0 0 18px;font-size:24px;line-height:1.25;color:#111b3a;">${heading}</h1>
+                    <p style="margin:0 0 22px;color:#43536d;font-size:15px;line-height:1.65;">${lead}</p>
+
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:8px 0 28px;">
+                      ${summaryRow(isCourse ? "Curso" : "Apunte", input.materialTitle)}
+                      ${summaryRow("Consulta", input.questionTitle)}
+                    </table>
+
+                    <div style="text-align:center;margin:28px 0 26px;">
+                      <a href="${input.viewUrl}" style="display:inline-block;background:#08d6ad;color:#071713;text-decoration:none;font-size:14px;font-weight:800;padding:15px 34px;border-radius:7px;">
+                        Ver la respuesta
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:22px 32px;border-top:1px solid #e6ebf2;color:#8a99b1;font-size:12px;line-height:1.55;">
+                    Por seguridad, nunca te pediremos claves por email. Dudas:
+                    <a href="mailto:soporte@apunteshub.com" style="color:#08b894;text-decoration:none;">soporte@apunteshub.com</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+
+  const text = [
+    subject,
+    "",
+    input.isMeTooReceiver
+      ? `Hola ${input.buyerName}, hay una nueva respuesta oficial en una consulta de tu ${kindLabel} que también te interesaba.`
+      : `Hola ${input.buyerName}, respondieron oficialmente tu consulta sobre "${input.materialTitle}".`,
+    `Consulta: ${input.questionTitle}`,
+    `Ver respuesta: ${input.viewUrl}`,
+  ].join("\n");
+
+  return { subject, html, text };
+}

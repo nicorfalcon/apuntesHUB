@@ -63,10 +63,10 @@ export function ConfirmDeleteResumeDialog({
         className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"
       />
 
-      <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
+      <div className="relative w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)] dark:border-white/10 dark:bg-[#0f1e1a] dark:shadow-black/40">
         <div className="flex items-start gap-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50">
-            <AlertTriangle className="h-5 w-5 text-red-600" strokeWidth={2} />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 dark:bg-red-500/10">
+            <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-300" strokeWidth={2} />
           </div>
           <div className="min-w-0 flex-1">
             <h2
@@ -77,7 +77,7 @@ export function ConfirmDeleteResumeDialog({
             </h2>
             <p
               id="confirm-delete-description"
-              className="mt-1 text-sm text-gray-500"
+              className="mt-1 text-sm text-gray-500 dark:text-sand-300/75"
             >
               ¿Seguro que querés eliminar{" "}
               <span className="font-medium text-foreground">&quot;{resumeTitle}&quot;</span>?
@@ -88,7 +88,7 @@ export function ConfirmDeleteResumeDialog({
         </div>
 
         {error && (
-          <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+          <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-200">
             {error}
           </p>
         )}
@@ -99,7 +99,7 @@ export function ConfirmDeleteResumeDialog({
             type="button"
             onClick={onCancel}
             disabled={loading}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500 disabled:opacity-60"
+            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500 disabled:opacity-60 dark:text-sand-100 dark:hover:bg-white/10 dark:focus-visible:outline-accent-300"
           >
             Cancelar
           </button>
@@ -109,7 +109,7 @@ export function ConfirmDeleteResumeDialog({
             disabled={loading}
             className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-red-500 disabled:opacity-60"
           >
-            {loading ? "Eliminando..." : "Eliminar apunte"}
+            {loading ? "Eliminando…" : "Eliminar apunte"}
           </button>
         </div>
       </div>
