@@ -58,3 +58,4 @@ next-env.d.ts
 !/supabase/migrations/
 /supabase/migrations/*
 !/supabase/migrations/0021_material_questions.sql
+supabase/migrations/0021_material_questions.sql
