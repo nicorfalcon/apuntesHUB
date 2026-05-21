@@ -77,16 +77,16 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
         <button
           onClick={() => setOpen(true)}
           aria-label="Abrir asistente IA"
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-accent-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
+          className="fixed bottom-4 right-4 z-40 flex min-h-11 items-center gap-2 rounded-full bg-accent-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-accent-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200 sm:bottom-6 sm:right-6 sm:px-4"
         >
           <SparkleIcon />
-          Asistente IA
+          <span className="hidden sm:inline">Asistente IA</span>
         </button>
       )}
 
       {/* Panel lateral */}
       {open && (
-        <div className="fixed right-0 top-14 z-30 flex h-[calc(100vh-56px)] w-96 flex-col border-l border-gray-200 bg-white shadow-xl dark:border-white/10 dark:bg-[#0f1e1a] dark:shadow-black/35">
+        <div className="fixed inset-x-0 top-14 z-50 flex h-[calc(100svh-56px)] flex-col border-l border-gray-200 bg-white shadow-xl dark:border-white/10 dark:bg-[#0f1e1a] dark:shadow-black/35 sm:left-auto sm:right-0 sm:w-[min(24rem,calc(100vw-2rem))]">
           {/* Header */}
           <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-white/10">
             <div className="min-w-0">
@@ -115,7 +115,7 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
           ) : (
             <>
               {/* Mensajes */}
-              <div className="flex-1 space-y-3 overflow-y-auto p-4">
+              <div className="flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">
                 {messages.length === 0 && (
                   <p className="mt-8 text-center text-xs text-gray-400 dark:text-sand-300/65">
                     Hacé una pregunta sobre este apunte
@@ -151,19 +151,19 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
 
               {/* Input */}
               <div className="shrink-0 border-t border-gray-100 p-3 dark:border-white/10">
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <input
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && onSend()}
                     placeholder="Preguntá sobre este apunte…"
                     disabled={loading}
-                    className="flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500/30 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:placeholder:text-sand-300/45 dark:focus:ring-accent-300/20"
+                    className="min-h-10 flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500/30 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:placeholder:text-sand-300/45 dark:focus:ring-accent-300/20"
                   />
                   <button
                     onClick={onSend}
                     disabled={loading || !query.trim()}
-                    className="rounded-xl bg-accent-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-700 disabled:opacity-40 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
+                    className="min-h-10 rounded-xl bg-accent-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-700 disabled:opacity-40 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
                   >
                     Enviar
                   </button>

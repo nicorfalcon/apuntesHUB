@@ -20,6 +20,7 @@ type DashboardQuestionRow = {
   anchor_seconds: number | null;
   title: string;
   body: string;
+  is_anonymous_to_buyers: boolean;
   status: "open" | "answered" | "resolved" | "hidden";
   created_at: string;
 };
@@ -260,7 +261,7 @@ export default async function DashboardPage({
           admin
             .from("material_questions")
             .select(
-              "id, target_type, resume_id, course_id, module_id, author_id, anchor_page, anchor_seconds, title, body, status, created_at"
+              "id, target_type, resume_id, course_id, module_id, author_id, anchor_page, anchor_seconds, title, body, is_anonymous_to_buyers, status, created_at"
             )
             .in("resume_id", resumeIds)
         )
@@ -272,7 +273,7 @@ export default async function DashboardPage({
           admin
             .from("material_questions")
             .select(
-              "id, target_type, resume_id, course_id, module_id, author_id, anchor_page, anchor_seconds, title, body, status, created_at"
+              "id, target_type, resume_id, course_id, module_id, author_id, anchor_page, anchor_seconds, title, body, is_anonymous_to_buyers, status, created_at"
             )
             .in("course_id", courseIds)
         )
@@ -443,6 +444,7 @@ export default async function DashboardPage({
         status: question.status,
         title: question.title,
         body: question.body,
+        isAnonymousToBuyers: question.is_anonymous_to_buyers,
         createdAt: question.created_at,
         anchorPage: question.anchor_page,
         anchorSeconds: question.anchor_seconds,

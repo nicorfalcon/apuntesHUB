@@ -190,10 +190,10 @@ export function MaterialQuestionsPanel({
       ? "Sé el primero en preguntar sobre este momento del video."
       : "Sé el primero en dejar una duda privada sobre esta parte del apunte.";
   const containerClass = isEmbedded
-    ? "rounded-[20px] border border-gray-200 bg-white/90 p-5 shadow-[0_16px_40px_-30px_rgba(12,25,20,0.32)] dark:border-white/10 dark:bg-[#0f1e1a]"
+    ? "rounded-[20px] border border-gray-200 bg-white/90 p-4 shadow-[0_16px_40px_-30px_rgba(12,25,20,0.32)] dark:border-white/10 dark:bg-[#0f1e1a] sm:p-5"
     : "space-y-4";
   const ctaClass = isEmbedded
-    ? "inline-flex items-center justify-center gap-2 rounded-xl bg-accent-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-accent-300 dark:text-[#071713]"
+    ? "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-accent-300 dark:text-[#071713] sm:w-auto"
     : "inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-foreground transition-colors hover:border-accent-200 hover:bg-accent-50 hover:text-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/25 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-accent-300/25 dark:hover:bg-accent-300/10 dark:hover:text-accent-100";
 
   return (
@@ -206,7 +206,7 @@ export function MaterialQuestionsPanel({
         }
       >
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-base font-bold tracking-tight text-foreground">
               {headerTitle}
             </h2>
@@ -250,13 +250,13 @@ export function MaterialQuestionsPanel({
             className="w-full rounded-xl border border-gray-200 bg-white py-1.5 pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus-visible:border-accent-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/20 dark:border-white/10 dark:bg-white/[0.03] dark:focus-visible:border-accent-300/40"
           />
         </label>
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
           {STATUS_FILTERS.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setStatusFilter(item.id)}
-              className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors ${
+              className={`shrink-0 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors ${
                 statusFilter === item.id
                   ? "border-accent-300 bg-accent-50 text-accent-700 dark:border-accent-300/30 dark:bg-accent-300/10 dark:text-accent-100"
                   : "border-gray-200 text-muted-foreground hover:border-accent-200 hover:text-accent-700 dark:border-white/10"
@@ -265,13 +265,13 @@ export function MaterialQuestionsPanel({
               {item.label}
             </button>
           ))}
-          <span className="mx-1 h-3.5 w-px bg-gray-200 dark:bg-white/10" aria-hidden />
+          <span className="mx-1 h-3.5 w-px shrink-0 bg-gray-200 dark:bg-white/10" aria-hidden />
           {SORT_OPTIONS_BUYER.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setSortOption(item.id)}
-              className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors ${
+              className={`shrink-0 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors ${
                 sortOption === item.id
                   ? "border-accent-300 bg-accent-50 text-accent-700 dark:border-accent-300/30 dark:bg-accent-300/10 dark:text-accent-100"
                   : "border-gray-200 text-muted-foreground hover:border-accent-200 hover:text-accent-700 dark:border-white/10"
@@ -319,7 +319,7 @@ export function MaterialQuestionsPanel({
           ))}
         </div>
       ) : questions.length === 0 ? (
-        <div className="mt-4 flex items-start gap-3 rounded-xl border border-dashed border-gray-200 bg-gray-50/70 px-3 py-3.5 dark:border-white/10 dark:bg-white/[0.03]">
+        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-dashed border-gray-200 bg-gray-50/70 px-3 py-3.5 dark:border-white/10 dark:bg-white/[0.03] sm:flex-row sm:items-start">
           <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-accent-700 ring-1 ring-gray-200 dark:bg-white/[0.04] dark:text-accent-100 dark:ring-white/10">
             <MessageCircleQuestion className="h-4 w-4" />
           </span>

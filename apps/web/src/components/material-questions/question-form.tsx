@@ -103,7 +103,7 @@ export function QuestionForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-[18px] border border-gray-200 bg-white p-3.5 shadow-[0_12px_32px_-28px_rgba(12,25,20,0.45)] dark:border-white/10 dark:bg-white/[0.035]"
+      className="rounded-[18px] border border-gray-200 bg-white p-3 shadow-[0_12px_32px_-28px_rgba(12,25,20,0.45)] dark:border-white/10 dark:bg-white/[0.035] sm:p-3.5"
     >
       <div className="space-y-3">
         <div className="space-y-1.5">
@@ -165,12 +165,12 @@ export function QuestionForm({
 
       {error && <p className="mt-2 text-xs font-semibold text-red-600">{error}</p>}
 
-      <div className="mt-3 flex items-center justify-end gap-2">
+      <div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-xl px-3 py-2 text-xs font-bold text-muted-foreground transition-colors hover:bg-gray-50 hover:text-foreground dark:hover:bg-white/[0.04]"
+            className="w-full rounded-xl px-3 py-2 text-xs font-bold text-muted-foreground transition-colors hover:bg-gray-50 hover:text-foreground dark:hover:bg-white/[0.04] sm:w-auto"
           >
             Cancelar
           </button>
@@ -178,7 +178,7 @@ export function QuestionForm({
         <button
           type="submit"
           disabled={!canSubmit}
-          className="inline-flex items-center gap-2 rounded-xl bg-accent-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-accent-300 dark:text-[#071713]"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-accent-300 dark:text-[#071713] sm:w-auto"
         >
           <SendHorizontal className="h-4 w-4" />
           {isSubmitting ? "Enviando..." : "Publicar consulta"}

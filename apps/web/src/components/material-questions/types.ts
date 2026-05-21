@@ -48,6 +48,7 @@ export interface MaterialQuestionDto {
   anchorSeconds: number | null;
   title: string;
   body: string;
+  isAnonymousToBuyers: boolean;
   status: MaterialQuestionStatus;
   createdAt: string;
   author: {
@@ -63,8 +64,12 @@ export interface MaterialQuestionDto {
   viewer: {
     canAnswer: boolean;
     canModerate: boolean;
+    canReact: boolean;
+    canEdit: boolean;
+    canDelete: boolean;
     hasMeToo: boolean;
     isOwner: boolean;
+    isQuestionAuthor: boolean;
     canFollowUp: boolean;
     followUpRole: MaterialFollowUpRole | null;
   };

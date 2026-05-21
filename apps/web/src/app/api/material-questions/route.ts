@@ -11,6 +11,7 @@ import {
   type MaterialQuestionsClient,
   type MaterialTargetType,
 } from "@/lib/material-questions";
+import { validateMaterialQuestionText } from "@/lib/material-questions/validation";
 import { notifyOwnerOfNewMaterialQuestion } from "@/lib/email/material-question-notifications";
 
 const UUID_RE =
@@ -91,22 +92,6 @@ const SORT_OPTIONS = new Set([
 
 function escapeIlikePattern(value: string) {
   return value.replace(/[\\%_]/g, (char) => `\\${char}`);
-}
-
-function validateText(value: unknown, min: number, max: number, label: string) {
-  if (typeof value !== "string") {
-    return { value: "", error: `${label} requerido.` };
-  }
-
-  const trimmed = value.trim();
-  if (trimmed.length < min || trimmed.length > max) {
-    return {
-      value: trimmed,
-      error: `${label} debe tener entre ${min} y ${max} caracteres.`,
-    };
-  }
-
-  return { value: trimmed, error: null };
 }
 
 function countById(rows: Array<{ id: string }>) {
@@ -433,6 +418,7 @@ export async function GET(request: NextRequest) {
       anchorSeconds: question.anchor_seconds,
       title: question.title,
       body: question.body,
+      isAnonymousToBuyers: question.is_anonymous_to_buyers,
       status,
       createdAt: question.created_at,
       author,
@@ -443,8 +429,21 @@ export async function GET(request: NextRequest) {
       viewer: {
         canAnswer: access.canAnswer && status !== "hidden",
         canModerate: access.canModerate,
+        canReact: access.canReact && status !== "hidden",
+        canEdit:
+          isQuestionAuthor &&
+          status === "open" &&
+          questionAnswers.length === 0 &&
+          questionFollowups.length === 0,
+        canDelete:
+          access.canModerate ||
+          (isQuestionAuthor &&
+            status === "open" &&
+            questionAnswers.length === 0 &&
+            questionFollowups.length === 0),
         hasMeToo: viewerMeToo.has(question.id),
         isOwner: isQuestionAuthor,
+        isQuestionAuthor,
         canFollowUp: followUpRole !== null,
         followUpRole,
       },
@@ -532,10 +531,10 @@ export async function POST(request: NextRequest) {
     return jsonError("targetType debe ser resume o course.", 400);
   }
 
-  const title = validateText(payload.title, 8, 140, "El título");
+  const title = validateMaterialQuestionText(payload.title, 8, 140, "El título");
   if (title.error) return jsonError(title.error, 400);
 
-  const body = validateText(payload.body, 10, 2000, "El detalle");
+  const body = validateMaterialQuestionText(payload.body, 10, 2000, "El detalle");
   if (body.error) return jsonError(body.error, 400);
 
   const admin = createAdminClient() as MaterialQuestionsClient;

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
+import { GripVertical, Menu, X } from "lucide-react";
 import { StarRating } from "@/components/ui/star-rating";
 import { AiChatPanel } from "@/components/ui/ai-chat-panel";
 import { MaterialQuestionsPanel } from "@/components/material-questions";
@@ -21,6 +22,10 @@ const PdfViewer = dynamic(
     ),
   }
 );
+
+const SIDEBAR_MIN_WIDTH = 240;
+const SIDEBAR_DEFAULT_WIDTH = 288;
+const SIDEBAR_MAX_RATIO = 1 / 4;
 
 // ─── Iconos ───────────────────────────────────────────────────────────────────
 
@@ -125,14 +130,16 @@ function TocList({
               onClick={() => onNavigate(item.page)}
               className={`flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors ${
                 isActive
-                  ? "bg-accent-100 text-accent-800"
-                  : "text-gray-500 hover:bg-gray-100 hover:text-foreground"
+                  ? "bg-accent-100 text-accent-800 dark:bg-accent-300/15 dark:text-accent-100"
+                  : "text-gray-500 hover:bg-gray-100 hover:text-foreground dark:text-sand-300/70 dark:hover:bg-white/[0.06] dark:hover:text-sand-50"
               }`}
               style={{ paddingLeft: `${10 + depth * 14}px` }}
             >
               <span
                 className={`mt-0.5 shrink-0 font-mono text-[10px] font-semibold tabular-nums ${
-                  isActive ? "text-accent-600" : "text-gray-400"
+                  isActive
+                    ? "text-accent-600 dark:text-accent-100"
+                    : "text-gray-400 dark:text-sand-300/45"
                 }`}
               >
                 {String(item.page).padStart(3, "0")}
@@ -209,6 +216,52 @@ export function ViewerLayout({
   const [outline, setOutline] = useState<TocItem[] | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<"contenido" | "consultas">("contenido");
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+  const resizeStartRef = useRef<{ x: number; width: number } | null>(null);
+
+  const clampSidebarWidth = useCallback((width: number) => {
+    if (typeof window === "undefined") return width;
+    const maxWidth = Math.max(SIDEBAR_MIN_WIDTH, window.innerWidth * SIDEBAR_MAX_RATIO);
+    return Math.min(Math.max(width, SIDEBAR_MIN_WIDTH), maxWidth);
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setSidebarWidth((width) => clampSidebarWidth(width));
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [clampSidebarWidth]);
+
+  const startSidebarResize = useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>) => {
+      resizeStartRef.current = { x: event.clientX, width: sidebarWidth };
+      setIsResizingSidebar(true);
+      event.currentTarget.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    },
+    [sidebarWidth]
+  );
+
+  const moveSidebarResize = useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>) => {
+      if (!resizeStartRef.current) return;
+      const delta = event.clientX - resizeStartRef.current.x;
+      setSidebarWidth(clampSidebarWidth(resizeStartRef.current.width + delta));
+    },
+    [clampSidebarWidth]
+  );
+
+  const stopSidebarResize = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    resizeStartRef.current = null;
+    setIsResizingSidebar(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }, []);
 
   useEffect(() => {
     const handleFsChange = () => {
@@ -217,6 +270,26 @@ export function ViewerLayout({
     document.addEventListener("fullscreenchange", handleFsChange);
     return () => document.removeEventListener("fullscreenchange", handleFsChange);
   }, []);
+
+  useEffect(() => {
+    if (window.innerWidth < 640) {
+      setZoom(55);
+    } else if (window.innerWidth < 1024) {
+      setZoom(85);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isResizingSidebar) return;
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    return () => {
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+    };
+  }, [isResizingSidebar]);
 
   const goTo = useCallback(
     (p: number) => {
@@ -264,20 +337,28 @@ export function ViewerLayout({
   const outlineLoading = outline === null;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background font-body">
+    <div className="flex h-[100svh] flex-col overflow-hidden bg-background font-body">
       {/* ── Navbar del visor ── */}
-      <nav className="flex h-14 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 dark:border-white/10 dark:bg-[#101816]">
-        <div className="flex items-center gap-4">
-          <Link href="/explorar" className="text-lg font-bold tracking-tight text-foreground">
+      <nav className="flex h-14 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-3 dark:border-white/10 dark:bg-[#101816] sm:px-6">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(true)}
+            aria-label="Abrir panel del apunte"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-200 text-muted-foreground transition-colors hover:border-accent-200 hover:bg-accent-50 hover:text-accent-700 dark:border-white/10 dark:hover:border-accent-300/25 dark:hover:bg-accent-300/10 dark:hover:text-accent-100 lg:hidden"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+          <Link href="/explorar" className="shrink-0 text-base font-bold tracking-tight text-foreground sm:text-lg">
             apuntes<span className="text-accent-600">HUB</span>
           </Link>
-          <div className="h-5 w-px bg-gray-200" />
+          <div className="hidden h-5 w-px bg-gray-200 sm:block dark:bg-white/10" />
           <Link
             href="/my-purchases"
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 dark:text-sand-300/75 dark:hover:bg-white/10 dark:hover:text-sand-50 dark:focus-visible:ring-accent-300/30"
+            className="flex min-w-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 dark:text-sand-300/75 dark:hover:bg-white/10 dark:hover:text-sand-50 dark:focus-visible:ring-accent-300/30 sm:px-2.5"
           >
             <ArrowLeftIcon />
-            Mi biblioteca
+            <span className="hidden sm:inline">Mi biblioteca</span>
           </Link>
         </div>
 
@@ -299,17 +380,48 @@ export function ViewerLayout({
       </nav>
 
       {/* ── Contenido principal ── */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden">
+        {isSidebarOpen && (
+          <button
+            type="button"
+            aria-label="Cerrar panel del apunte"
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 top-14 z-30 bg-[#06110e]/45 backdrop-blur-[1px] lg:hidden"
+          />
+        )}
+
         {/* ── Sidebar ── */}
-        <aside className="flex w-72 shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-white">
+        <aside
+          className={`fixed bottom-0 left-0 top-14 z-40 flex w-[min(88vw,22rem)] shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-white shadow-2xl transition-transform duration-300 ease-out dark:border-white/10 dark:bg-[#101816] lg:static lg:z-auto lg:w-[var(--viewer-sidebar-width)] lg:translate-x-0 lg:shadow-none lg:transition-none ${
+            isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+          style={
+            {
+              "--viewer-sidebar-width": `${sidebarWidth}px`,
+            } as React.CSSProperties
+          }
+        >
           {/* Info del apunte */}
-          <div className="shrink-0 p-5">
+          <div className="shrink-0 p-4 sm:p-5">
+            <div className="mb-3 flex items-center justify-between gap-3 lg:hidden">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                Panel del apunte
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen(false)}
+                aria-label="Cerrar panel del apunte"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-gray-100 hover:text-foreground dark:hover:bg-white/[0.06]"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
             <div className="mb-3 flex items-center gap-2">
-              <span className="rounded-md bg-accent-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-accent-700">
+              <span className="rounded-md bg-accent-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-accent-700 dark:bg-accent-300/10 dark:text-accent-100">
                 Comprado
               </span>
-              <span className="flex items-center gap-1 rounded-md bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
-                <span className="text-accent-600">
+              <span className="flex items-center gap-1 rounded-md bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-300/10 dark:text-amber-100">
+                <span className="text-accent-600 dark:text-accent-100">
                   <ShieldIcon />
                 </span>
                 Protegido
@@ -333,7 +445,7 @@ export function ViewerLayout({
             )}
           </div>
 
-          <div className="mx-5 h-px shrink-0 bg-gray-100" />
+          <div className="mx-5 h-px shrink-0 bg-gray-100 dark:bg-white/10" />
 
           {/* Vendedor */}
           <div className="shrink-0 p-5">
@@ -342,7 +454,7 @@ export function ViewerLayout({
             </p>
             <Link
               href={`/profile/${seller.id}`}
-              className="flex items-center gap-2.5 rounded-xl p-2 -mx-2 transition-colors hover:bg-gray-50"
+              className="flex items-center gap-2.5 rounded-xl p-2 -mx-2 transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.06]"
             >
               <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-accent-600 to-accent-800 text-sm font-bold text-white">
                 {seller.avatar_url ? (
@@ -367,34 +479,36 @@ export function ViewerLayout({
             </Link>
           </div>
 
-          <div className="mx-5 h-px shrink-0 bg-gray-100" />
+          <div className="mx-5 h-px shrink-0 bg-gray-100 dark:bg-white/10" />
 
           {/* ── Sección de contenido / consultas ── */}
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="shrink-0 px-5 pb-3 pt-4">
-              <div className="grid grid-cols-2 rounded-xl bg-gray-100 p-1">
-                <button
-                  type="button"
-                  onClick={() => setSidebarTab("contenido")}
-                  className={`rounded-lg px-2 py-2 text-xs font-bold transition-colors ${
-                    sidebarTab === "contenido"
-                      ? "bg-white text-foreground shadow-sm"
-                      : "text-gray-500 hover:text-foreground"
-                  }`}
-                >
-                  Contenido
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSidebarTab("consultas")}
-                  className={`rounded-lg px-2 py-2 text-xs font-bold transition-colors ${
-                    sidebarTab === "consultas"
-                      ? "bg-white text-foreground shadow-sm"
-                      : "text-gray-500 hover:text-foreground"
-                  }`}
-                >
-                  Consultas
-                </button>
+              <div>
+                <div className="grid grid-cols-2 rounded-xl bg-gray-100 p-1 dark:bg-white/[0.06]">
+                  <button
+                    type="button"
+                    onClick={() => setSidebarTab("contenido")}
+                    className={`rounded-lg px-2 py-2 text-xs font-bold transition-colors ${
+                      sidebarTab === "contenido"
+                        ? "bg-white text-foreground shadow-sm dark:bg-white/[0.08]"
+                        : "text-gray-500 hover:text-foreground dark:text-sand-300/70 dark:hover:text-sand-50"
+                    }`}
+                  >
+                    Contenido
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSidebarTab("consultas")}
+                    className={`rounded-lg px-2 py-2 text-xs font-bold transition-colors ${
+                      sidebarTab === "consultas"
+                        ? "bg-white text-foreground shadow-sm dark:bg-white/[0.08]"
+                        : "text-gray-500 hover:text-foreground dark:text-sand-300/70 dark:hover:text-sand-50"
+                    }`}
+                  >
+                    Consultas
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -427,11 +541,11 @@ export function ViewerLayout({
                   {!outlineLoading && !hasOutline && (
                     <>
                       {resume.description ? (
-                        <p className="px-2 text-sm leading-relaxed text-gray-500">
+                        <p className="px-2 text-sm leading-relaxed text-gray-500 dark:text-sand-300/75">
                           {resume.description}
                         </p>
                       ) : (
-                        <p className="px-2 text-xs text-gray-400">
+                        <p className="px-2 text-xs text-gray-400 dark:text-sand-300/60">
                           Este apunte no tiene índice disponible.
                         </p>
                       )}
@@ -451,24 +565,41 @@ export function ViewerLayout({
           </div>
 
           {/* Aviso de seguridad */}
-          <div className="m-4 shrink-0 rounded-xl border border-gray-200 bg-gray-50/70 p-3">
-            <div className="mb-1 flex items-center gap-1.5 text-gray-600">
+          <div className="m-4 shrink-0 rounded-xl border border-gray-200 bg-gray-50/70 p-3 dark:border-white/10 dark:bg-white/[0.04]">
+            <div className="mb-1 flex items-center gap-1.5 text-gray-600 dark:text-sand-100">
               <ShieldIcon />
               <span className="text-xs font-semibold">Contenido protegido</span>
             </div>
-            <p className="text-[11px] leading-5 text-gray-500">
+            <p className="text-[11px] leading-5 text-gray-500 dark:text-sand-300/75">
               Marca de agua activa. Evitá compartir capturas o descargas.
             </p>
           </div>
         </aside>
 
+        <button
+          type="button"
+          aria-label="Cambiar ancho del panel"
+          title="Arrastrar para cambiar el ancho"
+          onPointerDown={startSidebarResize}
+          onPointerMove={moveSidebarResize}
+          onPointerUp={stopSidebarResize}
+          onPointerCancel={stopSidebarResize}
+          className={`group relative hidden w-3 shrink-0 cursor-col-resize touch-none items-center justify-center border-r border-gray-200 bg-white transition-colors hover:bg-accent-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/30 dark:border-white/10 dark:bg-[#101816] dark:hover:bg-accent-300/10 lg:flex ${
+            isResizingSidebar ? "bg-accent-50 dark:bg-accent-300/10" : ""
+          }`}
+        >
+          <span className="flex h-14 w-5 items-center justify-center rounded-full text-gray-300 transition-colors group-hover:text-accent-700 dark:text-sand-300/35 dark:group-hover:text-accent-100">
+            <GripVertical className="h-4 w-4" />
+          </span>
+        </button>
+
         {/* ── Área del visor ── */}
         <main
-          className="relative flex flex-1 flex-col items-center overflow-auto bg-stone-200 py-8"
+          className="relative flex min-w-0 flex-1 flex-col items-center overflow-auto bg-stone-200 px-3 py-4 dark:bg-[#17231f] sm:px-5 sm:py-6 lg:px-8 lg:py-8"
           onContextMenu={(e) => e.preventDefault()}
         >
           {/* Toolbar flotante */}
-          <div className="sticky top-0 z-20 mb-6 flex items-center gap-1.5 rounded-2xl bg-white/85 px-3 py-2 shadow-[0_2px_20px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)] backdrop-blur-md">
+          <div className="sticky top-0 z-20 mb-4 flex max-w-full flex-wrap items-center justify-center gap-1.5 rounded-2xl bg-white/85 px-2.5 py-2 shadow-[0_2px_20px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)] backdrop-blur-md dark:border dark:border-white/10 dark:bg-[#101816]/90 sm:mb-6 sm:px-3">
             {/* Anterior */}
             <button
               onClick={() => goTo(currentPage - 1)}
@@ -504,7 +635,7 @@ export function ViewerLayout({
               <ChevronRightIcon />
             </button>
 
-            <div className="mx-1 h-5 w-px bg-gray-200" />
+            <div className="mx-1 hidden h-5 w-px bg-gray-200 sm:block dark:bg-white/10" />
 
             {/* Zoom − */}
             <button
@@ -526,7 +657,7 @@ export function ViewerLayout({
               <ZoomInIcon />
             </button>
 
-            <div className="mx-1 h-5 w-px bg-gray-200" />
+            <div className="mx-1 hidden h-5 w-px bg-gray-200 sm:block dark:bg-white/10" />
 
             {/* Pantalla completa / salir */}
             <button

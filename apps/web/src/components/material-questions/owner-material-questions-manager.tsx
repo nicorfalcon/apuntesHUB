@@ -12,6 +12,7 @@ import {
   MessageCircleReply,
   Search,
   ThumbsUp,
+  Trash2,
   UserRound,
 } from "lucide-react";
 import { AnswerComposer } from "./answer-composer";
@@ -28,6 +29,7 @@ export interface OwnerMaterialQuestionItem {
   status: MaterialQuestionStatus;
   title: string;
   body: string;
+  isAnonymousToBuyers: boolean;
   createdAt: string;
   anchorPage: number | null;
   anchorSeconds: number | null;
@@ -135,6 +137,7 @@ export function OwnerMaterialQuestionsManager({
   };
   const [items, setItems] = useState(questions);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState(activeFilters.query);
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -185,6 +188,7 @@ export function OwnerMaterialQuestionsManager({
 
   async function updateStatus(questionId: string, status: MaterialQuestionStatus) {
     setPendingId(questionId);
+    setActionError(null);
     try {
       const response = await fetch(`/api/material-questions/${questionId}`, {
         method: "PATCH",
@@ -192,13 +196,45 @@ export function OwnerMaterialQuestionsManager({
         body: JSON.stringify({ status }),
       });
 
-      if (response.ok) {
-        setItems((current) =>
-          current.map((question) =>
-            question.id === questionId ? { ...question, status } : question
-          )
-        );
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error ?? "No pudimos cambiar el estado.");
       }
+
+      setItems((current) =>
+        current.map((question) =>
+          question.id === questionId ? { ...question, status } : question
+        )
+      );
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "No pudimos cambiar el estado."
+      );
+    } finally {
+      setPendingId(null);
+    }
+  }
+
+  async function deleteQuestion(questionId: string) {
+    if (!window.confirm("¿Borrar esta consulta y todo su hilo?")) return;
+
+    setPendingId(questionId);
+    setActionError(null);
+    try {
+      const response = await fetch(`/api/material-questions/${questionId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error ?? "No pudimos borrar la consulta.");
+      }
+
+      setItems((current) => current.filter((question) => question.id !== questionId));
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "No pudimos borrar la consulta."
+      );
     } finally {
       setPendingId(null);
     }
@@ -324,6 +360,12 @@ export function OwnerMaterialQuestionsManager({
         </div>
       ) : (
         <div className="space-y-4">
+          {actionError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-100">
+              {actionError}
+            </div>
+          )}
+
           {filteredQuestions.map((question) => (
             <article
               key={question.id}
@@ -388,6 +430,12 @@ export function OwnerMaterialQuestionsManager({
                       <p className="truncate text-xs text-muted-foreground">
                         Alumno real
                       </p>
+                      {question.isAnonymousToBuyers && (
+                        <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-white px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground ring-1 ring-gray-200 dark:bg-white/[0.06] dark:ring-white/10">
+                          <EyeOff className="h-3 w-3" />
+                          Anónima para compradores
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -415,16 +463,11 @@ export function OwnerMaterialQuestionsManager({
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2 border-t border-gray-100 pt-4 dark:border-white/10">
-                {question.status !== "resolved" && question.status !== "hidden" && (
-                  <button
-                    type="button"
-                    onClick={() => updateStatus(question.id, "resolved")}
-                    disabled={pendingId === question.id}
-                    className="inline-flex items-center gap-2 rounded-xl border border-green-200 px-3 py-2 text-xs font-bold text-green-700 transition-colors hover:bg-green-50 disabled:opacity-60 dark:border-green-300/25 dark:text-green-100"
-                  >
+                {question.status === "resolved" && (
+                  <span className="inline-flex items-center gap-2 rounded-xl border border-green-200 px-3 py-2 text-xs font-bold text-green-700 dark:border-green-300/25 dark:text-green-100">
                     <CheckCircle2 className="h-4 w-4" />
-                    Resolver
-                  </button>
+                    Resuelta por el comprador
+                  </span>
                 )}
                 {question.status !== "hidden" ? (
                   <button
@@ -451,6 +494,15 @@ export function OwnerMaterialQuestionsManager({
                   <ThumbsUp className="h-4 w-4" />
                   {question.counts.helpful} votos útiles
                 </span>
+                <button
+                  type="button"
+                  onClick={() => deleteQuestion(question.id)}
+                  disabled={pendingId === question.id}
+                  className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-700 transition-colors hover:bg-red-50 disabled:opacity-60 dark:border-red-300/25 dark:text-red-100 dark:hover:bg-red-400/10"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Borrar
+                </button>
               </div>
 
               {question.status !== "hidden" && (

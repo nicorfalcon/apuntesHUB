@@ -170,7 +170,7 @@ function PdfViewer({ url, userEmail, page, onPageChange, zoom, onNumPagesLoad, o
   }
 
   return (
-    <div className={`flex flex-col items-center gap-4 ${isControlled ? "" : "w-full"}`}>
+    <div className="flex w-full flex-col items-center gap-4">
       {/* Toolbar interno — solo en modo no controlado */}
       {!isControlled && (
         <div className="flex items-center gap-4 rounded-lg border border-gray-200 bg-white px-4 py-2">

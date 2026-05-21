@@ -13,7 +13,11 @@ function jsonError(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
 }
 
-async function ensureCanReact(questionId: string) {
+type ReactAccessResult =
+  | { response: NextResponse }
+  | { response?: undefined; admin: MaterialQuestionsClient; user: { id: string } };
+
+async function ensureCanReact(questionId: string): Promise<ReactAccessResult> {
   const supabase = (await createClient()) as MaterialQuestionsClient;
   const {
     data: { user },
@@ -31,7 +35,7 @@ async function ensureCanReact(questionId: string) {
     };
   }
 
-  return { supabase, user };
+  return { admin, user };
 }
 
 export async function POST(
@@ -44,7 +48,7 @@ export async function POST(
   const result = await ensureCanReact(id);
   if (result.response) return result.response;
 
-  const { error } = await result.supabase
+  const { error } = await result.admin
     .from("material_question_me_toos")
     .upsert(
       { question_id: id, user_id: result.user.id },
@@ -62,18 +66,14 @@ export async function DELETE(
   const { id } = await params;
   if (!UUID_RE.test(id)) return jsonError("Consulta inválida.", 400);
 
-  const supabase = (await createClient()) as MaterialQuestionsClient;
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const result = await ensureCanReact(id);
+  if (result.response) return result.response;
 
-  if (!user) return jsonError("No autorizado", 401);
-
-  const { error } = await supabase
+  const { error } = await result.admin
     .from("material_question_me_toos")
     .delete()
     .eq("question_id", id)
-    .eq("user_id", user.id);
+    .eq("user_id", result.user.id);
 
   if (error) return jsonError(error.message, 500);
   return NextResponse.json({ ok: true });

@@ -6,24 +6,13 @@ import {
   getQuestionAccess,
   type MaterialQuestionsClient,
 } from "@/lib/material-questions";
+import { validateMaterialQuestionText } from "@/lib/material-questions/validation";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function jsonError(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
-}
-
-function validateBody(value: unknown) {
-  if (typeof value !== "string") return { value: "", error: "Mensaje requerido." };
-  const trimmed = value.trim();
-  if (trimmed.length < 1 || trimmed.length > 2000) {
-    return {
-      value: trimmed,
-      error: "El mensaje debe tener entre 1 y 2000 caracteres.",
-    };
-  }
-  return { value: trimmed, error: null };
 }
 
 export async function POST(
@@ -41,7 +30,7 @@ export async function POST(
   if (!user) return jsonError("No autorizado", 401);
 
   const payload = (await request.json().catch(() => null)) as { body?: unknown } | null;
-  const body = validateBody(payload?.body);
+  const body = validateMaterialQuestionText(payload?.body, 1, 2000, "El mensaje");
   if (body.error) return jsonError(body.error, 400);
 
   const admin = createAdminClient() as MaterialQuestionsClient;
