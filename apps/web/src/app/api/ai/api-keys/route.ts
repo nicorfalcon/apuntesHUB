@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Verificar que la key funciona antes de guardarla
-  const isValid = await validateApiKey(provider, apiKey, modelId);
+  const isValid = await validateApiKey(provider, apiKey);
   if (!isValid) {
     return NextResponse.json(
       { error: "La API key no es válida o no tiene permisos suficientes" },

@@ -1,7 +1,6 @@
 export async function validateApiKey(
   provider: string,
-  apiKey: string,
-  modelId?: string
+  apiKey: string
 ): Promise<boolean> {
   try {
     if (provider === "openai") {

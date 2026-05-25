@@ -23,7 +23,7 @@ function checkBrowseRateLimit(ip: string): boolean {
 }
 
 function normalizeText(text: string): string {
-  return text.normalize("NFD").replace(/\p{Mn}/gu, "").toLowerCase();
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
 // Extrae tokens significativos de la query (>= 3 caracteres, excluye stopwords comunes).
