@@ -5,6 +5,12 @@ export const EMBEDDING_DIM = 1024;
 
 const BATCH_LIMIT = 96;
 
+// Quita diacríticos antes de vectorizar para que "Le Chatelier" y "Le Châtelier"
+// produzcan embeddings compatibles. El contenido original se guarda sin tocar en la DB.
+function normalizeForEmbedding(text: string): string {
+  return text.normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
 function getClient(): CohereClient {
   const apiKey = process.env.COHERE_API_KEY;
   if (!apiKey) throw new Error("COHERE_API_KEY no está configurada");
@@ -19,7 +25,7 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
     const batch = texts.slice(i, i + BATCH_LIMIT);
     const response = await client.embed({
       model: EMBEDDING_MODEL,
-      texts: batch,
+      texts: batch.map(normalizeForEmbedding),
       inputType: "search_document",
     });
 
@@ -40,7 +46,7 @@ export async function generateQueryEmbedding(text: string): Promise<number[]> {
   const client = getClient();
   const response = await client.embed({
     model: EMBEDDING_MODEL,
-    texts: [text],
+    texts: [normalizeForEmbedding(text)],
     inputType: "search_query",
   });
 

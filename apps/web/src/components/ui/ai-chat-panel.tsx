@@ -1,10 +1,15 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useAIModels } from "@/hooks/use-ai-models";
+import { ModelSelector } from "./model-selector";
+import { SourcePills } from "./source-pills";
+import type { Source } from "./source-pills";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+  sources?: Source[];
 }
 
 interface AiChatPanelProps {
@@ -38,6 +43,8 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const { models, selectedModel, setSelectedModel, loading: modelsLoading, goToAddKey } = useAIModels();
+
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading, open]);
@@ -55,13 +62,30 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q, resumeIds: [resumeId] }),
+        body: JSON.stringify({
+          query: q,
+          resumeIds: [resumeId],
+          apiKeyId: selectedModel.id,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Error desconocido");
+        // Si la key fue eliminada mientras el panel estaba abierto, caer al modelo platform
+        if (res.status === 404 && selectedModel.id !== "platform") {
+          setSelectedModel(models.find((m) => m.id === "platform") ?? selectedModel);
+          setError("La API key ya no existe. Se cambió al modelo por defecto de apuntesHUB.");
+        } else {
+          setError(data.error ?? "Error desconocido");
+        }
       } else {
-        setMessages((prev) => [...prev, { role: "assistant", content: data.answer }]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: data.answer,
+            sources: data.sources,
+          },
+        ]);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -72,7 +96,7 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
 
   return (
     <>
-      {/* Botón flotante — solo visible cuando el panel está cerrado */}
+      {/* Botón flotante */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
@@ -114,15 +138,27 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
             </div>
           ) : (
             <>
+              {/* Selector de modelo */}
+              {!modelsLoading && (
+                <ModelSelector
+                  models={models}
+                  selected={selectedModel}
+                  onChange={setSelectedModel}
+                  onAddKey={goToAddKey}
+                />
+              )}
+
               {/* Mensajes */}
               <div className="flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">
                 {messages.length === 0 && (
                   <p className="mt-8 text-center text-xs text-gray-400 dark:text-sand-300/65">
-                    Hacé una pregunta sobre este apunte
+                    {selectedModel.hasWebSearch
+                      ? "Preguntá sobre el apunte o cualquier tema relacionado. Voy a combinar el apunte con búsqueda en internet."
+                      : "Hacé una pregunta sobre este apunte"}
                   </p>
                 )}
                 {messages.map((m, i) => (
-                  <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                  <div key={i} className={m.role === "user" ? "flex justify-end" : "flex flex-col items-start"}>
                     <div
                       className={`max-w-[85%] rounded-2xl px-3 py-2.5 text-sm ${
                         m.role === "user"
@@ -132,6 +168,9 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
                     >
                       <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
                     </div>
+                    {m.role === "assistant" && m.sources && m.sources.length > 0 && (
+                      <SourcePills sources={m.sources} />
+                    )}
                   </div>
                 ))}
                 {loading && (
@@ -156,7 +195,11 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && onSend()}
-                    placeholder="Preguntá sobre este apunte…"
+                    placeholder={
+                      selectedModel.hasWebSearch
+                        ? "Preguntá sobre el apunte o cualquier tema…"
+                        : "Preguntá sobre este apunte…"
+                    }
                     disabled={loading}
                     className="min-h-10 flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-foreground placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500/30 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:placeholder:text-sand-300/45 dark:focus:ring-accent-300/20"
                   />

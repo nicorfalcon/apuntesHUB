@@ -31,6 +31,12 @@ export default function ExplorarClient({
   const [careerOpen, setCareerOpen] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Estado búsqueda IA
+  const [aiSearch, setAiSearch] = useState(false);
+  const [aiResultIds, setAiResultIds] = useState<string[] | null>(null);
+  const [aiScores, setAiScores] = useState<Record<string, number>>({});
+  const [aiSearchLoading, setAiSearchLoading] = useState(false);
+
   const purchasedSet = useMemo(() => new Set(purchasedIds), [purchasedIds]);
 
   useEffect(() => {
@@ -41,6 +47,48 @@ export default function ExplorarClient({
     ).filter((c) => c.toLowerCase().includes(param));
     if (matched.length > 0) setSelectedCareers(new Set(matched));
   }, [initialCareer, resumes]);
+
+  // Debounce: dispara la búsqueda IA 500ms después de que el usuario deja de escribir
+  useEffect(() => {
+    if (!aiSearch || !searchQuery.trim()) {
+      setAiResultIds(null);
+      setAiScores({});
+      setAiSearchLoading(false);
+      return;
+    }
+
+    setAiSearchLoading(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/ai/browse-search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: searchQuery.trim() }),
+        });
+
+        if (!res.ok) {
+          setAiResultIds([]);
+          return;
+        }
+
+        const data = await res.json();
+        const results: Array<{ resumeId: string; similarity: number }> =
+          data.results ?? [];
+
+        setAiResultIds(results.map((r) => r.resumeId));
+        setAiScores(
+          Object.fromEntries(results.map((r) => [r.resumeId, r.similarity]))
+        );
+      } catch {
+        setAiResultIds([]);
+      } finally {
+        setAiSearchLoading(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, aiSearch]);
 
   const universityCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -63,21 +111,43 @@ export default function ExplorarClient({
   );
 
   const filteredResumes = useMemo(() => {
-    return resumes.filter((r) => {
-      if (selectedUniversities.size > 0 && !selectedUniversities.has(r.university)) return false;
-      if (selectedCareers.size > 0 && !selectedCareers.has(r.career)) return false;
+    let result = [...resumes];
+
+    if (aiSearch) {
+      // Modo búsqueda IA
+      if (aiResultIds === null) {
+        // Query vacío o esperando debounce: mostrar todos si no escribió nada
+        result = searchQuery.trim() ? [] : result;
+      } else if (aiResultIds.length === 0) {
+        result = [];
+      } else {
+        const idSet = new Set(aiResultIds);
+        result = result.filter((r) => idSet.has(r.id));
+        result.sort((a, b) => (aiScores[b.id] ?? 0) - (aiScores[a.id] ?? 0));
+      }
+    } else {
+      // Modo búsqueda por texto (comportamiento original)
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        if (
-          !r.title.toLowerCase().includes(q) &&
-          !r.subject.toLowerCase().includes(q) &&
-          !r.university.toLowerCase().includes(q)
-        )
-          return false;
+        result = result.filter(
+          (r) =>
+            r.title.toLowerCase().includes(q) ||
+            r.subject.toLowerCase().includes(q) ||
+            r.university.toLowerCase().includes(q)
+        );
       }
-      return true;
-    });
-  }, [resumes, selectedUniversities, selectedCareers, searchQuery]);
+    }
+
+    // Filtros secundarios (universidad y carrera) — siempre activos en ambos modos
+    if (selectedUniversities.size > 0) {
+      result = result.filter((r) => selectedUniversities.has(r.university));
+    }
+    if (selectedCareers.size > 0) {
+      result = result.filter((r) => selectedCareers.has(r.career));
+    }
+
+    return result;
+  }, [resumes, selectedUniversities, selectedCareers, searchQuery, aiSearch, aiResultIds, aiScores]);
 
   type TagType = "university" | "career";
   const activeTags: { label: string; type: TagType }[] = [
@@ -90,7 +160,18 @@ export default function ExplorarClient({
     setSelectedCareers(new Set());
     setSearchQuery("");
     setUniversitySearch("");
+    setAiSearch(false);
+    setAiResultIds(null);
+    setAiScores({});
   };
+
+  function handleAiSearchChange(value: boolean) {
+    setAiSearch(value);
+    if (!value) {
+      setAiResultIds(null);
+      setAiScores({});
+    }
+  }
 
   const removeTag = (tag: { label: string; type: TagType }) => {
     if (tag.type === "university") {
@@ -290,37 +371,102 @@ export default function ExplorarClient({
           <div className="min-w-0 flex-1">
             {/* Search bar */}
             <div className="mb-3">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <label className="relative block">
+                <span className="sr-only">Buscar apuntes</span>
+                {aiSearchLoading ? (
+                  <span className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin rounded-full border-2 border-accent-400 border-t-transparent" />
+                ) : (
+                  <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                )}
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar apuntes por tema o autor..."
-                className="w-full rounded-full border border-gray-200 bg-white py-2.5 pl-11 pr-4 text-sm text-foreground outline-none placeholder:text-gray-400 focus:border-gray-300 dark:border-white/10 dark:bg-[#071713] dark:placeholder:text-sand-300/45 dark:focus:border-accent-300"
+                  placeholder={
+                    aiSearch
+                      ? "Ej: principio de Le Chatelier, derivadas parciales..."
+                      : "Buscar apuntes por tema o autor..."
+                  }
+                  className="w-full rounded-full border border-gray-200 bg-white py-2.5 pl-11 pr-[168px] text-sm text-foreground outline-none placeholder:text-gray-400 focus:border-gray-300 dark:border-white/10 dark:bg-[#071713] dark:placeholder:text-sand-300/45 dark:focus:border-accent-300"
                 />
-              </div>
+                {/* Toggle "Buscar por tema" */}
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={aiSearch}
+                  onClick={() => handleAiSearchChange(!aiSearch)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex cursor-pointer items-center gap-2"
+                >
+                  <span className={`text-xs font-medium transition-colors ${aiSearch ? "text-accent-700" : "text-gray-400"}`}>
+                    Buscar por tema
+                  </span>
+                  {/* Track */}
+                  <span className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors duration-200 ${aiSearch ? "bg-accent-500" : "bg-gray-200"}`}>
+                    {/* Thumb */}
+                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${aiSearch ? "translate-x-4" : "translate-x-0.5"}`} />
+                  </span>
+                </button>
+              </label>
             </div>
 
             {/* Count */}
             <p className="mb-5 text-sm text-gray-500 dark:text-sand-300/75">
-              Mostrando{" "}
-              <span className="font-bold text-gray-900 dark:text-sand-50">{filteredResumes.length}</span>{" "}
-              de {resumes.length} apuntes
+              {aiSearch && aiResultIds !== null && searchQuery.trim() ? (
+                <>
+                  <span className="font-bold text-accent-600">{filteredResumes.length}</span>
+                  {" "}apuntes sobre{" "}
+                  <span className="font-semibold text-gray-900 dark:text-sand-50">&ldquo;{searchQuery}&rdquo;</span>
+                </>
+              ) : (
+                <>
+                  Mostrando{" "}
+                  <span className="font-bold text-gray-900 dark:text-sand-50">{filteredResumes.length}</span>{" "}
+                  de {resumes.length} apuntes
+                </>
+              )}
             </p>
 
             {/* Grid */}
-            {filteredResumes.length === 0 ? (
+            {aiSearchLoading ? (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-[220px] animate-pulse rounded-2xl bg-gray-100 dark:bg-white/5"
+                  />
+                ))}
+              </div>
+            ) : filteredResumes.length === 0 ? (
               <div className="py-16 text-center text-gray-400 dark:text-sand-300/65">
-                <p className="text-lg">No se encontraron apuntes.</p>
-                <p className="mt-1 text-sm">Intentá con otros filtros.</p>
-                <Link
-                  href="/explorar"
-                  onClick={clearAll}
-                  className="mt-4 inline-block text-sm text-accent-600 hover:underline"
-                >
-                  Limpiar filtros
-                </Link>
+                {aiSearch && searchQuery.trim() ? (
+                  <>
+                    <p className="text-lg font-bold text-gray-900 dark:text-sand-50">
+                      No encontramos apuntes sobre ese tema
+                    </p>
+                    <p className="mt-1 text-sm">
+                      Probá con otros términos o desactivá &ldquo;Buscar por tema&rdquo; para buscar por título.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleAiSearchChange(false)}
+                      className="mt-4 rounded-full border border-gray-200 px-5 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:text-sand-300 dark:hover:bg-white/5"
+                    >
+                      Buscar por título
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-lg">No se encontraron apuntes.</p>
+                    <p className="mt-1 text-sm">Intentá con otros filtros.</p>
+                    <Link
+                      href="/explorar"
+                      onClick={clearAll}
+                      className="mt-4 inline-block text-sm text-accent-600 hover:underline"
+                    >
+                      Limpiar filtros
+                    </Link>
+                  </>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">

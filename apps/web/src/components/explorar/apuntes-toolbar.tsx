@@ -27,6 +27,9 @@ interface ApuntesToolbarProps {
   onToggleSubject: (value: string) => void;
   onPriceRangeChange: (value: PriceRange) => void;
   onClear: () => void;
+  aiSearch: boolean;
+  onAiSearchChange: (value: boolean) => void;
+  aiSearchLoading?: boolean;
 }
 
 const PRICE_OPTIONS: { value: PriceRange; label: string }[] = [
@@ -159,20 +162,46 @@ export function ApuntesToolbar({
   onToggleSubject,
   onPriceRangeChange,
   onClear,
+  aiSearch,
+  onAiSearchChange,
+  aiSearchLoading,
 }: ApuntesToolbarProps) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-[#0f1e1a]">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
         <label className="relative min-w-0 flex-1">
           <span className="sr-only">Buscar apuntes</span>
-          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          {aiSearchLoading ? (
+            <span className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin rounded-full border-2 border-accent-400 border-t-transparent" />
+          ) : (
+            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          )}
           <input
             type="search"
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Buscar apunte por tema, autor o materia"
-            className="h-12 w-full rounded-full border border-gray-200 bg-gray-50 pl-11 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-gray-400 focus:border-accent-400 focus:bg-white focus:ring-2 focus:ring-accent-200/50 dark:border-white/10 dark:bg-white/5 dark:placeholder:text-gray-500 dark:focus:border-accent-300 dark:focus:bg-white/10 dark:focus:ring-accent-300/15"
+            placeholder={
+              aiSearch
+                ? "Ej: principio de Le Chatelier, derivadas parciales..."
+                : "Buscar apunte por tema, autor o materia"
+            }
+            className="h-12 w-full rounded-full border border-gray-200 bg-gray-50 pl-11 pr-[172px] text-sm text-foreground outline-none transition-colors placeholder:text-gray-400 focus:border-accent-400 focus:bg-white focus:ring-2 focus:ring-accent-200/50 dark:border-white/10 dark:bg-white/5 dark:placeholder:text-gray-500 dark:focus:border-accent-300 dark:focus:bg-white/10 dark:focus:ring-accent-300/15"
           />
+          {/* Toggle "Buscar por tema" */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={aiSearch}
+            onClick={() => onAiSearchChange(!aiSearch)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex cursor-pointer items-center gap-2"
+          >
+            <span className={`text-xs font-medium transition-colors ${aiSearch ? "text-accent-700 dark:text-accent-300" : "text-gray-400"}`}>
+              Buscar por tema
+            </span>
+            <span className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors duration-200 ${aiSearch ? "bg-accent-500" : "bg-gray-200 dark:bg-white/20"}`}>
+              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${aiSearch ? "translate-x-4" : "translate-x-0.5"}`} />
+            </span>
+          </button>
         </label>
 
         <div className="flex flex-wrap gap-2">

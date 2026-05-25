@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    outputFileTracingIncludes: {
+      "/api/ai/ingest": ["./node_modules/pdfjs-dist/cmaps/**/*"],
+    },
+  },
   images: {
     remotePatterns: [
       {
