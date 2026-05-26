@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import {
-  createCourseHlsSegmentReadUrl,
-  readPrivateObjectText,
-} from "@/lib/backblaze/client";
+import { readPrivateObjectText } from "@/lib/backblaze/client";
 import {
   assertCourseModuleAccess,
   CourseModuleAccessError,
 } from "@/lib/courses/access";
+import {
+  isDocumentNavigationRequest,
+  mediaEndpointNavigationResponse,
+} from "@/lib/http/request-guards";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -144,7 +145,6 @@ async function rewritePlaylist({
   }
 
   const keyUri = `/api/video/hls/key/${asset.id}`;
-  const signedSegmentUrls = new Map<string, string>();
   const lines = playlist.replaceAll(KEY_URI_PLACEHOLDER, keyUri).split(/\r?\n/);
   const rewrittenLines: string[] = [];
 
@@ -156,16 +156,14 @@ async function rewritePlaylist({
       continue;
     }
 
-    const segmentKey = buildSegmentStorageKey({
+    buildSegmentStorageKey({
       segmentUri: trimmedLine,
       segmentPrefix: asset.hls_segment_prefix,
     });
-    const signedUrl =
-      signedSegmentUrls.get(segmentKey) ??
-      (await createCourseHlsSegmentReadUrl(segmentKey));
 
-    signedSegmentUrls.set(segmentKey, signedUrl);
-    rewrittenLines.push(signedUrl);
+    rewrittenLines.push(
+      `/api/video/hls/segment/${asset.id}/${encodeURIComponent(trimmedLine)}`
+    );
   }
 
   return rewrittenLines.join("\n");
@@ -175,6 +173,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; moduleId: string }> }
 ) {
+  if (isDocumentNavigationRequest(request)) {
+    return mediaEndpointNavigationResponse();
+  }
+
   const { id: courseId, moduleId } = await params;
   const supabase = await createClient();
   const {

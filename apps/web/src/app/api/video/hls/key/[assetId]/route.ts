@@ -6,6 +6,10 @@ import {
   assertCourseModuleAccess,
   CourseModuleAccessError,
 } from "@/lib/courses/access";
+import {
+  isDocumentNavigationRequest,
+  mediaEndpointNavigationResponse,
+} from "@/lib/http/request-guards";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -77,9 +81,13 @@ async function getAssetAndModule(assetId: string) {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ assetId: string }> }
 ) {
+  if (isDocumentNavigationRequest(request)) {
+    return mediaEndpointNavigationResponse();
+  }
+
   const { assetId } = await params;
 
   if (!UUID_PATTERN.test(assetId)) {

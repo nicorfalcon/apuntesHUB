@@ -10,7 +10,6 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const UPLOAD_URL_EXPIRES_SECONDS = 15 * 60;
 const READ_URL_EXPIRES_SECONDS = 20 * 60;
-const HLS_SEGMENT_READ_URL_EXPIRES_SECONDS = 10 * 60;
 
 let cachedClient: S3Client | null = null;
 
@@ -69,17 +68,6 @@ export async function createCourseVideoReadUrl(key: string) {
 
   return getSignedUrl(getClient(), command, {
     expiresIn: READ_URL_EXPIRES_SECONDS,
-  });
-}
-
-export async function createCourseHlsSegmentReadUrl(key: string) {
-  const command = new GetObjectCommand({
-    Bucket: getBucketName(),
-    Key: key,
-  });
-
-  return getSignedUrl(getClient(), command, {
-    expiresIn: HLS_SEGMENT_READ_URL_EXPIRES_SECONDS,
   });
 }
 
