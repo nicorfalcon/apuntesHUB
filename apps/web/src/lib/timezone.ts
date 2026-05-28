@@ -76,6 +76,7 @@ export function formatTimeInArgentina(date: Date): string {
   return date.toLocaleTimeString("es-AR", {
     hour: "2-digit",
     minute: "2-digit",
+    hourCycle: "h23",
     timeZone: TZ,
   });
 }
