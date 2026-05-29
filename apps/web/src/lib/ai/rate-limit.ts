@@ -8,13 +8,16 @@ interface Entry {
 
 const store = new Map<string, Entry>();
 
-// Prune expired entries every 5 minutes to prevent memory leaks
-setInterval(() => {
-  const now = Date.now();
+// Removes expired entries from the store. Extracted so it can be tested
+// directly (the setInterval callback never fires under fake timers).
+export function pruneExpiredEntries(now = Date.now()): void {
   store.forEach((entry, key) => {
     if (now > entry.resetAt) store.delete(key);
   });
-}, 5 * 60 * 1000);
+}
+
+// Prune expired entries every 5 minutes to prevent memory leaks
+setInterval(() => pruneExpiredEntries(), 5 * 60 * 1000);
 
 export interface RateLimitResult {
   allowed: boolean;
