@@ -1,24 +1,26 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'path';
 
-/**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
- */
-// import dotenv from 'dotenv';
-// import path from 'path';
-// dotenv.config({ path: path.resolve(__dirname, '.env') });
+const BUYER_STORAGE = path.resolve(__dirname, 'e2e/.auth/buyer.json');
+const SELLER_STORAGE = path.resolve(__dirname, 'e2e/.auth/seller.json');
 
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
   testDir: './e2e',
+  // GlobalSetup: siembra usuarios de prueba en Supabase y guarda sus storageState
+  // antes de correr la suite. Ver e2e/global-setup.ts.
+  globalSetup: require.resolve('./e2e/global-setup.ts'),
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
+  /* Retries: 2 en CI; 1 en local para absorber la flakiness conocida del dev
+     server de Next bajo HMR cuando varios workers atacan la misma ruta a la vez
+     (síntoma típico: "Cannot read properties of null (reading 'useContext')"
+     en usePathname). En CI no pasa porque ahí no hay HMR. */
+  retries: process.env.CI ? 2 : 1,
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
@@ -37,16 +39,33 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      // Proyecto público: sin storageState, ignora los specs auth-gated.
+      testIgnore: ['**/*.auth.spec.ts'],
     },
 
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
+      testIgnore: ['**/*.auth.spec.ts'],
     },
 
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
+      testIgnore: ['**/*.auth.spec.ts'],
+    },
+
+    // Proyectos auth-gated: solo corren los specs *.auth.spec.ts con la sesión
+    // del buyer o el seller persistida por el globalSetup.
+    {
+      name: 'chromium-buyer',
+      use: { ...devices['Desktop Chrome'], storageState: BUYER_STORAGE },
+      testMatch: ['**/*.buyer.auth.spec.ts'],
+    },
+    {
+      name: 'chromium-seller',
+      use: { ...devices['Desktop Chrome'], storageState: SELLER_STORAGE },
+      testMatch: ['**/*.seller.auth.spec.ts'],
     },
 
     /* Test against mobile viewports. */

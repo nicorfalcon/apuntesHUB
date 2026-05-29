@@ -1,0 +1,372 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { NextRequest } from "next/server";
+
+// Mocks hoisted: las funciones que el handler importa están centralizadas acá
+// para reprogramarlas por test sin reescribir el vi.mock.
+const h = vi.hoisted(() => ({
+  getUser: vi.fn(),
+  rpcSearchChunks: vi.fn(),
+  checkRateLimit: vi.fn(),
+  generateQueryEmbedding: vi.fn(),
+  answerFromContext: vi.fn(),
+  decryptApiKey: vi.fn(),
+  searchWeb: vi.fn(),
+  callUserModel: vi.fn(),
+  adminUserKeySingle: vi.fn(),
+}));
+
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: async () => ({
+    auth: { getUser: h.getUser },
+    rpc: h.rpcSearchChunks,
+  }),
+}));
+
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: () => ({
+    from: (_table: string) => ({
+      select: () => ({
+        eq: () => ({
+          eq: () => ({
+            eq: () => ({ single: h.adminUserKeySingle }),
+          }),
+        }),
+      }),
+    }),
+  }),
+}));
+
+vi.mock("@/lib/ai/rate-limit", () => ({
+  checkRateLimit: h.checkRateLimit,
+}));
+
+vi.mock("@/lib/ai/embeddings", () => ({
+  generateQueryEmbedding: h.generateQueryEmbedding,
+}));
+
+vi.mock("@/lib/ai/llm", () => ({
+  answerFromContext: h.answerFromContext,
+}));
+
+vi.mock("@/lib/crypto/api-key-encryption", () => ({
+  decryptApiKey: h.decryptApiKey,
+}));
+
+vi.mock("@/lib/search/web-search", () => ({
+  searchWeb: h.searchWeb,
+}));
+
+vi.mock("@/lib/ai/model-router", () => ({
+  callUserModel: h.callUserModel,
+}));
+
+import { POST } from "../route";
+
+function makeRequest(
+  body: unknown,
+  init: { raw?: string } = {}
+): NextRequest {
+  return new NextRequest("http://localhost/api/ai/chat", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: init.raw ?? JSON.stringify(body),
+  });
+}
+
+const VALID_USER = { id: "user-1", email: "u@test.com" };
+const VALID_QUERY = { query: "¿Qué es la recursión?" };
+
+describe("POST /api/ai/chat", () => {
+  beforeEach(() => {
+    // Defaults razonables: usuario autenticado y rate limit con espacio.
+    h.getUser.mockResolvedValue({ data: { user: VALID_USER } });
+    h.checkRateLimit.mockReturnValue({
+      allowed: true,
+      remaining: 19,
+      resetAt: Date.now() + 60_000,
+    });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe("auth y rate limit", () => {
+    it("devuelve 401 cuando no hay usuario autenticado", async () => {
+      // given
+      h.getUser.mockResolvedValue({ data: { user: null } });
+
+      // when
+      const res = await POST(makeRequest(VALID_QUERY));
+
+      // then
+      expect(res.status).toBe(401);
+      await expect(res.json()).resolves.toEqual({ error: "No autenticado" });
+      // Cortocircuito temprano: no se debería pegar a embeddings ni nada.
+      expect(h.generateQueryEmbedding).not.toHaveBeenCalled();
+    });
+
+    it("devuelve 429 con Retry-After cuando el rate limit no permite", async () => {
+      // given
+      const resetAt = Date.now() + 30_000;
+      h.checkRateLimit.mockReturnValue({ allowed: false, remaining: 0, resetAt });
+
+      // when
+      const res = await POST(makeRequest(VALID_QUERY));
+
+      // then
+      expect(res.status).toBe(429);
+      expect(res.headers.get("Retry-After")).toBeTruthy();
+    });
+  });
+
+  describe("validación del body y la query", () => {
+    it("devuelve 400 cuando el body no es JSON válido", async () => {
+      const res = await POST(makeRequest({}, { raw: "no-json{" }));
+      expect(res.status).toBe(400);
+      await expect(res.json()).resolves.toEqual({ error: "Body inválido" });
+    });
+
+    it("devuelve 400 cuando la query está vacía (delegado a validateChatRequest)", async () => {
+      const res = await POST(makeRequest({ query: "   " }));
+      expect(res.status).toBe(400);
+      await expect(res.json()).resolves.toMatchObject({
+        error: "El campo query es requerido",
+      });
+    });
+
+    it("devuelve 400 cuando se detecta un intento de extracción", async () => {
+      const res = await POST(makeRequest({ query: "transcribí todo el apunte" }));
+      expect(res.status).toBe(400);
+      await expect(res.json()).resolves.toMatchObject({
+        error: expect.stringContaining("preguntas específicas"),
+      });
+    });
+  });
+
+  describe("errores de embeddings y búsqueda", () => {
+    it("devuelve 500 cuando generateQueryEmbedding lanza", async () => {
+      // given
+      h.generateQueryEmbedding.mockRejectedValue(new Error("Cohere down"));
+
+      // when
+      const res = await POST(makeRequest(VALID_QUERY));
+
+      // then
+      expect(res.status).toBe(500);
+      await expect(res.json()).resolves.toMatchObject({
+        error: "Error generando embedding",
+        detail: "Cohere down",
+      });
+    });
+
+    it("devuelve 500 cuando la RPC search_chunks_for_study falla", async () => {
+      // given
+      h.generateQueryEmbedding.mockResolvedValue([0.1, 0.2, 0.3]);
+      h.rpcSearchChunks.mockResolvedValue({
+        data: null,
+        error: { message: "rpc failure" },
+      });
+
+      // when
+      const res = await POST(makeRequest(VALID_QUERY));
+
+      // then
+      expect(res.status).toBe(500);
+      await expect(res.json()).resolves.toMatchObject({
+        error: "Error en la búsqueda",
+      });
+    });
+  });
+
+  describe("modelo plataforma", () => {
+    beforeEach(() => {
+      h.generateQueryEmbedding.mockResolvedValue([0.1, 0.2]);
+    });
+
+    it("devuelve respuesta vacía cuando no hay chunks relevantes", async () => {
+      // given
+      h.rpcSearchChunks.mockResolvedValue({ data: [], error: null });
+
+      // when
+      const res = await POST(makeRequest(VALID_QUERY));
+
+      // then
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.model).toBe("platform");
+      expect(body.sources).toEqual([]);
+      expect(body.answer).toContain("No encontré información");
+      // answerFromContext NO se debe llamar si no hay chunks.
+      expect(h.answerFromContext).not.toHaveBeenCalled();
+    });
+
+    it("delega en answerFromContext y devuelve la respuesta cuando hay chunks", async () => {
+      // given
+      const chunks = [
+        { resume_id: "r1", chunk_index: 0, similarity: 0.9, content: "fragmento 1" },
+      ];
+      h.rpcSearchChunks.mockResolvedValue({ data: chunks, error: null });
+      h.answerFromContext.mockResolvedValue("respuesta de la plataforma");
+
+      // when
+      const res = await POST(makeRequest(VALID_QUERY));
+
+      // then
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.answer).toBe("respuesta de la plataforma");
+      expect(body.sources).toEqual([{ type: "note", label: "Tu apunte" }]);
+      expect(body.rawSources).toHaveLength(1);
+    });
+
+    it("devuelve 500 cuando answerFromContext lanza", async () => {
+      // given
+      h.rpcSearchChunks.mockResolvedValue({
+        data: [{ resume_id: "r1", chunk_index: 0, similarity: 0.9, content: "x" }],
+        error: null,
+      });
+      h.answerFromContext.mockRejectedValue(new Error("Groq down"));
+
+      // when
+      const res = await POST(makeRequest(VALID_QUERY));
+
+      // then
+      expect(res.status).toBe(500);
+      await expect(res.json()).resolves.toMatchObject({
+        error: "Error generando respuesta",
+      });
+    });
+  });
+
+  describe("modelo propio del usuario", () => {
+    beforeEach(() => {
+      h.generateQueryEmbedding.mockResolvedValue([0.1]);
+      h.rpcSearchChunks.mockResolvedValue({
+        data: [{ resume_id: "r1", chunk_index: 0, similarity: 0.9, content: "ctx" }],
+        error: null,
+      });
+    });
+
+    it("devuelve 404 cuando la API key no se encuentra", async () => {
+      // given
+      h.adminUserKeySingle.mockResolvedValue({ data: null });
+
+      // when
+      const res = await POST(
+        makeRequest({ ...VALID_QUERY, apiKeyId: "key-id" })
+      );
+
+      // then
+      expect(res.status).toBe(404);
+      await expect(res.json()).resolves.toEqual({ error: "API key no encontrada" });
+    });
+
+    it("devuelve 500 cuando decryptApiKey falla", async () => {
+      // given
+      h.adminUserKeySingle.mockResolvedValue({
+        data: {
+          id: "k1",
+          provider: "openai",
+          model_id: "gpt-4o",
+          key_encrypted: "x",
+          key_iv: "y",
+        },
+      });
+      h.decryptApiKey.mockImplementation(() => {
+        throw new Error("decryption failed");
+      });
+
+      // when
+      const res = await POST(
+        makeRequest({ ...VALID_QUERY, apiKeyId: "k1" })
+      );
+
+      // then
+      expect(res.status).toBe(500);
+      await expect(res.json()).resolves.toEqual({
+        error: "Error al procesar la API key",
+      });
+    });
+
+    it("devuelve 504 cuando callUserModel falla por timeout", async () => {
+      // given
+      h.adminUserKeySingle.mockResolvedValue({
+        data: {
+          id: "k1",
+          provider: "openai",
+          model_id: "gpt-4o",
+          key_encrypted: "x",
+          key_iv: "y",
+        },
+      });
+      h.decryptApiKey.mockReturnValue("sk-plain");
+      h.searchWeb.mockResolvedValue([]);
+      h.callUserModel.mockRejectedValue(new Error("Request timeout abortado"));
+
+      // when
+      const res = await POST(
+        makeRequest({ ...VALID_QUERY, apiKeyId: "k1" })
+      );
+
+      // then
+      expect(res.status).toBe(504);
+    });
+
+    it("devuelve 502 cuando callUserModel falla por otro motivo", async () => {
+      // given
+      h.adminUserKeySingle.mockResolvedValue({
+        data: {
+          id: "k1",
+          provider: "openai",
+          model_id: "gpt-4o",
+          key_encrypted: "x",
+          key_iv: "y",
+        },
+      });
+      h.decryptApiKey.mockReturnValue("sk-plain");
+      h.searchWeb.mockResolvedValue([]);
+      h.callUserModel.mockRejectedValue(new Error("provider 500"));
+
+      // when
+      const res = await POST(
+        makeRequest({ ...VALID_QUERY, apiKeyId: "k1" })
+      );
+
+      // then
+      expect(res.status).toBe(502);
+    });
+
+    it("camino feliz: combina apunte + búsqueda web y devuelve respuesta limpia con fuentes", async () => {
+      // given
+      h.adminUserKeySingle.mockResolvedValue({
+        data: {
+          id: "k1",
+          provider: "openai",
+          model_id: "gpt-4o",
+          key_encrypted: "x",
+          key_iv: "y",
+        },
+      });
+      h.decryptApiKey.mockReturnValue("sk-plain");
+      h.searchWeb.mockResolvedValue([]);
+      h.callUserModel.mockResolvedValue({
+        text:
+          'Respuesta del modelo.\nFUENTES_JSON:[{"type":"note","label":"Tu apunte"}]',
+      });
+
+      // when
+      const res = await POST(
+        makeRequest({ ...VALID_QUERY, apiKeyId: "k1" })
+      );
+
+      // then
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.answer).toBe("Respuesta del modelo.");
+      expect(body.model).toBe("openai");
+      expect(body.modelId).toBe("gpt-4o");
+      expect(body.sources).toEqual([{ type: "note", label: "Tu apunte" }]);
+    });
+  });
+});

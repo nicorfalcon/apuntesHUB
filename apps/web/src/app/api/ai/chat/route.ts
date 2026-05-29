@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { generateQueryEmbedding } from "@/lib/ai/embeddings";
 import { answerFromContext } from "@/lib/ai/llm";
 import { checkRateLimit } from "@/lib/ai/rate-limit";
-import { isExtractionAttempt } from "@/lib/ai/extraction-guard";
+import { validateChatRequest } from "@/lib/ai/chat-request";
 import { decryptApiKey } from "@/lib/crypto/api-key-encryption";
 import { searchWeb } from "@/lib/search/web-search";
 import { buildEnrichedPrompt, parseSourcesFromResponse } from "@/lib/ai/prompt-builder";
@@ -38,28 +38,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Body inválido" }, { status: 400 });
   }
 
-  const query = (body.query ?? "").trim();
-  if (!query) {
-    return NextResponse.json({ error: "El campo query es requerido" }, { status: 400 });
+  const validation = validateChatRequest(body);
+  if ("error" in validation) {
+    return NextResponse.json({ error: validation.error }, { status: validation.status });
   }
-
-  if (query.length > 500) {
-    return NextResponse.json({ error: "La pregunta es demasiado larga." }, { status: 400 });
-  }
-
-  if (isExtractionAttempt(query)) {
-    return NextResponse.json(
-      { error: "Solo puedo responder preguntas específicas sobre el contenido." },
-      { status: 400 }
-    );
-  }
-
-  if (body.resumeIds && body.resumeIds.length > 10) {
-    return NextResponse.json({ error: "Demasiados apuntes seleccionados." }, { status: 400 });
-  }
-
-  const resumeIds = body.resumeIds && body.resumeIds.length > 0 ? body.resumeIds : null;
-  const apiKeyId = body.apiKeyId;
+  const { query, resumeIds, apiKeyId } = validation;
 
   // 1. Generar embedding de la pregunta (siempre, para ambas rutas)
   let queryEmbedding: number[];

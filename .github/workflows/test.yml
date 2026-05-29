@@ -1,0 +1,61 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  # Tests unitarios (Vitest). Son autosuficientes: cada test fija su propio
+  # entorno con vi.stubEnv, así que no necesitan secrets ni servicios externos.
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+      - run: npm ci
+      - run: npm test
+
+  # Tests E2E (Playwright). Levantan el dev server de Next (webServer en
+  # playwright.config.ts). Ojo: algunas páginas son server components que
+  # consultan Supabase del lado servidor (no se pueden mockear con page.route),
+  # por eso el job necesita credenciales reales de un proyecto Supabase (la base
+  # vacía sirve) cargadas como secrets del repo.
+  #
+  # Para activarlo: definir la variable de repo RUN_E2E=true y cargar los secrets
+  # NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY y
+  # SUPABASE_SERVICE_ROLE_KEY. Mientras no estén, el job se saltea para no dejar
+  # el CI en rojo.
+  e2e:
+    if: ${{ vars.RUN_E2E == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      # Secretos requeridos por módulos que se importan al arrancar (deben tener
+      # 32+ caracteres). En CI alcanzan valores dummy porque el E2E mockea el
+      # backend que los usaría de verdad.
+      DEVICE_COOKIE_SECRET: "ci-device-cookie-secret-de-32-caracteres-min"
+      LOGIN_INTENT_SECRET: "ci-login-intent-secret-de-32-caracteres-min"
+      API_KEY_ENCRYPTION_SECRET: "ci-api-key-encryption-secret-32-chars-min"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+      - run: npm ci
+      - name: Instalar navegadores de Playwright
+        run: npx playwright install --with-deps chromium firefox webkit
+        working-directory: apps/web
+      - run: npm run test:e2e
+      - name: Subir reporte de Playwright
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          retention-days: 7

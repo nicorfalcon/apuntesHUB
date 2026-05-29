@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  generateDateRangeYmd,
-  getDayOfWeekYmd,
-  timeToArgentinaDate,
-} from "@/lib/timezone";
+import { timeToArgentinaDate } from "@/lib/timezone";
+import { generateSlots, validateSlotRequest } from "@/lib/tutors/slot-generation";
 
 /**
  * POST /api/tutors/available-slots
@@ -30,12 +27,6 @@ interface SlotRequest {
   modality?: string;
 }
 
-interface ConcreteSlot {
-  start: string; // ISO datetime (UTC)
-  end: string; // ISO datetime (UTC)
-  day_of_week: number;
-}
-
 export async function POST(request: NextRequest) {
   let body: SlotRequest;
   try {
@@ -53,20 +44,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (![30, 60, 90, 120].includes(duration_minutes)) {
-    return NextResponse.json(
-      { error: "La duración debe ser 30, 60, 90 o 120 minutos" },
-      { status: 400 }
-    );
+  const validation = validateSlotRequest({
+    durationMinutes: duration_minutes,
+    dateFrom: date_from,
+    dateTo: date_to,
+  });
+  if ("error" in validation) {
+    return NextResponse.json({ error: validation.error }, { status: 400 });
   }
-
-  // Validate date format
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date_from) || !/^\d{4}-\d{2}-\d{2}$/.test(date_to)) {
-    return NextResponse.json(
-      { error: "Formato de fecha inválido. Usar YYYY-MM-DD." },
-      { status: 400 }
-    );
-  }
+  const dateStrings = validation.dateStrings;
 
   const admin = createAdminClient();
 
@@ -74,16 +60,6 @@ export async function POST(request: NextRequest) {
   await admin.rpc("expire_pending_tutoring_bookings", {
     p_tutor_id: tutor_id,
   });
-
-  // Generate list of date strings to iterate (avoids Date UTC midnight issues)
-  const dateStrings = generateDateRangeYmd(date_from, date_to);
-  const maxDays = 14;
-  if (dateStrings.length > maxDays || dateStrings.length === 0) {
-    return NextResponse.json(
-      { error: `El rango no puede superar ${maxDays} días` },
-      { status: 400 }
-    );
-  }
 
   // Build ISO range for Supabase queries using ART boundaries
   const rangeStartUtc = timeToArgentinaDate(date_from, "00:00").getTime();
@@ -144,62 +120,16 @@ export async function POST(request: NextRequest) {
     end: new Date(b.ends_at).getTime(),
   }));
 
-  // Generate concrete slots for each day in the range
-  const slots: ConcreteSlot[] = [];
-  const minFutureTime = now + 60 * 60_000; // 1 hour from now
-  const slotDurationMs = duration_minutes * 60_000;
-
-  for (const dateStr of dateStrings) {
-    // dateStr is YYYY-MM-DD (ART calendar date)
-    const dayOfWeek = getDayOfWeekYmd(dateStr);
-
-    // Find availability windows for this day of the week
-    const dayAvailability = availability.filter((a) => {
-      if (a.day_of_week !== dayOfWeek) return false;
-      if (modality && modality !== "ambas") {
-        return a.modality === modality || a.modality === "ambas";
-      }
-      return true;
-    });
-
-    for (const avail of dayAvailability) {
-      // Convert ART local times to UTC timestamps
-      const windowStartUtc = timeToArgentinaDate(dateStr, avail.start_time).getTime();
-      const windowEndUtc = timeToArgentinaDate(dateStr, avail.end_time).getTime();
-
-      // Generate slots at 30-minute intervals within the window
-      let cursor = windowStartUtc;
-
-      while (cursor + slotDurationMs <= windowEndUtc) {
-        const slotStartUtc = cursor;
-        const slotEndUtc = cursor + slotDurationMs;
-
-        // Check: must be at least 1 hour in the future
-        if (slotStartUtc >= minFutureTime) {
-          // Check: no overlap with occupied intervals
-          const isOccupied = occupiedIntervals.some(
-            (o) => slotStartUtc < o.end && slotEndUtc > o.start
-          );
-
-          // Check: no overlap with blocked intervals
-          const isBlocked = blockedIntervals.some(
-            (b) => slotStartUtc < b.end && slotEndUtc > b.start
-          );
-
-          if (!isOccupied && !isBlocked) {
-            slots.push({
-              start: new Date(slotStartUtc).toISOString(),
-              end: new Date(slotEndUtc).toISOString(),
-              day_of_week: dayOfWeek,
-            });
-          }
-        }
-
-        // Move cursor by 30 minutes (slot interval)
-        cursor += 30 * 60_000;
-      }
-    }
-  }
+  // Generate concrete slots for each day in the range (pure engine).
+  const slots = generateSlots({
+    dateStrings,
+    availability,
+    occupiedIntervals,
+    blockedIntervals,
+    durationMinutes: duration_minutes,
+    now,
+    modality,
+  });
 
   return NextResponse.json({ slots });
 }

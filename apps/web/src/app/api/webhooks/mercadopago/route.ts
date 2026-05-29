@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getValidAccessToken } from "@/lib/mercadopago/refresh-token";
+import { validateSignature } from "@/lib/mercadopago/webhook-signature";
+import { parseExternalReference } from "@/lib/mercadopago/external-reference";
+import { resolvePaymentAction } from "@/lib/mercadopago/payment-action";
 import {
   sendCourseSaleNotification,
   sendResumeSaleNotification,
@@ -52,46 +54,6 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ received: true });
-}
-
-/**
- * Valida la firma HMAC-SHA256 del webhook de Mercado Pago.
- */
-function validateSignature(
-  xSignature: string,
-  xRequestId: string,
-  dataId: string | null
-): boolean {
-  const secret = process.env.MP_WEBHOOK_SECRET;
-  if (!secret) {
-    console.error("MP_WEBHOOK_SECRET no configurado");
-    return false;
-  }
-
-  // Parsear ts y v1 del header x-signature
-  const parts = xSignature.split(",");
-  let ts: string | null = null;
-  let hash: string | null = null;
-
-  for (const part of parts) {
-    const [key, value] = part.split("=", 2);
-    if (key?.trim() === "ts") ts = value?.trim() ?? null;
-    if (key?.trim() === "v1") hash = value?.trim() ?? null;
-  }
-
-  if (!ts || !hash) return false;
-
-  // Construir manifest y calcular HMAC
-  const manifest = `id:${dataId ?? ""};request-id:${xRequestId};ts:${ts};`;
-  const computed = crypto
-    .createHmac("sha256", secret)
-    .update(manifest)
-    .digest("hex");
-
-  return crypto.timingSafeEqual(
-    Buffer.from(computed, "hex"),
-    Buffer.from(hash, "hex")
-  );
 }
 
 /**
@@ -214,18 +176,20 @@ async function processPaymentNotification(paymentId: string) {
     return;
   }
 
-  // Determinar tipo de transacción por el prefijo del external_reference
-  const isTutoring = externalReference.startsWith("tutoring_booking:");
-  const isCourse = externalReference.startsWith("course_enrollment:");
+  // Determinar tipo de transacción e id del recurso desde el external_reference.
+  const { kind, id: targetId } = parseExternalReference(externalReference);
 
-  if (isTutoring) {
-    const bookingId = externalReference.slice("tutoring_booking:".length);
+  // Mapear el estado del pago a la acción de DB (o null si es pending/in_process).
+  const action = resolvePaymentAction(paymentData.status, kind);
+  if (!action) return;
 
-    if (paymentData.status === "approved") {
-      const { data: didConfirm, error } = await admin.rpc("complete_tutoring_booking", {
-        p_booking_id: bookingId,
-        p_payment_id: paymentId,
-      });
+  const rpcArgs = { [action.idArg]: targetId, p_payment_id: paymentId };
+
+  if (kind === "tutoring") {
+    if (action.shouldNotify) {
+      // approved: confirmar la reserva y, si efectivamente cambió de estado,
+      // disparar los emails de notificación.
+      const { data: didConfirm, error } = await admin.rpc(action.rpc, rpcArgs);
 
       if (error) {
         console.error("Error confirmando reserva:", error);
@@ -234,53 +198,30 @@ async function processPaymentNotification(paymentId: string) {
           const { sendTutoringBookingNotifications } = await import(
             "@/lib/email/sale-notifications"
           );
-          await sendTutoringBookingNotifications(admin, bookingId, paymentId);
+          await sendTutoringBookingNotifications(admin, targetId, paymentId);
         } catch (emailError) {
           console.error("No se pudo enviar emails de tutoring:", emailError);
         }
       }
-    } else if (
-      paymentData.status === "rejected" ||
-      paymentData.status === "cancelled"
-    ) {
-      await admin.rpc("fail_tutoring_booking", {
-        p_booking_id: bookingId,
-        p_payment_id: paymentId,
-      });
+    } else {
+      // rejected / cancelled
+      await admin.rpc(action.rpc, rpcArgs);
     }
-  } else {
-    // Flujo existente: purchases o course_enrollments
-    const targetId = isCourse
-      ? externalReference.slice("course_enrollment:".length)
-      : externalReference;
-    const approvedRpc = isCourse ? "complete_course_enrollment" : "complete_purchase";
-    const failedRpc = isCourse ? "fail_course_enrollment" : "fail_purchase";
-    const idArgKey = isCourse ? "p_enrollment_id" : "p_purchase_id";
+    return;
+  }
 
-    if (paymentData.status === "approved") {
-      await admin.rpc(approvedRpc, {
-        [idArgKey]: targetId,
-        p_payment_id: paymentId,
-      });
+  // purchases o course_enrollments
+  await admin.rpc(action.rpc, rpcArgs);
 
-      try {
-        if (isCourse) {
-          await sendCourseSaleNotification(admin, targetId, paymentId);
-        } else {
-          await sendResumeSaleNotification(admin, targetId, paymentId);
-        }
-      } catch (emailError) {
-        console.error("No se pudo enviar email de venta:", emailError);
+  if (action.shouldNotify) {
+    try {
+      if (kind === "course") {
+        await sendCourseSaleNotification(admin, targetId, paymentId);
+      } else {
+        await sendResumeSaleNotification(admin, targetId, paymentId);
       }
-    } else if (
-      paymentData.status === "rejected" ||
-      paymentData.status === "cancelled"
-    ) {
-      await admin.rpc(failedRpc, {
-        [idArgKey]: targetId,
-        p_payment_id: paymentId,
-      });
+    } catch (emailError) {
+      console.error("No se pudo enviar email de venta:", emailError);
     }
   }
-  // pending / in_process: no hacer nada, esperar siguiente notificación
 }
