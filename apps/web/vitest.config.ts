@@ -17,6 +17,15 @@ export default defineConfig({
     setupFiles: ["./src/test/setup-rtl.ts"],
     // Los tests e2e usan Playwright (otro runner). Vitest no debe tocarlos.
     exclude: ["**/node_modules/**", "**/dist/**", "e2e/**"],
+    coverage: {
+      // Excluir código browser-only que jsdom no puede ejercitar de verdad.
+      // client-hints.ts depende de `navigator.brave?.isBrave()` (API exclusiva
+      // de Brave). En Vitest cualquier test sería mockear el stub y verificarlo
+      // contra sí mismo. La cobertura real viene de Playwright en Chromium.
+      exclude: [
+        "src/lib/devices/client-hints.ts",
+      ],
+    },
   },
   resolve: {
     alias: {

@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
 
 // Biblioteca del buyer: lo que ve después de comprar. El seed le deja una
-// compra completada del apunte sembrado, así que la vista "Apuntes" arranca
-// poblada y la de "Cursos" vacía. Ambos caminos son determinísticos.
+// compra completada del apunte sembrado y una inscripción completada al
+// curso sembrado, así que tanto la vista "Apuntes" como la de "Cursos"
+// arrancan pobladas. Ambos caminos son determinísticos.
 
 test.describe('Biblioteca (buyer)', () => {
   test.beforeEach(async ({ page }) => {
@@ -24,15 +25,13 @@ test.describe('Biblioteca (buyer)', () => {
     await expect(page.getByText('Apunte E2E de prueba')).toBeVisible();
   });
 
-  test('muestra el estado vacío en Cursos (el buyer no está inscripto)', async ({
-    page,
-  }) => {
+  test('muestra el curso inscripto en la pestaña Cursos', async ({ page }) => {
     // WHEN: cambia a la vista de cursos
     await page.getByRole('button', { name: 'Cursos', exact: true }).click();
 
-    // THEN: empty state determinístico (no sembramos inscripciones)
-    await expect(
-      page.getByText('Todavía no estás inscripto en ningún curso')
-    ).toBeVisible();
+    // THEN: el curso sembrado con enrollment completed aparece como card.
+    // (El otro curso del seed, "Curso E2E sin inscribir", NO debe aparecer
+    // acá porque el buyer no está inscripto a ese.)
+    await expect(page.getByText('Curso E2E de prueba')).toBeVisible();
   });
 });

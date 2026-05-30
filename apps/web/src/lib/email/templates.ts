@@ -11,7 +11,7 @@ interface SaleEmailInput {
   dashboardUrl: string;
 }
 
-function escapeHtml(value: string) {
+export function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -19,7 +19,7 @@ function escapeHtml(value: string) {
     .replaceAll('"', "&quot;");
 }
 
-function formatArs(value: number) {
+export function formatArs(value: number) {
   return `$${Math.round(value).toLocaleString("es-AR")} ARS`;
 }
 

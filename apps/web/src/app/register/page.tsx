@@ -3,6 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { getPasswordStrength } from "@/lib/auth/password-strength";
+import {
+  validateRegisterStep,
+  type RegisterStepErrors,
+} from "@/lib/auth/register-validation";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -16,23 +21,6 @@ type FormData = {
 };
 
 type StepErrors = Partial<Record<keyof FormData, string>>;
-
-// ─── Password strength ────────────────────────────────────────────────────────
-
-function getPasswordStrength(password: string): { score: number; label: string; color: string } {
-  if (!password) return { score: 0, label: "", color: "" };
-  let score = 0;
-  if (password.length >= 6) score++;
-  if (password.length >= 10) score++;
-  if (/[A-Z]/.test(password)) score++;
-  if (/[0-9]/.test(password)) score++;
-  if (/[^A-Za-z0-9]/.test(password)) score++;
-
-  if (score <= 1) return { score: 1, label: "Débil", color: "#DC2626" };
-  if (score <= 2) return { score: 2, label: "Regular", color: "#F59E0B" };
-  if (score <= 3) return { score: 3, label: "Buena", color: "#3B82F6" };
-  return { score: 4, label: "Fuerte", color: "#2D6A4F" };
-}
 
 // ─── Stepper ──────────────────────────────────────────────────────────────────
 
@@ -173,31 +161,8 @@ export default function RegisterPage() {
     }
   }
 
-  function validateStep(s: number): StepErrors {
-    const e: StepErrors = {};
-    if (s === 0) {
-      if (!form.name.trim()) e.name = "El nombre es requerido";
-      if (!form.email.trim()) {
-        e.email = "El email es requerido";
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-        e.email = "Ingresá un email válido";
-      }
-    } else if (s === 1) {
-      if (!form.password) {
-        e.password = "La contraseña es requerida";
-      } else if (form.password.length < 6) {
-        e.password = "La contraseña debe tener al menos 6 caracteres";
-      }
-      if (!form.confirmPassword) {
-        e.confirmPassword = "Confirmá tu contraseña";
-      } else if (form.password !== form.confirmPassword) {
-        e.confirmPassword = "Las contraseñas no coinciden";
-      }
-    } else if (s === 2) {
-      if (!form.university.trim()) e.university = "La universidad es requerida";
-      if (!form.career.trim()) e.career = "La carrera es requerida";
-    }
-    return e;
+  function validateStep(s: number): RegisterStepErrors {
+    return validateRegisterStep(s, form);
   }
 
   function navigate(nextStep: number) {
