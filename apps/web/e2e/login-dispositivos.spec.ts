@@ -16,11 +16,18 @@ test.describe('Login — respuesta de éxito', () => {
     });
 
     await page.goto('/login');
+    // Esperamos que React termine de hidratar el formulario. Sin esto, en WebKit
+    // el click puede dispararse antes de que el onSubmit con preventDefault esté
+    // atachado y el browser hace un submit nativo que recarga /login.
+    await page.waitForLoadState('networkidle');
 
     // WHEN: completa credenciales y envía
     await page.getByLabel('Email').fill('user@uni.edu.ar');
     await page.getByLabel('Contraseña', { exact: true }).fill('claveCualquiera');
-    await page.getByRole('button', { name: 'Ingresar' }).click();
+    await Promise.all([
+      page.waitForResponse('**/api/auth/login'),
+      page.getByRole('button', { name: 'Ingresar' }).click(),
+    ]);
 
     // THEN: queda en /explorar (destino por defecto del login)
     await expect(page).toHaveURL(/\/explorar$/);
@@ -62,11 +69,17 @@ test.describe('Login — límite de dispositivos', () => {
     });
 
     await page.goto('/login');
+    // Ver comentario en el test anterior: en WebKit hay que esperar la
+    // hidratación de React antes del click para evitar un submit nativo.
+    await page.waitForLoadState('networkidle');
 
     // WHEN: completa credenciales y envía
     await page.getByLabel('Email').fill('user@uni.edu.ar');
     await page.getByLabel('Contraseña', { exact: true }).fill('claveCualquiera');
-    await page.getByRole('button', { name: 'Ingresar' }).click();
+    await Promise.all([
+      page.waitForResponse('**/api/auth/login'),
+      page.getByRole('button', { name: 'Ingresar' }).click(),
+    ]);
 
     // THEN: navega al selector de dispositivos
     await expect(page).toHaveURL(/\/login\/devices$/);
