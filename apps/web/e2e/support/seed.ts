@@ -501,21 +501,26 @@ async function ensureMaterialQuestion(
   admin: SupabaseClient,
   buyerId: string
 ): Promise<void> {
-  const { error } = await admin.from("material_questions").upsert(
-    {
-      id: E2E_MATERIAL_QUESTION_ID,
-      target_type: "resume",
-      resume_id: E2E_RESUME_ID,
-      author_id: buyerId,
-      title: E2E_MATERIAL_QUESTION_TITLE,
-      body: E2E_MATERIAL_QUESTION_BODY,
-      anchor_page: 1,
-      status: "open",
-      is_anonymous_to_buyers: false,
-    },
-    { onConflict: "id" }
-  );
-  if (error) {
+  // OJO: acá usamos INSERT (no upsert) a propósito. La tabla tiene un trigger
+  // BEFORE UPDATE (validate_material_question_update) que exige auth.uid() != null
+  // como primer chequeo. El seed corre con service role, donde auth.uid() es null,
+  // así que cualquier UPDATE —y un upsert sobre fila existente se resuelve como
+  // UPDATE— explota con "No autorizado para modificar esta consulta". El INSERT no
+  // pasa por ese trigger. Como el contenido es determinístico, si la fila ya
+  // existe la dejamos intacta e ignoramos el duplicate key (23505).
+  const { error } = await admin.from("material_questions").insert({
+    id: E2E_MATERIAL_QUESTION_ID,
+    target_type: "resume",
+    resume_id: E2E_RESUME_ID,
+    author_id: buyerId,
+    title: E2E_MATERIAL_QUESTION_TITLE,
+    body: E2E_MATERIAL_QUESTION_BODY,
+    anchor_page: 1,
+    status: "open",
+    is_anonymous_to_buyers: false,
+  });
+  // 23505 = unique_violation: la consulta ya estaba sembrada, es idempotente.
+  if (error && error.code !== "23505") {
     console.warn(
       "[e2e/seed] No se pudo asegurar la material_question:",
       error.message
