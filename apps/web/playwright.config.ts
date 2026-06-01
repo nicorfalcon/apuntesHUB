@@ -12,6 +12,9 @@ export default defineConfig({
   // GlobalSetup: siembra usuarios de prueba en Supabase y guarda sus storageState
   // antes de correr la suite. Ver e2e/global-setup.ts.
   globalSetup: require.resolve('./e2e/global-setup.ts'),
+  // GlobalTeardown: borra los fixtures E2E al terminar (usamos la base de prod,
+  // así no quedan apuntes/cursos/tutor de prueba publicados). Ver e2e/global-teardown.ts.
+  globalTeardown: require.resolve('./e2e/global-teardown.ts'),
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
