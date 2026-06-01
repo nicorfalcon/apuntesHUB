@@ -99,10 +99,13 @@ export function parseUserAgentLabel(
   else if (/Safari\//.test(ua)) browser = "Safari";
 
   let os = "sistema desconocido";
+  // OJO con el orden: el UA de iPhone/iPad contiene "like Mac OS X", así que
+  // iOS debe chequearse ANTES que macOS; si no, los iPhones se clasifican como
+  // "macOS". Por la misma razón Android (que contiene "Linux") va antes que Linux.
   if (/Windows NT/.test(ua)) os = "Windows";
+  else if (/iPhone|iPad|iPod/.test(ua)) os = "iOS";
   else if (/Mac OS X/.test(ua)) os = "macOS";
   else if (/Android/.test(ua)) os = "Android";
-  else if (/iPhone|iPad|iPod/.test(ua)) os = "iOS";
   else if (/Linux/.test(ua)) os = "Linux";
 
   return `${browser} en ${os}`;
