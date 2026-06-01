@@ -139,6 +139,31 @@ describe("PATCH material-questions/[id]", () => {
     const { req, params } = makeReq({ status: "hidden" });
     expect((await PATCH(req, { params })).status).toBe(403);
   });
+
+  it("el autor marca su consulta como resuelta (200)", async () => {
+    const { req, params } = makeReq({ status: "resolved" });
+    expect((await PATCH(req, { params })).status).toBe(200);
+  });
+
+  it("con un estado inválido devuelve 400", async () => {
+    const { req, params } = makeReq({ status: "no-existe" });
+    expect((await PATCH(req, { params })).status).toBe(400);
+  });
+
+  it("editar con título inválido devuelve 400", async () => {
+    const { req, params } = makeReq({ ...VALID_CONTENT, title: "corto" });
+    expect((await PATCH(req, { params })).status).toBe(400);
+  });
+
+  it("editar con detalle inválido devuelve 400", async () => {
+    const { req, params } = makeReq({ ...VALID_CONTENT, body: "corto" });
+    expect((await PATCH(req, { params })).status).toBe(400);
+  });
+
+  it("editar con isAnonymousToBuyers no booleano devuelve 400", async () => {
+    const { req, params } = makeReq({ ...VALID_CONTENT, isAnonymousToBuyers: "si" });
+    expect((await PATCH(req, { params })).status).toBe(400);
+  });
 });
 
 describe("DELETE material-questions/[id]", () => {

@@ -139,4 +139,47 @@ describe("POST /api/tutors/available-slots", () => {
       expect(slot).toHaveProperty("day_of_week");
     }
   });
+
+  it("filtra bookings (pending vencido vs vigente, confirmed, sin fecha) y aplica bloqueos", async () => {
+    // Ejercita las ramas de armado de intervalos ocupados/bloqueados que el
+    // camino feliz vacío no toca.
+    const future = new Date(Date.now() + 60 * 60_000).toISOString();
+    const past = new Date(Date.now() - 60 * 60_000).toISOString();
+
+    h.availabilityResp.mockResolvedValue({
+      data: [
+        { day_of_week: 1, start_time: "14:00:00", end_time: "18:00:00", modality: "online" },
+      ],
+      error: null,
+    });
+    h.bookingsLte.mockResolvedValue({
+      data: [
+        // pending_payment vigente -> se mantiene como ocupado
+        { scheduled_at: "2050-01-07T17:00:00Z", duration_minutes: 60, status: "pending_payment", payment_expires_at: future },
+        // pending_payment vencido -> se descarta
+        { scheduled_at: "2050-01-07T15:00:00Z", duration_minutes: 60, status: "pending_payment", payment_expires_at: past },
+        // confirmed -> se mantiene
+        { scheduled_at: "2050-01-14T17:00:00Z", duration_minutes: null, status: "confirmed", payment_expires_at: null },
+        // sin scheduled_at -> se filtra en occupiedIntervals
+        { scheduled_at: null, duration_minutes: 60, status: "confirmed", payment_expires_at: null },
+      ],
+      error: null,
+    });
+    h.blocksGt.mockResolvedValue({
+      data: [{ starts_at: "2050-01-07T14:00:00Z", ends_at: "2050-01-07T15:00:00Z" }],
+      error: null,
+    });
+
+    const res = await POST(
+      makeRequest({
+        tutor_id: "t-1",
+        date_from: "2050-01-01",
+        date_to: "2050-01-14",
+        duration_minutes: 60,
+        modality: "online",
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(Array.isArray((await res.json()).slots)).toBe(true);
+  });
 });

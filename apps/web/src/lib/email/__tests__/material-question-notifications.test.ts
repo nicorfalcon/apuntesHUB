@@ -206,3 +206,69 @@ describe("notifyBuyersOfMaterialQuestionAnswer", () => {
     expect(recipients).toContain("metoo@test.com");
   });
 });
+
+const courseQuestion = {
+  id: "q-2",
+  target_type: "course",
+  resume_id: null,
+  course_id: "course-1",
+  module_id: "module-1",
+  author_id: "student-1",
+  anchor_page: null,
+  anchor_seconds: 125,
+  title: "¿Qué pasa en este minuto del video?",
+  status: "open",
+};
+
+describe("notifications — variante curso", () => {
+  beforeEach(() => {
+    h.sendTransactionalEmail.mockReset();
+    h.sendTransactionalEmail.mockResolvedValue({ id: "email-1" });
+  });
+
+  it("avisa al dueño del curso de una consulta nueva (con módulo y minuto)", async () => {
+    const admin = makeAdmin({
+      question: courseQuestion,
+      course: { title: "Curso de Álgebra", author_id: "seller-1" },
+      courseModule: { title: "Vectores", position: 2 },
+      emailsById: { "seller-1": "profe@test.com" },
+      profilesById: {
+        "seller-1": { display_name: "Profe Ana" },
+        "student-1": { display_name: "Estu Lucas" },
+      },
+    });
+
+    await notifyOwnerOfNewMaterialQuestion(admin, "q-2");
+
+    expect(h.sendTransactionalEmail).toHaveBeenCalledTimes(1);
+    expect(h.sendTransactionalEmail.mock.calls[0][0].idempotencyKey).toBe(
+      "material-question-new-q-2"
+    );
+  });
+
+  it("avisa al autor y a un me-tooer inscripto cuando se responde una consulta de curso", async () => {
+    const admin = makeAdmin({
+      answer: { id: "ans-2", question_id: "q-2" },
+      question: courseQuestion,
+      course: { title: "Curso de Álgebra", author_id: "seller-1" },
+      courseModule: { title: "Vectores", position: 2 },
+      meToos: [{ user_id: "buyer-9" }],
+      validEnrollments: [{ student_id: "buyer-9" }],
+      emailsById: {
+        "student-1": "estudiante@test.com",
+        "buyer-9": "metoo@test.com",
+      },
+      profilesById: {
+        "student-1": { display_name: "Estu Lucas" },
+        "buyer-9": { display_name: "Otro Alumno" },
+      },
+    });
+
+    await notifyBuyersOfMaterialQuestionAnswer(admin, "ans-2");
+
+    expect(h.sendTransactionalEmail).toHaveBeenCalledTimes(2);
+    const recipients = h.sendTransactionalEmail.mock.calls.map((c) => c[0].to);
+    expect(recipients).toContain("estudiante@test.com");
+    expect(recipients).toContain("metoo@test.com");
+  });
+});

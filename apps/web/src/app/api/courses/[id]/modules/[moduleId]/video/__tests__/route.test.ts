@@ -146,4 +146,49 @@ describe("POST video (confirmar subida)", () => {
     expect((await POST(req, { params })).status).toBe(400);
     expect(h.deleteVideo).toHaveBeenCalledWith(STORAGE_KEY);
   });
+
+  it("si ya había un video viejo distinto, lo borra y supersede el asset en vuelo", async () => {
+    // El módulo tenía otro video con un asset HLS en proceso: debe desactivarlo,
+    // borrar el video viejo y encolar uno nuevo.
+    const OLD_KEY = `courses/${COURSE_ID}/modules/${MODULE_ID}/old.mp4`;
+    h.module.value = {
+      id: MODULE_ID,
+      video_storage_key: OLD_KEY,
+      recorded_courses: { id: COURSE_ID, author_id: AUTHOR_ID },
+    };
+    h.assets.value = [
+      {
+        id: "old-asset",
+        processing_status: "processing",
+        is_active: true,
+        original_video_storage_key: OLD_KEY,
+      },
+    ];
+
+    const { req, params } = makeRequest({ storage_key: STORAGE_KEY });
+    const res = await POST(req, { params });
+
+    expect(res.status).toBe(200);
+    // Borra el video viejo y encola el nuevo asset.
+    expect(h.deleteVideo).toHaveBeenCalledWith(OLD_KEY);
+    expect(h.insert).toHaveBeenCalledTimes(1);
+  });
+
+  it("si ya hay un asset en vuelo para el MISMO video, no vuelve a encolar", async () => {
+    h.assets.value = [
+      {
+        id: "same",
+        processing_status: "pending",
+        is_active: false,
+        original_video_storage_key: STORAGE_KEY,
+      },
+    ];
+
+    const { req, params } = makeRequest({ storage_key: STORAGE_KEY });
+    const res = await POST(req, { params });
+
+    expect(res.status).toBe(200);
+    // Mismo storage key ya pending: no inserta uno nuevo.
+    expect(h.insert).not.toHaveBeenCalled();
+  });
 });
