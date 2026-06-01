@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useE2EHydrationReady } from "@/lib/e2e/use-e2e-hydration-ready";
 
 export default function ResetPasswordPage() {
+  useE2EHydrationReady();
+
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");

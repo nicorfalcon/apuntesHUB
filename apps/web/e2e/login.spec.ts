@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { gotoHydrated } from './support/hydration';
 
 // Grupo D — Login real end-to-end (camino negativo).
 // A diferencia de A/B/C, este test SÍ toca el backend: al enviar el formulario
@@ -11,7 +12,7 @@ test.describe('Login — credenciales inválidas', () => {
     page,
   }) => {
     // GIVEN: el visitante abre la página de inicio de sesión.
-    await page.goto('/login');
+    await gotoHydrated(page, '/login');
 
     // WHEN: completa el formulario con credenciales que no existen y envía.
     // exact: true en "Contraseña" para no agarrar el botón "Mostrar contraseña".

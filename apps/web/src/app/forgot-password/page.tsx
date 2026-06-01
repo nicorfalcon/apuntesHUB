@@ -3,8 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useE2EHydrationReady } from "@/lib/e2e/use-e2e-hydration-ready";
 
 export default function ForgotPasswordPage() {
+  useE2EHydrationReady();
+
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);

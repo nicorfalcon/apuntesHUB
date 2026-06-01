@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { gotoHydrated } from './support/hydration';
 
 // El botón "Continuar con Google" dispara supabase.auth.signInWithOAuth({
 // provider: "google" }), que internamente pega a /auth/v1/authorize?provider=google
@@ -8,7 +9,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('OAuth Google (público)', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
+    await gotoHydrated(page, '/login');
   });
 
   test('el botón "Continuar con Google" está visible', async ({ page }) => {

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { gotoHydrated } from './support/hydration';
 
 // /reset-password: form con validaciones cliente (longitud mínima 6, match
 // con confirmación). El submit pega supabase.auth.updateUser → /auth/v1/user
@@ -7,7 +8,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Reset password (público)', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/reset-password');
+    await gotoHydrated(page, '/reset-password');
   });
 
   test('renderiza el heading y los inputs del form', async ({ page }) => {

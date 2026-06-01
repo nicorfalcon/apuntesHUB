@@ -3,6 +3,7 @@ import path from 'path';
 
 const BUYER_STORAGE = path.resolve(__dirname, 'e2e/.auth/buyer.json');
 const SELLER_STORAGE = path.resolve(__dirname, 'e2e/.auth/seller.json');
+const LOCAL_WORKERS = Number.parseInt(process.env.E2E_WORKERS ?? '', 10);
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -24,8 +25,9 @@ export default defineConfig({
      (síntoma típico: "Cannot read properties of null (reading 'useContext')"
      en usePathname). En CI no pasa porque ahí no hay HMR. */
   retries: process.env.CI ? 2 : 1,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* Next dev + HMR is flaky under high E2E concurrency in local runs. Keep the
+     default stable, with E2E_WORKERS available when we explicitly want speed. */
+  workers: process.env.CI ? 1 : Number.isFinite(LOCAL_WORKERS) ? LOCAL_WORKERS : 1,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -37,7 +39,7 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
 
-  /* Configure projects for major browsers */
+  /* Configure projects for major browsers. */
   projects: [
     {
       name: 'chromium',

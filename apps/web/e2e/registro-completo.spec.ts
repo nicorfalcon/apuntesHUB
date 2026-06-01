@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { gotoHydrated } from './support/hydration';
 
 // Flujo de registro de 3 pasos (/register). El formulario valida en el cliente
 // (noValidate + lógica propia), así que los pasos y errores son deterministas y
@@ -9,7 +10,7 @@ test.describe('Registro — validaciones del paso de contraseña', () => {
   test.beforeEach(async ({ page }) => {
     // GIVEN: el visitante abre el registro y completa el primer paso para llegar
     // al paso de contraseña.
-    await page.goto('/register');
+    await gotoHydrated(page, '/register');
     await page.getByLabel('Nombre completo').fill('Juan Pérez');
     await page.getByLabel('Email').fill('juan@uni.edu.ar');
     await page.getByRole('button', { name: 'Continuar' }).click();
@@ -69,7 +70,7 @@ test.describe('Registro — camino feliz hasta crear la cuenta', () => {
       });
     });
 
-    await page.goto('/register');
+    await gotoHydrated(page, '/register');
 
     // WHEN: paso 1 — datos personales
     await page.getByLabel('Nombre completo').fill('Juan Pérez');

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { gotoHydrated } from './support/hydration';
 
 // Flujo de login mockeando el endpoint /api/auth/login con page.route(). Así
 // probamos la lógica de la UI (éxito vs. límite de dispositivos) de forma
@@ -15,11 +16,7 @@ test.describe('Login — respuesta de éxito', () => {
       });
     });
 
-    await page.goto('/login');
-    // Esperamos que React termine de hidratar el formulario. Sin esto, en WebKit
-    // el click puede dispararse antes de que el onSubmit con preventDefault esté
-    // atachado y el browser hace un submit nativo que recarga /login.
-    await page.waitForLoadState('networkidle');
+    await gotoHydrated(page, '/login');
 
     // WHEN: completa credenciales y envía
     await page.getByLabel('Email').fill('user@uni.edu.ar');
@@ -68,10 +65,7 @@ test.describe('Login — límite de dispositivos', () => {
       });
     });
 
-    await page.goto('/login');
-    // Ver comentario en el test anterior: en WebKit hay que esperar la
-    // hidratación de React antes del click para evitar un submit nativo.
-    await page.waitForLoadState('networkidle');
+    await gotoHydrated(page, '/login');
 
     // WHEN: completa credenciales y envía
     await page.getByLabel('Email').fill('user@uni.edu.ar');

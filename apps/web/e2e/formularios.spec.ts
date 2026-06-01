@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { gotoHydrated } from './support/hydration';
 
 // Grupo C — Validación de formularios (sin tocar el backend).
 // El registro valida en el cliente (noValidate + lógica propia) y muestra
@@ -8,7 +9,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Registro — validación del primer paso', () => {
   test.beforeEach(async ({ page }) => {
     // GIVEN: el visitante abre el formulario de registro (paso "Creá tu cuenta").
-    await page.goto('/register');
+    await gotoHydrated(page, '/register');
   });
 
   test('enviar el paso vacío muestra el error de nombre requerido', async ({
@@ -38,7 +39,7 @@ test.describe('Registro — validación del primer paso', () => {
 
 test.describe('Login — campo de contraseña', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
+    await gotoHydrated(page, '/login');
   });
 
   test('el botón mostrar/ocultar cambia la visibilidad de la contraseña', async ({

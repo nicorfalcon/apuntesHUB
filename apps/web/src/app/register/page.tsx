@@ -8,6 +8,7 @@ import {
   validateRegisterStep,
   type RegisterStepErrors,
 } from "@/lib/auth/register-validation";
+import { useE2EHydrationReady } from "@/lib/e2e/use-e2e-hydration-ready";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -132,6 +133,8 @@ const inputClass = (hasError: boolean) =>
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function RegisterPage() {
+  useE2EHydrationReady();
+
   const [step, setStep] = useState(0);
   const [animating, setAnimating] = useState(false);
   const [direction, setDirection] = useState<"forward" | "back">("forward");

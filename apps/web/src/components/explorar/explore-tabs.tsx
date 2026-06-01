@@ -35,6 +35,7 @@ import { CourseList } from "@/components/courses/course-list";
 import { formatCourseType } from "@/components/courses/format";
 import type { RecordedCourseItem } from "@/components/courses/types";
 import { closeOtherExploreDropdowns } from "./dropdown-utils";
+import { useE2EHydrationReady } from "@/lib/e2e/use-e2e-hydration-ready";
 
 export type ExploreTab = "apuntes" | "particulares" | "grabadas";
 
@@ -250,6 +251,8 @@ export function ExploreTabs({
   purchasedIds,
   initialCareer,
 }: ExploreTabsProps) {
+  useE2EHydrationReady();
+
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

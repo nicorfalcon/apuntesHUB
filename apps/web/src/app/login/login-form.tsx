@@ -8,11 +8,14 @@ import { createClient } from "@/lib/supabase/client";
 import { CLIENT_BRAND_HEADER, getClientBrand } from "@/lib/devices/client-hints";
 import { useLoginDeviceIntent } from "./login-device-context";
 import type { LoginResponse } from "@/lib/database.types";
+import { useE2EHydrationReady } from "@/lib/e2e/use-e2e-hydration-ready";
 
 const DEVICE_LIMIT_MESSAGE =
   "Llegaste al límite de dispositivos conectados. Cerrá sesión en otro desde Perfil > Seguridad para poder ingresar.";
 
 export function LoginForm() {
+  useE2EHydrationReady();
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") ?? "/explorar";

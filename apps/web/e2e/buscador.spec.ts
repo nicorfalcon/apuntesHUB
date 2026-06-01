@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { gotoHydrated } from './support/hydration';
 
 // Grupo B — Buscador y filtros en /explorar (sin login).
 // Estos tests verifican el COMPORTAMIENTO de la interfaz (que reacciona bien),
@@ -8,7 +9,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Buscador de apuntes en explorar', () => {
   test.beforeEach(async ({ page }) => {
     // GIVEN: el visitante abre la página de explorar (pestaña "Apuntes" por defecto).
-    await page.goto('/explorar');
+    await gotoHydrated(page, '/explorar');
   });
 
   test('el buscador de apuntes está visible', async ({ page }) => {
@@ -64,7 +65,7 @@ test.describe('Buscador de apuntes en explorar', () => {
 
 test.describe('Pestañas del catálogo en explorar', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/explorar');
+    await gotoHydrated(page, '/explorar');
   });
 
   test('cambiar a "Profesores particulares" marca esa pestaña como activa', async ({

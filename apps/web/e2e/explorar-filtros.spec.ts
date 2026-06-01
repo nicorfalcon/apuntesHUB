@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { gotoHydrated } from './support/hydration';
 
 // Exploración del catálogo en /explorar. Estos tests verifican el comportamiento
 // de la interfaz (pestañas, estado vacío, buscador), no datos puntuales. La base
@@ -7,7 +8,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Catálogo en explorar', () => {
   test.beforeEach(async ({ page }) => {
     // GIVEN: el visitante abre explorar (pestaña "Apuntes" por defecto).
-    await page.goto('/explorar');
+    await gotoHydrated(page, '/explorar');
   });
 
   test('abre en la pestaña Apuntes con el buscador visible', async ({ page }) => {

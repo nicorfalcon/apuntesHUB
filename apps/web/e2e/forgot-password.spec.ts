@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { gotoHydrated } from './support/hydration';
 
 // /forgot-password: el form llama supabase.auth.resetPasswordForEmail() desde
 // el browser, que internamente pega a `POST <SUPABASE_URL>/auth/v1/recover`.
@@ -7,7 +8,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Forgot password (público)', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/forgot-password');
+    await gotoHydrated(page, '/forgot-password');
   });
 
   test('renderiza el heading y el form vacío', async ({ page }) => {
