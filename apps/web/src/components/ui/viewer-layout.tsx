@@ -8,6 +8,7 @@ import { GripVertical, Menu, X } from "lucide-react";
 import { StarRating } from "@/components/ui/star-rating";
 import { AiChatPanel } from "@/components/ui/ai-chat-panel";
 import { MaterialQuestionsPanel } from "@/components/material-questions";
+import { ResumeTopicsSection } from "@/components/resume/resume-topics";
 import type { TocItem } from "@/components/ui/pdf-viewer";
 
 // Dynamic import — react-pdf solo funciona en el cliente
@@ -181,6 +182,7 @@ export interface ViewerLayoutProps {
     university: string;
     career: string;
     description: string | null;
+    topics?: string[] | null;
     updated_at: string;
   };
   seller: {
@@ -443,6 +445,12 @@ export function ViewerLayout({
                 <StarRating rating={ratingAvg} count={ratingCount} />
               </div>
             )}
+
+            <ResumeTopicsSection
+              topics={resume.topics}
+              className="mt-4"
+              headingClassName="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-sand-300/65"
+            />
           </div>
 
           <div className="mx-5 h-px shrink-0 bg-gray-100 dark:bg-white/10" />

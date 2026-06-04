@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { StarRating } from "@/components/ui/star-rating";
+import { ResumeTopicsSection } from "@/components/resume/resume-topics";
 import { PurchaseButton } from "./purchase-button";
 import type { ResumeWithSeller, Review, Profile } from "@/lib/database.types";
 
@@ -112,6 +113,11 @@ export default async function ResumePage({
               <p className="text-sm text-gray-400">Sin preview disponible</p>
             </div>
           )}
+
+          <ResumeTopicsSection
+            topics={resumeWithSeller.topics}
+            className="rounded-xl border border-gray-100 bg-gray-50/70 p-5 dark:border-white/10 dark:bg-white/[0.03]"
+          />
 
           {/* Reviews */}
           <section>

@@ -23,7 +23,7 @@ const HYBRID_VECTOR_WEIGHT = 0.55;
 const HYBRID_CHUNK_TEXT_WEIGHT = 0.25;
 const HYBRID_METADATA_WEIGHT = 0.2;
 const RESUME_METADATA_SELECT =
-  "id, title, subject, career, university, description, file_url";
+  "id, title, subject, career, university, description, file_url, topics";
 
 type VectorCandidate = {
   resume_id: string;
@@ -38,6 +38,7 @@ type ResumeMetadata = {
   university: string;
   description: string | null;
   file_url: string | null;
+  topics: string[] | null;
 };
 
 type HybridBrowseCandidate = {
@@ -214,9 +215,13 @@ function scoreResumeMetadata(
     university: normalizeText(resume.university),
     description: normalizeText(resume.description ?? ""),
     fileName: normalizeText(fileNameFromPath(resume.file_url)),
+    // Temas declarados por el vendedor. Se concatenan para el matching textual;
+    // resuelven busquedas por conceptos que el PDF no nombra literalmente.
+    topics: normalizeText((resume.topics ?? []).join(" ")),
   };
 
   const titlePhraseMatch = hasMeaningfulPhraseMatch(fields.title, normalizedQuery);
+  const topicsPhraseMatch = hasMeaningfulPhraseMatch(fields.topics, normalizedQuery);
   const subjectPhraseMatch = hasMeaningfulPhraseMatch(fields.subject, normalizedQuery);
   const careerPhraseMatch = hasMeaningfulPhraseMatch(fields.career, normalizedQuery);
   const universityPhraseMatch = hasMeaningfulPhraseMatch(
@@ -233,6 +238,7 @@ function scoreResumeMetadata(
   );
 
   const titleTokenMatches = countTokenMatches(fields.title, tokens);
+  const topicsTokenMatches = countTokenMatches(fields.topics, tokens);
   const subjectTokenMatches = countTokenMatches(fields.subject, tokens);
   const careerTokenMatches = countTokenMatches(fields.career, tokens);
   const universityTokenMatches = countTokenMatches(fields.university, tokens);
@@ -240,6 +246,10 @@ function scoreResumeMetadata(
   const fileNameTokenMatches = countTokenMatches(fields.fileName, tokens);
 
   const shortExactTitleMatch = hasShortExactFieldMatch(fields.title, normalizedQuery);
+  const shortExactTopicsMatch = hasShortExactFieldMatch(
+    fields.topics,
+    normalizedQuery
+  );
   const shortExactSubjectMatch = hasShortExactFieldMatch(
     fields.subject,
     normalizedQuery
@@ -252,6 +262,8 @@ function scoreResumeMetadata(
   let score = 0;
 
   if (titlePhraseMatch) score += 0.55;
+  // topics declarados por el vendedor: senal fuerte, casi a la par de title.
+  if (topicsPhraseMatch) score += 0.5;
   if (subjectPhraseMatch) score += 0.42;
   if (fileNamePhraseMatch) score += 0.36;
   if (careerPhraseMatch) score += 0.16;
@@ -259,11 +271,13 @@ function scoreResumeMetadata(
   if (descriptionPhraseMatch) score += 0.12;
 
   if (shortExactTitleMatch) score += 0.5;
+  if (shortExactTopicsMatch) score += 0.46;
   if (shortExactSubjectMatch) score += 0.38;
   if (shortExactFileNameMatch) score += 0.34;
 
   if (tokens.length > 0) {
     score += (titleTokenMatches / tokens.length) * 0.4;
+    score += (topicsTokenMatches / tokens.length) * 0.36;
     score += (subjectTokenMatches / tokens.length) * 0.3;
     score += (fileNameTokenMatches / tokens.length) * 0.24;
     score += (careerTokenMatches / tokens.length) * 0.08;
@@ -272,17 +286,20 @@ function scoreResumeMetadata(
   }
 
   const primaryUsefulTokenMatches = countUniqueTokenMatches(
-    [fields.title, fields.subject, fields.fileName, fields.description],
+    [fields.title, fields.topics, fields.subject, fields.fileName, fields.description],
     tokens
   );
   const hasPrimaryMetadataMatch =
     titlePhraseMatch ||
+    topicsPhraseMatch ||
     subjectPhraseMatch ||
     fileNamePhraseMatch ||
     titleTokenMatches > 0 ||
+    topicsTokenMatches > 0 ||
     subjectTokenMatches > 0 ||
     fileNameTokenMatches > 0 ||
     shortExactTitleMatch ||
+    shortExactTopicsMatch ||
     shortExactSubjectMatch ||
     shortExactFileNameMatch;
   const eligibleMetadataOnly =

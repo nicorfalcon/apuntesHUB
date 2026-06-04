@@ -9,6 +9,7 @@ type ResumeRow = {
   university: string;
   description: string | null;
   file_url: string | null;
+  topics?: string[] | null;
   status?: string;
   deleted_at?: string | null;
 };
@@ -120,6 +121,7 @@ function resume(row: Partial<ResumeRow> & Pick<ResumeRow, "id">): ResumeRow {
     university: "Universidad Demo",
     description: null,
     file_url: null,
+    topics: [],
     status: "published",
     deleted_at: null,
     ...row,
@@ -385,6 +387,47 @@ describe("POST /api/ai/browse-search", () => {
         expect.objectContaining({ resumeId: "metadata-weak" }),
       ])
     );
+  });
+
+  it("encuentra por topic del vendedor aunque title/subject no lo nombren", async () => {
+    // Meilisearch apagado en este test → camino Postgres. La query no aparece en
+    // title/subject, sólo en los topics declarados por el vendedor.
+    h.metadataRows = [
+      resume({
+        id: "topic-match",
+        title: "Unidad 4 — Reacciones",
+        subject: "Química",
+        topics: ["Le Chatelier", "equilibrio químico"],
+      }),
+    ];
+
+    const res = await POST(makeRequest("le chatelier"));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.results).toEqual([
+      expect.objectContaining({ resumeId: "topic-match" }),
+    ]);
+  });
+
+  it("no devuelve apuntes unpublished aunque matcheen por topic", async () => {
+    h.metadataRows = [
+      resume({
+        id: "topic-draft",
+        title: "Unidad 4",
+        subject: "Química",
+        topics: ["Le Chatelier"],
+        status: "draft",
+      }),
+    ];
+
+    const res = await POST(makeRequest("le chatelier"));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.results).toEqual([]);
+    expect(h.metadataEq).toHaveBeenCalledWith("status", "published");
+    expect(h.metadataIs).toHaveBeenCalledWith("deleted_at", null);
   });
 
   it("capea el score de metadata-only", async () => {

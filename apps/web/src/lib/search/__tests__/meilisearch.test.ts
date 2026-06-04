@@ -11,6 +11,7 @@ type ResumeRow = {
   file_url: string | null;
   status: string | null;
   deleted_at: string | null;
+  topics: string[] | null;
   created_at: string | null;
   updated_at: string | null;
 };
@@ -99,6 +100,7 @@ function row(partial: Partial<ResumeRow> & Pick<ResumeRow, "id">): ResumeRow {
     file_url: "resumes/seller-1/le-chatelier.pdf",
     status: "published",
     deleted_at: null,
+    topics: [],
     created_at: "2024-01-01T00:00:00.000Z",
     updated_at: null,
     ...partial,
@@ -206,6 +208,39 @@ describe("indexResumeInSearch", () => {
     expect(h.deleteDocument).not.toHaveBeenCalled();
   });
 
+  it("incluye los topics del vendedor (normalizados) en el documento", async () => {
+    h.resumeRows = [
+      row({
+        id: "rt",
+        topics: [" Le Chatelier ", "le chatelier", "equilibrio  químico"],
+      }),
+    ];
+    const { indexResumeInSearch } = await import("../meilisearch");
+    await indexResumeInSearch("rt");
+    const [docs] = h.addDocuments.mock.calls[0];
+    // Re-normalizados: trim, colapso de espacios y dedupe accent/case-insensitive.
+    expect(docs[0].topics).toEqual(["Le Chatelier", "equilibrio químico"]);
+  });
+
+  it("indexa topics vacío [] si el apunte no declara temas", async () => {
+    h.resumeRows = [row({ id: "rt0", topics: null })];
+    const { indexResumeInSearch } = await import("../meilisearch");
+    await indexResumeInSearch("rt0");
+    const [docs] = h.addDocuments.mock.calls[0];
+    expect(docs[0].topics).toEqual([]);
+  });
+
+  it("NO indexa topics de un apunte unpublished/deleted (lo remueve)", async () => {
+    h.resumeRows = [
+      row({ id: "rtu", status: "draft", topics: ["secreto"] }),
+    ];
+    const { indexResumeInSearch } = await import("../meilisearch");
+    const result = await indexResumeInSearch("rtu");
+    expect(result.status).toBe("removed");
+    expect(h.addDocuments).not.toHaveBeenCalled();
+    expect(h.deleteDocument).toHaveBeenCalledWith("rtu");
+  });
+
   it("indexa con chunkTerms vacío si el apunte no tiene chunks (no rompe)", async () => {
     h.resumeRows = [row({ id: "r4" })];
     h.chunkRowsByResume["r4"] = [];
@@ -214,6 +249,23 @@ describe("indexResumeInSearch", () => {
     expect(result.status).toBe("indexed");
     const [docs] = h.addDocuments.mock.calls[0];
     expect(docs[0].chunkTerms).toEqual([]);
+  });
+});
+
+describe("configureResumesIndex", () => {
+  it("incluye topics en searchableAttributes, en alta prioridad y antes de chunkTerms", async () => {
+    const { configureResumesIndex } = await import("../meilisearch");
+    await configureResumesIndex();
+    expect(h.updateSettings).toHaveBeenCalledTimes(1);
+    const [settings] = h.updateSettings.mock.calls[0];
+    const searchable: string[] = settings.searchableAttributes;
+    expect(searchable).toContain("topics");
+    const topicsIdx = searchable.indexOf("topics");
+    const chunkIdx = searchable.indexOf("chunkTerms");
+    const titleIdx = searchable.indexOf("title");
+    // topics va alto (justo después de title) y por encima de chunkTerms.
+    expect(topicsIdx).toBe(titleIdx + 1);
+    expect(topicsIdx).toBeLessThan(chunkIdx);
   });
 });
 

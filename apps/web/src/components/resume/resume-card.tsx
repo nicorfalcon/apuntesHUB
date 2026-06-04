@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { CheckCircle } from "lucide-react";
 import { StarRating } from "@/components/ui/star-rating";
+import { ResumeTopicChips } from "./resume-topics";
 import type { ResumeWithSeller } from "@/lib/database.types";
 
 interface ResumeCardProps {
@@ -65,6 +66,13 @@ export function ResumeCard({ resume, purchased = false }: ResumeCardProps) {
           {resume.title}
         </h3>
         <p className="mt-0.5 text-sm text-gray-500">por {seller.display_name}</p>
+
+        <ResumeTopicChips
+          topics={resume.topics}
+          maxVisible={3}
+          className="mt-2"
+          chipClassName="max-w-[8.5rem] bg-gray-50 text-gray-600 ring-gray-200 dark:bg-white/[0.06] dark:text-sand-300 dark:ring-white/10"
+        />
 
         <div className="mt-2">
           <StarRating

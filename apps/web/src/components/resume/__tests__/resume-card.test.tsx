@@ -37,6 +37,7 @@ function makeResume(overrides: Partial<ResumeWithSeller> = {}): ResumeWithSeller
     seller_id: "s-1",
     rating_avg: 4.5,
     rating_count: 12,
+    topics: [],
     deleted_at: null,
     created_at: "2026-05-01",
     updated_at: "2026-05-01",
@@ -96,5 +97,33 @@ describe("ResumeCard", () => {
 
     const img = screen.getByAltText("Resumen Análisis I");
     expect(img).toHaveAttribute("src", "https://cdn.test/x.png");
+  });
+
+  it("dado un resume con topics, entonces muestra hasta 3 chips y el excedente", () => {
+    render(
+      <ResumeCard
+        resume={makeResume({
+          topics: [
+            "Le Chatelier",
+            "Equilibrio químico",
+            "Concentración",
+            "Presión",
+          ],
+        })}
+      />
+    );
+
+    expect(screen.getByText("Le Chatelier")).toBeInTheDocument();
+    expect(screen.getByText("Equilibrio químico")).toBeInTheDocument();
+    expect(screen.getByText("Concentración")).toBeInTheDocument();
+    expect(screen.queryByText("Presión")).not.toBeInTheDocument();
+    expect(screen.getByText("+1")).toBeInTheDocument();
+  });
+
+  it("dado topics vacío, entonces no muestra chips de temas", () => {
+    render(<ResumeCard resume={makeResume({ topics: [] })} />);
+
+    expect(screen.queryByText("Le Chatelier")).not.toBeInTheDocument();
+    expect(screen.queryByText(/\+\d+/)).not.toBeInTheDocument();
   });
 });

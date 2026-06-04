@@ -5,7 +5,14 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import type { Resume } from "@/lib/database.types";
-import { Upload, FileText, ImageIcon, Check } from "lucide-react";
+import {
+  normalizeResumeTopic,
+  normalizeResumeTopics,
+  resumeTopicKey,
+  MAX_RESUME_TOPICS,
+  MAX_RESUME_TOPIC_LENGTH,
+} from "@/lib/resumes/topics";
+import { Upload, FileText, ImageIcon, Check, X } from "lucide-react";
 
 interface ResumeFormProps {
   userId: string;
@@ -13,6 +20,28 @@ interface ResumeFormProps {
 }
 
 const STEPS = ["Información", "Archivo", "Precio"] as const;
+
+export async function reindexResumeBestEffort(resumeId: string) {
+  try {
+    const response = await fetch("/api/admin/search/reindex", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resumeId }),
+    });
+
+    if (!response.ok) {
+      console.warn("[resume-form] search reindex skipped", {
+        resumeId,
+        status: response.status,
+      });
+    }
+  } catch (err) {
+    console.warn("[resume-form] search reindex failed", {
+      resumeId,
+      message: err instanceof Error ? err.message : "unknown error",
+    });
+  }
+}
 
 export function ResumeForm({ userId, initial }: ResumeFormProps) {
   const router = useRouter();
@@ -28,6 +57,12 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
     price: initial?.price?.toString() ?? "",
     status: initial?.status ?? "draft",
   });
+  // "Temas del apunte": chips editables que mejoran la busqueda publica.
+  const [topics, setTopics] = useState<string[]>(() =>
+    normalizeResumeTopics(initial?.topics ?? [])
+  );
+  const [topicInput, setTopicInput] = useState("");
+  const [topicError, setTopicError] = useState<string | null>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -44,6 +79,58 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
     >
   ) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  }
+
+  /* ── Temas del apunte (chips) ── */
+  // Agrega uno o varios temas (el input permite separar por coma). Valida largo
+  // y tope de cantidad mostrando un mensaje inline; deduplica contra los actuales.
+  function commitTopics(rawValue: string) {
+    const parts = rawValue
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (parts.length === 0) return;
+
+    let next = [...topics];
+    let error: string | null = null;
+    const existingKeys = new Set(next.map(resumeTopicKey));
+
+    for (const part of parts) {
+      if (next.length >= MAX_RESUME_TOPICS) {
+        error = `Máximo ${MAX_RESUME_TOPICS} temas.`;
+        break;
+      }
+      if (part.length > MAX_RESUME_TOPIC_LENGTH) {
+        error = `Cada tema puede tener hasta ${MAX_RESUME_TOPIC_LENGTH} caracteres.`;
+        continue;
+      }
+      const normalized = normalizeResumeTopic(part);
+      if (!normalized) continue;
+      const key = resumeTopicKey(normalized);
+      if (existingKeys.has(key)) continue;
+      existingKeys.add(key);
+      next = [...next, normalized];
+    }
+
+    setTopics(normalizeResumeTopics(next));
+    setTopicInput("");
+    setTopicError(error);
+  }
+
+  function handleTopicKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      commitTopics(topicInput);
+    } else if (e.key === "Backspace" && topicInput === "" && topics.length > 0) {
+      // Backspace con input vacío borra el último chip (UX típica de tags).
+      setTopics((prev) => prev.slice(0, -1));
+      setTopicError(null);
+    }
+  }
+
+  function removeTopic(index: number) {
+    setTopics((prev) => prev.filter((_, i) => i !== index));
+    setTopicError(null);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -124,6 +211,17 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
       }
     }
 
+    // Normalizamos también el draft del input que el vendedor no haya confirmado
+    // con Enter/coma, para no perder un tema recién tipeado al guardar.
+    // DEUDA: esta validación es client-side (el guardado va directo a Supabase
+    // vía RLS). Si en el futuro se agrega un endpoint/server action de guardado,
+    // re-normalizar con normalizeResumeTopics ahí. Defensa en profundidad: el
+    // indexado en Meilisearch ya re-normaliza topics (ver buildResumeDocument).
+    const finalTopics = normalizeResumeTopics([
+      ...topics,
+      ...topicInput.split(","),
+    ]);
+
     const payload = {
       id: resumeId,
       seller_id: userId,
@@ -136,6 +234,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
       file_url: fileUrl,
       preview_url: previewUrl,
       status: form.status as Resume["status"],
+      topics: finalTopics,
     };
 
     let dbError;
@@ -157,6 +256,12 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
       setLoading(false);
       return;
     }
+
+    // Best-effort: reindexar en Meilisearch para que los topics (y el resto de
+    // metadata) queden actualizados en la búsqueda pública. El endpoint autoriza
+    // al seller dueño, revalida published/deleted y es no-op si Meili no está
+    // configurado. Nunca bloquea ni rompe el guardado.
+    void reindexResumeBestEffort(resumeId);
 
     toast.success(
       isEdit
@@ -352,6 +457,68 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                 className={inputClass}
                 placeholder="Descripción breve del contenido…"
               />
+            </div>
+
+            {/* Temas del apunte (chips) */}
+            <div>
+              <label htmlFor="topic-input" className={labelClass}>
+                Temas del apunte{" "}
+                <span className="font-normal text-gray-400">(opcional)</span>
+              </label>
+              <p className="mt-0.5 text-xs text-gray-400 dark:text-sand-300/65">
+                Agregá conceptos importantes que cubre el apunte. Esto ayuda a que
+                otros estudiantes lo encuentren aunque busquen con otras palabras.
+              </p>
+              <div
+                className={`mt-1.5 flex flex-wrap items-center gap-1.5 rounded-xl border border-gray-200 bg-[var(--surface-warm)] px-2.5 py-2 transition-[background-color,border-color,box-shadow] focus-within:border-accent-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-accent-200/45 dark:border-white/15 dark:bg-white/[0.04] dark:focus-within:border-accent-300 dark:focus-within:bg-white/[0.07] dark:focus-within:ring-accent-300/15`}
+              >
+                {topics.map((topic, i) => (
+                  <span
+                    key={`${resumeTopicKey(topic)}-${i}`}
+                    className="inline-flex items-center gap-1 rounded-lg bg-accent-100 px-2 py-1 text-xs font-medium text-accent-700 dark:bg-accent-300/15 dark:text-accent-100"
+                  >
+                    {topic}
+                    <button
+                      type="button"
+                      onClick={() => removeTopic(i)}
+                      aria-label={`Quitar tema ${topic}`}
+                      className="rounded p-0.5 transition-colors hover:bg-accent-200/60 dark:hover:bg-accent-300/25"
+                    >
+                      <X size={12} strokeWidth={2.5} />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  id="topic-input"
+                  type="text"
+                  value={topicInput}
+                  onChange={(e) => setTopicInput(e.target.value)}
+                  onKeyDown={handleTopicKeyDown}
+                  onBlur={() => commitTopics(topicInput)}
+                  disabled={topics.length >= MAX_RESUME_TOPICS}
+                  className="min-w-[8rem] flex-1 bg-transparent px-1 py-1 text-sm text-foreground outline-none placeholder:text-gray-400 disabled:cursor-not-allowed dark:placeholder:text-sand-300/45"
+                  placeholder={
+                    topics.length >= MAX_RESUME_TOPICS
+                      ? "Llegaste al máximo de temas"
+                      : "Le Chatelier, equilibrio químico…"
+                  }
+                />
+              </div>
+              <div className="mt-1 flex items-center justify-between">
+                <span
+                  className={`text-xs ${
+                    topicError
+                      ? "text-red-500 dark:text-red-300"
+                      : "text-gray-400 dark:text-sand-300/65"
+                  }`}
+                >
+                  {topicError ??
+                    "Enter o coma para agregar cada tema."}
+                </span>
+                <span className="text-xs tabular-nums text-gray-400 dark:text-sand-300/65">
+                  {topics.length}/{MAX_RESUME_TOPICS}
+                </span>
+              </div>
             </div>
           </div>
         </div>

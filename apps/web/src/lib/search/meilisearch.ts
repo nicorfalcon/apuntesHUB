@@ -15,6 +15,7 @@
 import { Meilisearch, type Index } from "meilisearch";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { deriveChunkTerms, deriveAcademicAliases } from "./chunk-terms";
+import { normalizeResumeTopics } from "@/lib/resumes/topics";
 
 export type SearchableResumeDocument = {
   id: string;
@@ -26,6 +27,9 @@ export type SearchableResumeDocument = {
   sellerId: string | null;
   status: "published";
   fileName: string | null;
+  // topics = "Temas del apunte" declarados por el vendedor. Senal de busqueda de
+  // alta prioridad: resuelven el caso en que el PDF no nombra el concepto.
+  topics: string[];
   tags: string[];
   keywords: string[];
   aiSummary: string | null;
@@ -46,12 +50,13 @@ type ResumeRow = {
   file_url: string | null;
   status: string | null;
   deleted_at: string | null;
+  topics: string[] | null;
   created_at: string | null;
   updated_at: string | null;
 };
 
 const RESUME_INDEX_SELECT =
-  "id, title, description, subject, career, university, seller_id, file_url, status, deleted_at, created_at, updated_at";
+  "id, title, description, subject, career, university, seller_id, file_url, status, deleted_at, topics, created_at, updated_at";
 
 // Tope de chunks por apunte a leer para derivar términos. Acota el trabajo y la
 // memoria; no afecta la seguridad (igual nunca se guarda el contenido).
@@ -136,8 +141,12 @@ export async function configureResumesIndex(): Promise<void> {
 
   const index = client.index(indexName);
   await index.updateSettings({
+    // El orden define la prioridad de la regla "attribute": cuanto antes, mas
+    // peso. `topics` (declarados por el vendedor) va alto, justo despues de
+    // title y por encima de keywords/chunkTerms, que son senales derivadas.
     searchableAttributes: [
       "title",
+      "topics",
       "subject",
       "description",
       "career",
@@ -230,7 +239,11 @@ function buildResumeDocument(
     sellerId: resume.seller_id,
     status: "published",
     fileName: fileNameFromPath(resume.file_url),
-    // No existen estas columnas en la BD todavía: PoC con valores vacíos.
+    // Temas declarados por el vendedor. Se re-normalizan al indexar (defensa en
+    // profundidad: hoy se guardan ya normalizados desde el form, pero el guardado
+    // es client-side; ver deuda en resume-form.tsx).
+    topics: normalizeResumeTopics(resume.topics ?? []),
+    // No existe esta columna en la BD todavía: PoC con valores vacíos.
     tags: [],
     // keywords = aliases académicos curados por reglas a partir de señales del
     // contenido (NO contenido del PDF). Permiten encontrar temas con nombre

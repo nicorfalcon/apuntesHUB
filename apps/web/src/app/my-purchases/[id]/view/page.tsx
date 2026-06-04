@@ -95,6 +95,7 @@ export default async function ViewPurchasePage({
         university: resumeData.university,
         career: resumeData.career,
         description: resumeData.description,
+        topics: resumeData.topics ?? [],
         updated_at: resumeData.updated_at,
       }}
       seller={{

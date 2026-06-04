@@ -927,6 +927,7 @@ export type Database = {
           status: string
           subject: string
           title: string
+          topics: string[]
           university: string
           updated_at: string
         }
@@ -945,6 +946,7 @@ export type Database = {
           status?: string
           subject: string
           title: string
+          topics?: string[]
           university: string
           updated_at?: string
         }
@@ -963,6 +965,7 @@ export type Database = {
           status?: string
           subject?: string
           title?: string
+          topics?: string[]
           university?: string
           updated_at?: string
         }

@@ -166,6 +166,13 @@ describe("POST /api/admin/search/reindex", () => {
       expect(body).toMatchObject({ ok: true, status: "indexed" });
     });
 
+    it("seller dueño autenticado no necesita MEILISEARCH_ADMIN_SECRET", async () => {
+      delete process.env.MEILISEARCH_ADMIN_SECRET;
+      const res = await POST(makeRequest({ resumeId: "r1" }));
+      expect(res.status).toBe(200);
+      expect(h.indexResumeInSearch).toHaveBeenCalledWith("r1");
+    });
+
     it("default action es 'index' cuando no se especifica", async () => {
       const res = await POST(makeRequest({ resumeId: "r1" }));
       expect(res.status).toBe(200);
@@ -179,6 +186,23 @@ describe("POST /api/admin/search/reindex", () => {
       expect(res.status).toBe(200);
       expect(h.getUser).not.toHaveBeenCalled();
       expect(h.indexResumeInSearch).toHaveBeenCalledWith("r1");
+    });
+
+    it("500 si falla el index puntual (mensaje seguro, sin detalle)", async () => {
+      h.indexResumeInSearch.mockRejectedValue(new Error("meili internal boom"));
+      const res = await POST(makeRequest({ resumeId: "r1" }));
+      const body = await res.json();
+      expect(res.status).toBe(500);
+      expect(body.error).toBe("Falló la operación de búsqueda");
+      expect(JSON.stringify(body)).not.toContain("meili internal boom");
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[admin:search] operation failed",
+        expect.objectContaining({
+          resumeId: "r1",
+          action: "index",
+          message: "meili internal boom",
+        })
+      );
     });
   });
 
