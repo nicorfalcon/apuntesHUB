@@ -19,6 +19,16 @@ export const maxDuration = 300;
 // en memoria dentro del maxDuration.
 const MAX_PDF_BYTES = 25 * 1024 * 1024; // 25 MB
 
+// Ventana del "lock" lógico de ingesta. Si un job quedó en 'processing' hace más
+// de esto (request cortada, deploy a mitad, crash), se considera stale y se puede
+// reclamar de nuevo. Configurable por env; default 10 min.
+function getIngestionLockTtlMinutes(): number {
+  const raw = process.env.AI_INGEST_LOCK_TTL_MINUTES;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1) return 10;
+  return n;
+}
+
 export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ resumeId: string }> }
@@ -70,32 +80,37 @@ export async function POST(
     );
   }
 
-  // 2. Registrar el job de ingesta (service role para escribir)
+  // 2. Claim ATÓMICO del job (service role para escribir). Evita reingestas
+  //    concurrentes del mismo apunte: la RPC solo "toma" el job si no hay uno
+  //    'processing' reciente. Si claim=false, otra request ya lo está procesando
+  //    y cortamos ANTES de descargar el PDF o generar embeddings (sin doble costo).
   const admin = createAdminClient();
 
-  const { data: job, error: jobError } = await admin
-    .from("ingestion_jobs")
-    .upsert(
-      {
-        resume_id: resumeId,
-        status: "processing",
-        started_at: new Date().toISOString(),
-        finished_at: null,
-        // Limpiar cualquier error de un intento anterior.
-        error_message: null,
-        error_code: null,
-        retryable: null,
-        chunks_generated: 0,
-      },
-      { onConflict: "resume_id" }
-    )
-    .select()
-    .single();
+  const { data: claimed, error: claimError } = await admin.rpc(
+    "claim_ai_ingestion_job",
+    {
+      p_resume_id: resumeId,
+      p_seller_id: user.id,
+      p_stale_after_minutes: getIngestionLockTtlMinutes(),
+    }
+  );
 
-  if (jobError || !job) {
+  if (claimError) {
     return NextResponse.json(
-      { error: "Error creando job de ingesta", detail: jobError?.message },
+      { error: "Error iniciando la ingesta", detail: claimError.message },
       { status: 500 }
+    );
+  }
+
+  if (claimed !== true) {
+    console.info("[ai:ingest] claim skipped; already processing", { resumeId });
+    return NextResponse.json(
+      {
+        error: "Este apunte ya se está procesando con IA.",
+        code: "AI_INGEST_ALREADY_PROCESSING",
+        retryable: true,
+      },
+      { status: 409 }
     );
   }
 
@@ -207,7 +222,8 @@ export async function POST(
       );
     }
 
-    // 8. Marcar job como done y limpiar cualquier error previo.
+    // 8. Marcar job como done y limpiar cualquier error previo. Filtramos por
+    //    resume_id (unique): el claim ya garantizó que este job es nuestro.
     await admin
       .from("ingestion_jobs")
       .update({
@@ -218,7 +234,7 @@ export async function POST(
         error_code: null,
         retryable: null,
       })
-      .eq("id", job.id);
+      .eq("resume_id", resumeId);
 
     // Log de éxito SIN contenido del PDF/chunks.
     console.info("[ai:ingest] completed", {
@@ -236,7 +252,6 @@ export async function POST(
       chunks: chunks.length,
       pages: extracted.pageCount,
       insufficientText: hasInsufficientText,
-      jobId: job.id,
     });
   } catch (err) {
     const classified = classifyAiIngestionError(err);
@@ -258,7 +273,7 @@ export async function POST(
         retryable: classified.retryable,
         finished_at: new Date().toISOString(),
       })
-      .eq("id", job.id);
+      .eq("resume_id", resumeId);
 
     // Respuesta segura: sin stack ni detalle técnico, solo mensaje de usuario.
     return NextResponse.json(
