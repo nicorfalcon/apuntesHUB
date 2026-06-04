@@ -194,7 +194,7 @@ export default async function DashboardPage({
       .single(),
     supabase
       .from("ingestion_jobs")
-      .select("resume_id, status, chunks_generated"),
+      .select("resume_id, status, chunks_generated, error_code, retryable"),
   ]);
 
   const hasMpConnected = !!mpCreds;
@@ -482,8 +482,12 @@ export default async function DashboardPage({
   );
 
   const ingestionStatuses: Record<string, "pending" | "processing" | "done" | "failed"> = {};
+  const ingestionErrors: Record<string, { code: string | null; retryable: boolean | null }> = {};
   ingestionJobs?.forEach((j) => {
     ingestionStatuses[j.resume_id] = j.status;
+    if (j.status === "failed") {
+      ingestionErrors[j.resume_id] = { code: j.error_code, retryable: j.retryable };
+    }
   });
 
   const isTutor = profile?.is_tutor ?? false;
@@ -512,6 +516,7 @@ export default async function DashboardPage({
           ventasPorResume={ventasPorResume}
           ingresosPorResume={ingresosPorResume}
           ingestionStatuses={ingestionStatuses}
+          ingestionErrors={ingestionErrors}
         />
       }
       cursosContent={

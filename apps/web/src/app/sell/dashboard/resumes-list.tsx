@@ -5,15 +5,27 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Resume } from "@/lib/database.types";
 import { ResumeActionsMenu } from "./resume-actions-menu";
+import { AI_INGESTION_USER_MESSAGES } from "@/lib/ai/ingestion-errors";
+import type { AiIngestionErrorCode } from "@/lib/ai/ingestion-errors";
 
 type Filter = "all" | "published" | "draft" | "archived";
 type IngestionStatus = "pending" | "processing" | "done" | "failed";
+type IngestionError = { code: string | null; retryable: boolean | null };
 
 interface ResumesListProps {
   resumes: Resume[];
   ventasPorResume: Record<string, number>;
   ingresosPorResume: Record<string, number>;
   ingestionStatuses?: Record<string, IngestionStatus>;
+  ingestionErrors?: Record<string, IngestionError>;
+}
+
+// Mensaje de usuario para un código de error de ingesta IA (fallback genérico).
+function aiErrorMessage(code: string | null | undefined): string {
+  if (code && code in AI_INGESTION_USER_MESSAGES) {
+    return AI_INGESTION_USER_MESSAGES[code as AiIngestionErrorCode];
+  }
+  return AI_INGESTION_USER_MESSAGES.UNKNOWN_ERROR;
 }
 
 const AI_BADGE: Record<IngestionStatus, { label: string; class: string }> = {
@@ -36,16 +48,32 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: "archived", label: "Archivados" },
 ];
 
-export function ResumesList({ resumes, ventasPorResume, ingresosPorResume, ingestionStatuses = {} }: ResumesListProps) {
+export function ResumesList({ resumes, ventasPorResume, ingresosPorResume, ingestionStatuses = {}, ingestionErrors = {} }: ResumesListProps) {
   const [filter, setFilter] = useState<Filter>("all");
   const [localStatuses, setLocalStatuses] = useState<Record<string, IngestionStatus>>(ingestionStatuses);
+  const [localErrors, setLocalErrors] = useState<Record<string, IngestionError>>(ingestionErrors);
+
+  function setError(resumeId: string, err: IngestionError | null) {
+    setLocalErrors((prev) => {
+      const next = { ...prev };
+      if (err) next[resumeId] = err;
+      else delete next[resumeId];
+      return next;
+    });
+  }
 
   async function handleIngest(resumeId: string) {
     setLocalStatuses((prev) => ({ ...prev, [resumeId]: "processing" }));
+    setError(resumeId, null); // limpiar error de un intento anterior
 
     const res = await fetch(`/api/ai/ingest/${resumeId}`, { method: "POST" });
     if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
       setLocalStatuses((prev) => ({ ...prev, [resumeId]: "failed" }));
+      setError(resumeId, {
+        code: body.code ?? null,
+        retryable: body.retryable ?? null,
+      });
       return;
     }
 
@@ -57,7 +85,11 @@ export function ResumesList({ resumes, ventasPorResume, ingresosPorResume, inges
       }
       const job = await statusRes.json();
       setLocalStatuses((prev) => ({ ...prev, [resumeId]: job.status }));
-      if (job.status === "processing" || job.status === "pending") {
+      if (job.status === "failed") {
+        setError(resumeId, { code: job.error_code ?? null, retryable: job.retryable ?? null });
+      } else if (job.status === "done") {
+        setError(resumeId, null);
+      } else if (job.status === "processing" || job.status === "pending") {
         setTimeout(poll, 2500);
       }
     }
@@ -140,6 +172,8 @@ export function ResumesList({ resumes, ventasPorResume, ingresosPorResume, inges
             const hasRating = (resume.rating_count ?? 0) > 0;
             const aiStatus = localStatuses[resume.id];
             const aiBadge = aiStatus ? AI_BADGE[aiStatus] : null;
+            const aiError = aiStatus === "failed" ? localErrors[resume.id] : undefined;
+            const aiErrorText = aiStatus === "failed" ? aiErrorMessage(aiError?.code) : null;
 
             return (
               <div
@@ -173,7 +207,10 @@ export function ResumesList({ resumes, ventasPorResume, ingresosPorResume, inges
                       {statusInfo.label}
                     </span>
                     {aiBadge && (
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${aiBadge.class}`}>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${aiBadge.class}`}
+                        title={aiErrorText ?? undefined}
+                      >
                         {aiBadge.label}
                       </span>
                     )}
@@ -181,6 +218,12 @@ export function ResumesList({ resumes, ventasPorResume, ingresosPorResume, inges
                       {resume.title}
                     </h3>
                   </div>
+                  {aiErrorText && (
+                    <p className="mt-1 text-xs text-red-600" role="status">
+                      {aiErrorText}
+                      {aiError?.retryable === false && " (no reintentable)"}
+                    </p>
+                  )}
                   <p className="mt-0.5 text-xs text-gray-400">
                     {resume.subject} · {resume.university} · {ventas} venta{ventas !== 1 ? "s" : ""}
                     {ingresos > 0 && (

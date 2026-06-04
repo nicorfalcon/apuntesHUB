@@ -190,7 +190,9 @@ export function ResumeActionsMenu({ resumeId, resumeTitle, aiStatus, onIngest }:
                 ? "Procesando con IA..."
                 : aiStatus === "done"
                   ? "Reprocesar con IA"
-                  : "Procesar con IA"}
+                  : aiStatus === "failed"
+                    ? "Reintentar con IA"
+                    : "Procesar con IA"}
             </button>
           )}
           <button

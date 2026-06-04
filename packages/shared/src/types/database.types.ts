@@ -406,6 +406,8 @@ export type Database = {
           status: "pending" | "processing" | "done" | "failed"
           chunks_generated: number
           error_message: string | null
+          error_code: string | null
+          retryable: boolean | null
           started_at: string | null
           finished_at: string | null
           created_at: string
@@ -416,6 +418,8 @@ export type Database = {
           status?: "pending" | "processing" | "done" | "failed"
           chunks_generated?: number
           error_message?: string | null
+          error_code?: string | null
+          retryable?: boolean | null
           started_at?: string | null
           finished_at?: string | null
           created_at?: string
@@ -424,6 +428,8 @@ export type Database = {
           status?: "pending" | "processing" | "done" | "failed"
           chunks_generated?: number
           error_message?: string | null
+          error_code?: string | null
+          retryable?: boolean | null
           started_at?: string | null
           finished_at?: string | null
         }

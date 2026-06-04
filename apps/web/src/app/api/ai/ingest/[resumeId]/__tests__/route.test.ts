@@ -14,7 +14,8 @@ const h = vi.hoisted(() => ({
   rpc: vi.fn(),
   // Registro de operaciones sobre la DB para verificar invariantes.
   order: [] as string[],
-  // Último estado con el que se actualizó el job (done/failed).
+  // Payloads de upsert (inicio del job) y update (done/failed) sobre ingestion_jobs.
+  jobUpserts: [] as Array<Record<string, unknown>>,
   jobUpdates: [] as Array<Record<string, unknown>>,
   // Detecta cualquier delete/insert manual sobre document_chunks (no debe ocurrir).
   manualChunkOps: [] as string[],
@@ -39,11 +40,14 @@ vi.mock("@/lib/supabase/admin", () => ({
     rpc: h.rpc,
     from: (table: string) => ({
       // ingestion_jobs.upsert(...).select().single()
-      upsert: () => ({
-        select: () => ({
-          single: async () => ({ data: { id: "job-1" }, error: null }),
-        }),
-      }),
+      upsert: (payload: Record<string, unknown>) => {
+        if (table === "ingestion_jobs") h.jobUpserts.push(payload);
+        return {
+          select: () => ({
+            single: async () => ({ data: { id: "job-1" }, error: null }),
+          }),
+        };
+      },
       // delete/insert manual: NO debe usarse para document_chunks (lo hace la RPC).
       delete: () => ({
         eq: async () => {
@@ -70,6 +74,7 @@ vi.mock("@/lib/ai/pdf-extractor", () => ({
 
 vi.mock("@/lib/ai/pdf-chunker", () => ({
   chunkPdfPages: h.chunkPdfPages,
+  CHUNKING_VERSION: "m3-v1",
 }));
 
 vi.mock("@/lib/ai/embeddings", () => ({
@@ -116,6 +121,7 @@ describe("POST /api/ai/ingest/[resumeId]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     h.order = [];
+    h.jobUpserts = [];
     h.jobUpdates = [];
     h.manualChunkOps = [];
     h.getUser.mockResolvedValue({ data: { user: USER } });
@@ -200,42 +206,105 @@ describe("POST /api/ai/ingest/[resumeId]", () => {
   it("no llama a la RPC si la generación de embeddings falla", async () => {
     h.generateEmbeddings.mockRejectedValue(new Error("Cohere down"));
     const res = await POST(makeRequest(), ctx());
-    expect(res.status).toBe(500);
+    // Error genérico del proveedor -> EMBEDDING_PROVIDER_ERROR (502).
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.code).toBe("EMBEDDING_PROVIDER_ERROR");
     expect(h.rpc).not.toHaveBeenCalled();
     // Nunca se tocaron los chunks manualmente.
     expect(h.manualChunkOps).toEqual([]);
   });
 
-  it("falla si no se generan chunks (no llama a la RPC)", async () => {
+  it("falla si no se generan chunks (CHUNKS_EMPTY, no llama a la RPC)", async () => {
     h.chunkPdfPages.mockReturnValue([]);
     const res = await POST(makeRequest(), ctx());
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.code).toBe("CHUNKS_EMPTY");
     expect(h.rpc).not.toHaveBeenCalled();
   });
 
-  it("si la RPC falla, responde 500 y marca el job como failed", async () => {
+  it("al iniciar, marca processing y limpia el error de un intento anterior", async () => {
+    await POST(makeRequest(), ctx());
+    const upsert = h.jobUpserts[0];
+    expect(upsert).toMatchObject({
+      status: "processing",
+      error_message: null,
+      error_code: null,
+      retryable: null,
+    });
+  });
+
+  it("caso exitoso: marca done con cantidad de chunks y limpia el error", async () => {
+    const res = await POST(makeRequest(), ctx());
+    expect(res.status).toBe(200);
+    const lastJob = h.jobUpdates[h.jobUpdates.length - 1];
+    expect(lastJob).toMatchObject({
+      status: "done",
+      chunks_generated: 1,
+      error_code: null,
+      error_message: null,
+      retryable: null,
+    });
+  });
+
+  it("error 429 de Cohere -> persiste COHERE_RATE_LIMIT y responde retryable", async () => {
+    h.generateEmbeddings.mockRejectedValue({ statusCode: 429, message: "Too Many Requests" });
+    const res = await POST(makeRequest(), ctx());
+    expect(res.status).toBe(429);
+
+    const body = await res.json();
+    expect(body.code).toBe("COHERE_RATE_LIMIT");
+    expect(body.retryable).toBe(true);
+    // No filtra detalle técnico crudo al usuario.
+    expect(body.detail).toBeUndefined();
+
+    const lastJob = h.jobUpdates[h.jobUpdates.length - 1];
+    expect(lastJob).toMatchObject({
+      status: "failed",
+      error_code: "COHERE_RATE_LIMIT",
+      retryable: true,
+    });
+    // No se tocaron los chunks (falló antes de la RPC).
+    expect(h.rpc).not.toHaveBeenCalled();
+  });
+
+  it("PDF sin texto -> persiste PDF_NO_TEXT y responde 422 (no reintentable)", async () => {
+    h.extractPdfPages.mockResolvedValue({
+      pages: [{ pageNumber: 1, text: "" }],
+      fullText: "   ",
+      pageCount: 1,
+    });
+    const res = await POST(makeRequest(), ctx());
+    expect(res.status).toBe(422);
+
+    const body = await res.json();
+    expect(body.code).toBe("PDF_NO_TEXT");
+    expect(body.retryable).toBe(false);
+
+    const lastJob = h.jobUpdates[h.jobUpdates.length - 1];
+    expect(lastJob).toMatchObject({ status: "failed", error_code: "PDF_NO_TEXT" });
+    expect(h.generateEmbeddings).not.toHaveBeenCalled();
+  });
+
+  it("fallo de la RPC -> persiste DB_REINGEST_ERROR y responde retryable", async () => {
     h.rpc.mockResolvedValue({ data: null, error: { message: "insert viol. constraint" } });
     const res = await POST(makeRequest(), ctx());
     expect(res.status).toBe(500);
-    // El último update del job lo dejó en failed (los chunks viejos siguen, la
-    // RPC rollbackeó delete+insert al fallar).
+
+    const body = await res.json();
+    expect(body.code).toBe("DB_REINGEST_ERROR");
+    expect(body.retryable).toBe(true);
+
     const lastJob = h.jobUpdates[h.jobUpdates.length - 1];
-    expect(lastJob).toMatchObject({ status: "failed" });
+    expect(lastJob).toMatchObject({ status: "failed", error_code: "DB_REINGEST_ERROR" });
   });
 
-  it("si la RPC devuelve menos chunks que los esperados, lo trata como error", async () => {
-    // Esperados 1, la RPC reporta 0 insertados -> inconsistencia.
+  it("conteo inconsistente de la RPC -> DB_REINGEST_ERROR", async () => {
     h.rpc.mockResolvedValue({ data: 0, error: null });
     const res = await POST(makeRequest(), ctx());
     expect(res.status).toBe(500);
     const lastJob = h.jobUpdates[h.jobUpdates.length - 1];
-    expect(lastJob).toMatchObject({ status: "failed" });
-  });
-
-  it("caso exitoso: marca el job como done con la cantidad de chunks", async () => {
-    const res = await POST(makeRequest(), ctx());
-    expect(res.status).toBe(200);
-    const lastJob = h.jobUpdates[h.jobUpdates.length - 1];
-    expect(lastJob).toMatchObject({ status: "done", chunks_generated: 1 });
+    expect(lastJob).toMatchObject({ status: "failed", error_code: "DB_REINGEST_ERROR" });
   });
 });

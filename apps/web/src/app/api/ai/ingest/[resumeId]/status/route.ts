@@ -19,7 +19,9 @@ export async function GET(
   // RLS filtra automáticamente: solo seller del apunte o buyer con compra completada
   const { data: job, error } = await supabase
     .from("ingestion_jobs")
-    .select("id, status, chunks_generated, error_message, started_at, finished_at, created_at")
+    .select(
+      "id, status, chunks_generated, error_message, error_code, retryable, started_at, finished_at, created_at"
+    )
     .eq("resume_id", resumeId)
     .single();
 
