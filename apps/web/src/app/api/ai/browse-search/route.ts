@@ -1,7 +1,5 @@
-// Búsqueda semántica para el catálogo público.
-// Estrategia híbrida: embedding similarity + boost por keywords en metadata.
-// Si solo hay un resultado semántico fuerte (gap > 0.07 con el segundo), lo devuelve solo.
-// Si hay varios, mantiene los que estén dentro de 0.12 del top score (ventana relativa).
+// Busqueda IA para el catalogo publico.
+// Estrategia hibrida simple: candidatos vectoriales + candidatos por metadata.
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateQueryEmbedding } from "@/lib/ai/embeddings";
@@ -9,6 +7,40 @@ import { generateQueryEmbedding } from "@/lib/ai/embeddings";
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT = 15;
 const RATE_WINDOW = 60_000;
+const VECTOR_MATCH_COUNT = 150;
+const VECTOR_MIN_SIMILARITY = 0.32;
+const VECTOR_FALLBACK_MIN_SIMILARITY = 0.25;
+const VECTOR_FALLBACK_MIN_RESULTS = 10;
+const RESULT_LIMIT = 50;
+const METADATA_MIN_SCORE = 0.22;
+const METADATA_ONLY_SCORE_CAP = 0.78;
+const VECTOR_METADATA_BOOST = 0.18;
+
+type VectorCandidate = {
+  resume_id: string;
+  similarity: number;
+};
+
+type ResumeMetadata = {
+  id: string;
+  title: string;
+  subject: string;
+  career: string;
+  university: string;
+  description: string | null;
+  file_url: string | null;
+};
+
+type RankedCandidate = {
+  resumeId: string;
+  similarity: number;
+};
+
+type MetadataScore = {
+  score: number;
+  metadataOnlyScore: number;
+  eligibleMetadataOnly: boolean;
+};
 
 function checkBrowseRateLimit(ip: string): boolean {
   const now = Date.now();
@@ -27,22 +59,311 @@ function normalizeText(text: string): string {
 }
 
 // Extrae tokens significativos de la query (>= 3 caracteres, excluye stopwords comunes).
-const STOPWORDS = new Set(["de", "del", "la", "el", "los", "las", "un", "una", "y", "en", "con", "por", "para", "que", "le"]);
-function extractQueryTokens(query: string): string[] {
-  return normalizeText(query)
-    .split(/\s+/)
-    .filter((t) => t.length >= 3 && !STOPWORDS.has(t));
+const STOPWORDS = new Set([
+  "de",
+  "del",
+  "la",
+  "el",
+  "los",
+  "las",
+  "un",
+  "una",
+  "uno",
+  "unos",
+  "unas",
+  "y",
+  "o",
+  "en",
+  "con",
+  "por",
+  "para",
+  "que",
+  "le",
+  "lo",
+  "al",
+  "a",
+  "sobre",
+  "como",
+  "cual",
+  "cuales",
+  "es",
+  "son",
+]);
+
+const WEAK_METADATA_TOKENS = new Set([
+  "universidad",
+  "facultad",
+  "carrera",
+  "materia",
+  "apunte",
+  "apuntes",
+  "resumen",
+  "resumenes",
+  "parcial",
+  "parciales",
+  "final",
+  "finales",
+  "pdf",
+  "clase",
+  "clases",
+  "guia",
+  "guias",
+  "teoria",
+]);
+
+function tokenizeNormalizedText(text: string): string[] {
+  return normalizeText(text).match(/[a-z0-9]+/g) ?? [];
 }
 
-function resumeMatchesTokens(
-  resume: { title: string; subject: string; description: string | null },
-  tokens: string[]
+function isWeakQueryToken(token: string): boolean {
+  return STOPWORDS.has(token) || WEAK_METADATA_TOKENS.has(token);
+}
+
+function extractQueryTokens(query: string): string[] {
+  return Array.from(new Set(tokenizeNormalizedText(query)))
+    .filter((t) => t.length >= 3 && !isWeakQueryToken(t));
+}
+
+function fileNameFromPath(path: string | null): string {
+  if (!path) return "";
+  const fileName = path.split("/").pop() ?? "";
+  try {
+    return decodeURIComponent(fileName);
+  } catch {
+    return fileName;
+  }
+}
+
+function countTokenMatches(text: string, tokens: string[]): number {
+  if (tokens.length === 0) return 0;
+  const haystack = normalizeText(text);
+  return tokens.filter((token) => haystack.includes(token)).length;
+}
+
+function countUniqueTokenMatches(fields: string[], tokens: string[]): number {
+  if (tokens.length === 0) return 0;
+  const matched = new Set<string>();
+  for (const token of tokens) {
+    if (fields.some((field) => field.includes(token))) {
+      matched.add(token);
+    }
+  }
+  return matched.size;
+}
+
+function hasMeaningfulPhraseMatch(
+  field: string,
+  normalizedQuery: string
 ): boolean {
-  if (tokens.length === 0) return true;
-  const haystack = normalizeText(
-    [resume.title, resume.subject, resume.description ?? ""].join(" ")
+  if (normalizedQuery.length < 3) return false;
+  const queryTokens = tokenizeNormalizedText(normalizedQuery);
+  if (queryTokens.length === 0) return false;
+  if (queryTokens.every(isWeakQueryToken)) return false;
+  return field.includes(normalizedQuery);
+}
+
+function hasShortExactFieldMatch(
+  field: string,
+  normalizedQuery: string
+): boolean {
+  const queryTokens = tokenizeNormalizedText(normalizedQuery);
+  if (queryTokens.length !== 1) return false;
+  const [token] = queryTokens;
+  if (token.length < 2 || token.length >= 3 || isWeakQueryToken(token)) {
+    return false;
+  }
+  return tokenizeNormalizedText(field).includes(token);
+}
+
+function scoreResumeMetadata(
+  resume: ResumeMetadata,
+  normalizedQuery: string,
+  tokens: string[]
+): MetadataScore {
+  const fields = {
+    title: normalizeText(resume.title),
+    subject: normalizeText(resume.subject),
+    career: normalizeText(resume.career),
+    university: normalizeText(resume.university),
+    description: normalizeText(resume.description ?? ""),
+    fileName: normalizeText(fileNameFromPath(resume.file_url)),
+  };
+
+  const titlePhraseMatch = hasMeaningfulPhraseMatch(fields.title, normalizedQuery);
+  const subjectPhraseMatch = hasMeaningfulPhraseMatch(fields.subject, normalizedQuery);
+  const careerPhraseMatch = hasMeaningfulPhraseMatch(fields.career, normalizedQuery);
+  const universityPhraseMatch = hasMeaningfulPhraseMatch(
+    fields.university,
+    normalizedQuery
   );
-  return tokens.some((token) => haystack.includes(token));
+  const descriptionPhraseMatch = hasMeaningfulPhraseMatch(
+    fields.description,
+    normalizedQuery
+  );
+  const fileNamePhraseMatch = hasMeaningfulPhraseMatch(
+    fields.fileName,
+    normalizedQuery
+  );
+
+  const titleTokenMatches = countTokenMatches(fields.title, tokens);
+  const subjectTokenMatches = countTokenMatches(fields.subject, tokens);
+  const careerTokenMatches = countTokenMatches(fields.career, tokens);
+  const universityTokenMatches = countTokenMatches(fields.university, tokens);
+  const descriptionTokenMatches = countTokenMatches(fields.description, tokens);
+  const fileNameTokenMatches = countTokenMatches(fields.fileName, tokens);
+
+  const shortExactTitleMatch = hasShortExactFieldMatch(fields.title, normalizedQuery);
+  const shortExactSubjectMatch = hasShortExactFieldMatch(
+    fields.subject,
+    normalizedQuery
+  );
+  const shortExactFileNameMatch = hasShortExactFieldMatch(
+    fields.fileName,
+    normalizedQuery
+  );
+
+  let score = 0;
+
+  if (titlePhraseMatch) score += 0.55;
+  if (subjectPhraseMatch) score += 0.42;
+  if (fileNamePhraseMatch) score += 0.36;
+  if (careerPhraseMatch) score += 0.16;
+  if (universityPhraseMatch) score += 0.12;
+  if (descriptionPhraseMatch) score += 0.12;
+
+  if (shortExactTitleMatch) score += 0.5;
+  if (shortExactSubjectMatch) score += 0.38;
+  if (shortExactFileNameMatch) score += 0.34;
+
+  if (tokens.length > 0) {
+    score += (titleTokenMatches / tokens.length) * 0.4;
+    score += (subjectTokenMatches / tokens.length) * 0.3;
+    score += (fileNameTokenMatches / tokens.length) * 0.24;
+    score += (careerTokenMatches / tokens.length) * 0.08;
+    score += (universityTokenMatches / tokens.length) * 0.06;
+    score += (descriptionTokenMatches / tokens.length) * 0.1;
+  }
+
+  const primaryUsefulTokenMatches = countUniqueTokenMatches(
+    [fields.title, fields.subject, fields.fileName, fields.description],
+    tokens
+  );
+  const hasPrimaryMetadataMatch =
+    titlePhraseMatch ||
+    subjectPhraseMatch ||
+    fileNamePhraseMatch ||
+    titleTokenMatches > 0 ||
+    subjectTokenMatches > 0 ||
+    fileNameTokenMatches > 0 ||
+    shortExactTitleMatch ||
+    shortExactSubjectMatch ||
+    shortExactFileNameMatch;
+  const eligibleMetadataOnly =
+    hasPrimaryMetadataMatch || primaryUsefulTokenMatches >= 2;
+  const cappedScore = Math.min(score, 0.98);
+
+  return {
+    score: cappedScore,
+    metadataOnlyScore: Math.min(cappedScore, METADATA_ONLY_SCORE_CAP),
+    eligibleMetadataOnly,
+  };
+}
+
+function mergeVectorCandidates(
+  primary: VectorCandidate[],
+  fallback: VectorCandidate[]
+): VectorCandidate[] {
+  const byResume = new Map<string, VectorCandidate>();
+  for (const row of [...primary, ...fallback]) {
+    const current = byResume.get(row.resume_id);
+    if (!current || row.similarity > current.similarity) {
+      byResume.set(row.resume_id, row);
+    }
+  }
+  return Array.from(byResume.values()).sort((a, b) => b.similarity - a.similarity);
+}
+
+async function searchVectorCandidates(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  queryEmbedding: number[]
+): Promise<{ data: VectorCandidate[]; error: { message: string } | null }> {
+  const baseParams = {
+    query_embedding: JSON.stringify(queryEmbedding),
+    match_count: VECTOR_MATCH_COUNT,
+  };
+
+  const first = await supabase.rpc("search_chunks_browse", {
+    ...baseParams,
+    min_similarity: VECTOR_MIN_SIMILARITY,
+  });
+
+  if (first.error) {
+    return { data: [], error: first.error };
+  }
+
+  const firstRows = (first.data ?? []) as VectorCandidate[];
+  if (firstRows.length >= VECTOR_FALLBACK_MIN_RESULTS) {
+    return { data: firstRows, error: null };
+  }
+
+  const fallback = await supabase.rpc("search_chunks_browse", {
+    ...baseParams,
+    min_similarity: VECTOR_FALLBACK_MIN_SIMILARITY,
+  });
+
+  if (fallback.error) {
+    return { data: firstRows, error: null };
+  }
+
+  return {
+    data: mergeVectorCandidates(firstRows, (fallback.data ?? []) as VectorCandidate[]),
+    error: null,
+  };
+}
+
+function rankHybridCandidates(
+  vectorRows: VectorCandidate[],
+  metadataRows: ResumeMetadata[],
+  query: string
+): RankedCandidate[] {
+  const normalizedQuery = normalizeText(query);
+  const tokens = extractQueryTokens(query);
+  const metadataById = new Map(metadataRows.map((resume) => [resume.id, resume]));
+  const vectorById = new Map(
+    vectorRows.map((row) => [row.resume_id, Math.max(0, row.similarity)])
+  );
+  const candidateIds = new Set<string>(vectorById.keys());
+
+  for (const resume of metadataRows) {
+    const metadataScore = scoreResumeMetadata(resume, normalizedQuery, tokens);
+    if (
+      metadataScore.eligibleMetadataOnly &&
+      metadataScore.metadataOnlyScore >= METADATA_MIN_SCORE
+    ) {
+      candidateIds.add(resume.id);
+    }
+  }
+
+  return Array.from(candidateIds)
+    .map((resumeId) => {
+      const metadata = metadataById.get(resumeId);
+      const metadataScore = metadata
+        ? scoreResumeMetadata(metadata, normalizedQuery, tokens)
+        : null;
+      const vectorScore = vectorById.get(resumeId) ?? 0;
+      const hasVector = vectorById.has(resumeId);
+      const hybridScore = hasVector
+        ? vectorScore + (metadataScore?.score ?? 0) * VECTOR_METADATA_BOOST
+        : metadataScore?.metadataOnlyScore ?? 0;
+
+      return {
+        resumeId,
+        similarity: Math.min(hybridScore, 0.99),
+      };
+    })
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, RESULT_LIMIT);
 }
 
 export async function POST(request: NextRequest) {
@@ -89,13 +410,7 @@ export async function POST(request: NextRequest) {
 
   const supabase = await createClient();
 
-  // Buscar candidatos con threshold bajo; el filtrado fino se hace abajo.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any).rpc("search_chunks_browse", {
-    query_embedding: JSON.stringify(queryEmbedding),
-    match_count: 50,
-    min_similarity: 0.38,
-  });
+  const { data, error } = await searchVectorCandidates(supabase, queryEmbedding);
 
   if (error) {
     return NextResponse.json(
@@ -104,59 +419,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const raw: Array<{ resume_id: string; similarity: number }> = data ?? [];
+  const { data: resumesMeta, error: metadataError } = await supabase
+    .from("resumes")
+    .select("id, title, subject, career, university, description, file_url")
+    .eq("status", "published")
+    .is("deleted_at", null);
 
-  if (raw.length === 0) {
-    return NextResponse.json({ query, results: [] });
-  }
-
-  // Ordenar por similitud desc
-  raw.sort((a, b) => b.similarity - a.similarity);
-  const topScore = raw[0].similarity;
-
-  // Ventana relativa: solo candidatos dentro de 0.12 del top score
-  const RELATIVE_WINDOW = 0.12;
-  const candidates = raw.filter((r) => topScore - r.similarity <= RELATIVE_WINDOW);
-
-  // Si hay más de un candidato, verificar presencia de tokens en metadata
-  let filtered = candidates;
-  if (candidates.length > 1) {
-    const tokens = extractQueryTokens(query);
-
-    if (tokens.length > 0) {
-      // Obtener metadata de los candidatos en paralelo
-      const resumeIds = candidates.map((c) => c.resume_id);
-      const { data: resumesMeta } = await supabase
-        .from("resumes")
-        .select("id, title, subject, description")
-        .in("id", resumeIds);
-
-      if (resumesMeta && resumesMeta.length > 0) {
-        const metaMap = new Map(resumesMeta.map((r) => [r.id, r]));
-
-        // Separar: los que matchean tokens en metadata tienen prioridad
-        const withKeyword = candidates.filter((c) => {
-          const meta = metaMap.get(c.resume_id);
-          return meta ? resumeMatchesTokens(meta, tokens) : false;
-        });
-
-        // Si al menos uno matchea por keyword, mostrar solo esos
-        if (withKeyword.length > 0) {
-          filtered = withKeyword;
-        }
-        // Si ninguno matchea por keyword (todos son puramente semánticos),
-        // devolver solo el top resultado para evitar ruido
-        else {
-          filtered = [candidates[0]];
-        }
-      }
-    }
-  }
-
-  const results = filtered.map((row) => ({
-    resumeId: row.resume_id,
-    similarity: row.similarity,
-  }));
+  const results = metadataError
+    ? data.map((row) => ({ resumeId: row.resume_id, similarity: row.similarity }))
+    : rankHybridCandidates(data, (resumesMeta ?? []) as ResumeMetadata[], query);
 
   return NextResponse.json({ query, results });
 }

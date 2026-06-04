@@ -1,11 +1,20 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { NextRequest } from "next/server";
 
+type DocumentChunkRow = {
+  id: string;
+  resume_id: string;
+  chunk_index: number;
+  content: string;
+};
+
 // Mocks hoisted: las funciones que el handler importa están centralizadas acá
 // para reprogramarlas por test sin reescribir el vi.mock.
 const h = vi.hoisted(() => ({
   getUser: vi.fn(),
   rpcSearchChunks: vi.fn(),
+  neighborChunksEq: vi.fn(),
+  neighborChunksIn: vi.fn(),
   checkRateLimit: vi.fn(),
   generateQueryEmbedding: vi.fn(),
   answerFromContext: vi.fn(),
@@ -13,18 +22,36 @@ const h = vi.hoisted(() => ({
   searchWeb: vi.fn(),
   callUserModel: vi.fn(),
   adminUserKeySingle: vi.fn(),
+  documentChunks: [] as DocumentChunkRow[],
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: { getUser: h.getUser },
     rpc: h.rpcSearchChunks,
+    from: () => ({
+      select: () => ({
+        eq: (column: string, value: string) => ({
+          in: async (inColumn: string, indexes: number[]) => {
+            h.neighborChunksEq(column, value);
+            h.neighborChunksIn(inColumn, indexes);
+            return {
+              data: h.documentChunks.filter(
+                (row) =>
+                  row.resume_id === value && indexes.includes(row.chunk_index)
+              ),
+              error: null,
+            };
+          },
+        }),
+      }),
+    }),
   }),
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
-    from: (_table: string) => ({
+    from: () => ({
       select: () => ({
         eq: () => ({
           eq: () => ({
@@ -76,6 +103,21 @@ function makeRequest(
 const VALID_USER = { id: "user-1", email: "u@test.com" };
 const VALID_QUERY = { query: "¿Qué es la recursión?" };
 
+function chunk(
+  resumeId: string,
+  chunkIndex: number,
+  content = `fragmento ${chunkIndex}`,
+  similarity = 0.8
+) {
+  return {
+    id: `${resumeId}-${chunkIndex}`,
+    resume_id: resumeId,
+    chunk_index: chunkIndex,
+    content,
+    similarity,
+  };
+}
+
 describe("POST /api/ai/chat", () => {
   beforeEach(() => {
     // Defaults razonables: usuario autenticado y rate limit con espacio.
@@ -85,6 +127,7 @@ describe("POST /api/ai/chat", () => {
       remaining: 19,
       resetAt: Date.now() + 60_000,
     });
+    h.documentChunks = [];
   });
 
   afterEach(() => {
@@ -218,6 +261,146 @@ describe("POST /api/ai/chat", () => {
       expect(body.answer).toBe("respuesta de la plataforma");
       expect(body.sources).toEqual([{ type: "note", label: "Tu apunte" }]);
       expect(body.rawSources).toHaveLength(1);
+    });
+
+    it("agrega vecinos solo del mismo resume_id", async () => {
+      // given
+      h.rpcSearchChunks
+        .mockResolvedValueOnce({
+          data: [chunk("r1", 1, "semilla", 0.91)],
+          error: null,
+        })
+        .mockResolvedValueOnce({ data: [], error: null });
+      h.documentChunks = [
+        chunk("r1", 0, "vecino anterior"),
+        chunk("r1", 2, "vecino posterior"),
+        chunk("r2", 0, "vecino de otro apunte"),
+      ];
+      h.answerFromContext.mockResolvedValue("respuesta con vecinos");
+
+      // when
+      const res = await POST(makeRequest(VALID_QUERY));
+
+      // then
+      expect(res.status).toBe(200);
+      expect(h.neighborChunksEq).toHaveBeenCalledWith("resume_id", "r1");
+      expect(h.neighborChunksEq).not.toHaveBeenCalledWith("resume_id", "r2");
+
+      const context = h.answerFromContext.mock.calls[0][1] as Array<{
+        resumeId: string;
+        chunkIndex: number;
+      }>;
+      expect(context).toEqual([
+        expect.objectContaining({ resumeId: "r1", chunkIndex: 0 }),
+        expect.objectContaining({ resumeId: "r1", chunkIndex: 1 }),
+        expect.objectContaining({ resumeId: "r1", chunkIndex: 2 }),
+      ]);
+    });
+
+    it("activa fallback cuando hay menos de 4 chunks", async () => {
+      // given
+      h.rpcSearchChunks
+        .mockResolvedValueOnce({
+          data: [
+            chunk("r1", 0, "uno", 0.7),
+            chunk("r1", 1, "dos", 0.68),
+            chunk("r1", 2, "tres", 0.66),
+          ],
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: [chunk("r1", 3, "cuatro fallback", 0.25)],
+          error: null,
+        });
+      h.answerFromContext.mockResolvedValue("respuesta con fallback");
+
+      // when
+      const res = await POST(makeRequest(VALID_QUERY));
+      const body = await res.json();
+
+      // then
+      expect(res.status).toBe(200);
+      expect(h.rpcSearchChunks).toHaveBeenCalledTimes(2);
+      expect(h.rpcSearchChunks.mock.calls[1][1]).toMatchObject({
+        match_count: 15,
+        min_similarity: 0.24,
+      });
+      expect(body.rawSources).toHaveLength(4);
+    });
+
+    it("deduplica chunks entre intento normal, fallback y vecinos", async () => {
+      // given
+      h.rpcSearchChunks
+        .mockResolvedValueOnce({
+          data: [chunk("r1", 1, "semilla normal", 0.4)],
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: [
+            chunk("r1", 1, "semilla fallback mejor", 0.7),
+            chunk("r1", 2, "nuevo fallback", 0.5),
+          ],
+          error: null,
+        });
+      h.documentChunks = [
+        chunk("r1", 0, "vecino unico"),
+        chunk("r1", 2, "vecino duplicado"),
+      ];
+      h.answerFromContext.mockResolvedValue("respuesta deduplicada");
+
+      // when
+      const res = await POST(makeRequest(VALID_QUERY));
+      const body = await res.json();
+
+      // then
+      expect(res.status).toBe(200);
+      expect(body.rawSources).toEqual([
+        expect.objectContaining({ resumeId: "r1", chunkIndex: 0, similarity: 0 }),
+        expect.objectContaining({ resumeId: "r1", chunkIndex: 1, similarity: 0.7 }),
+        expect.objectContaining({ resumeId: "r1", chunkIndex: 2, similarity: 0.5 }),
+      ]);
+    });
+
+    it("respeta el limite de 18 chunks", async () => {
+      // given
+      h.rpcSearchChunks.mockResolvedValue({
+        data: Array.from({ length: 25 }, (_, index) =>
+          chunk("r1", index, `fragmento ${index}`, 0.9 - index * 0.01)
+        ),
+        error: null,
+      });
+      h.answerFromContext.mockResolvedValue("respuesta limitada");
+
+      // when
+      const res = await POST(makeRequest(VALID_QUERY));
+      const body = await res.json();
+
+      // then
+      expect(res.status).toBe(200);
+      expect(body.rawSources).toHaveLength(18);
+    });
+
+    it("respeta el limite de 12000 caracteres de contexto", async () => {
+      // given
+      h.rpcSearchChunks.mockResolvedValue({
+        data: Array.from({ length: 4 }, (_, index) =>
+          chunk("r1", index, "x".repeat(5000), 0.9 - index * 0.01)
+        ),
+        error: null,
+      });
+      h.answerFromContext.mockResolvedValue("respuesta limitada por chars");
+
+      // when
+      const res = await POST(makeRequest(VALID_QUERY));
+
+      // then
+      expect(res.status).toBe(200);
+      const context = h.answerFromContext.mock.calls[0][1] as Array<{
+        content: string;
+      }>;
+      const totalChars = context.reduce((sum, item) => sum + item.content.length, 0);
+      expect(context).toHaveLength(2);
+      expect(totalChars).toBeLessThanOrEqual(12_000);
     });
 
     it("devuelve 500 cuando answerFromContext lanza", async () => {

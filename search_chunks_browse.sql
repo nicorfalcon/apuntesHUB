@@ -21,14 +21,31 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT DISTINCT ON (dc.resume_id)
-    dc.resume_id,
-    1 - (dc.embedding <=> query_embedding) AS similarity
-  FROM document_chunks dc
-  JOIN resumes r ON r.id = dc.resume_id
-  WHERE r.status = 'published'
-    AND 1 - (dc.embedding <=> query_embedding) >= min_similarity
-  ORDER BY dc.resume_id, dc.embedding <=> query_embedding
+  WITH ranked_chunks AS (
+    SELECT
+      dc.resume_id,
+      1 - (dc.embedding <=> query_embedding) AS similarity,
+      dc.embedding <=> query_embedding AS distance
+    FROM document_chunks dc
+    JOIN resumes r ON r.id = dc.resume_id
+    WHERE r.status = 'published'
+      AND r.deleted_at IS NULL
+      AND dc.embedding IS NOT NULL
+      AND 1 - (dc.embedding <=> query_embedding) >= min_similarity
+  ),
+  best_per_resume AS (
+    SELECT DISTINCT ON (resume_id)
+      resume_id,
+      similarity,
+      distance
+    FROM ranked_chunks
+    ORDER BY resume_id, distance ASC
+  )
+  SELECT
+    resume_id,
+    similarity
+  FROM best_per_resume
+  ORDER BY similarity DESC
   LIMIT match_count;
 $$;
 

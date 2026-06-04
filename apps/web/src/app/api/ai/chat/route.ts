@@ -12,6 +12,204 @@ import { callUserModel } from "@/lib/ai/model-router";
 
 export const maxDuration = 60;
 
+const STUDY_MATCH_COUNT = 15;
+const STUDY_MIN_SIMILARITY = 0.3;
+const STUDY_FALLBACK_MIN_SIMILARITY = 0.24;
+const STUDY_FALLBACK_MIN_RESULTS = 4;
+const MAX_CONTEXT_CHUNKS = 18;
+const MAX_CONTEXT_CHARS = 12_000;
+
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+type StudyChunk = {
+  id?: string;
+  resume_id: string;
+  chunk_index: number;
+  content: string;
+  similarity?: number | null;
+  seedRank?: number;
+};
+
+function chunkKey(chunk: Pick<StudyChunk, "resume_id" | "chunk_index">): string {
+  return `${chunk.resume_id}:${chunk.chunk_index}`;
+}
+
+function mergeSearchChunks(primary: StudyChunk[], fallback: StudyChunk[]): StudyChunk[] {
+  const byKey = new Map<string, StudyChunk>();
+
+  for (const chunk of [...primary, ...fallback]) {
+    const key = chunkKey(chunk);
+    const similarity = Number(chunk.similarity ?? 0);
+    const current = byKey.get(key);
+    if (!current || similarity > Number(current.similarity ?? 0)) {
+      byKey.set(key, { ...chunk, similarity });
+    }
+  }
+
+  return Array.from(byKey.values())
+    .sort((a, b) => Number(b.similarity ?? 0) - Number(a.similarity ?? 0))
+    .map((chunk, index) => ({ ...chunk, seedRank: index }));
+}
+
+async function searchStudyChunks(
+  supabase: SupabaseClient,
+  queryEmbedding: number[],
+  resumeIds: string[] | null
+): Promise<{ data: StudyChunk[]; error: { message: string } | null }> {
+  const baseParams = {
+    query_embedding: JSON.stringify(queryEmbedding),
+    match_count: STUDY_MATCH_COUNT,
+    resume_ids: resumeIds,
+  };
+
+  const first = await supabase.rpc("search_chunks_for_study", {
+    ...baseParams,
+    min_similarity: STUDY_MIN_SIMILARITY,
+  });
+
+  if (first.error) {
+    return { data: [], error: first.error };
+  }
+
+  const firstRows = (first.data ?? []) as StudyChunk[];
+  if (firstRows.length >= STUDY_FALLBACK_MIN_RESULTS) {
+    return { data: mergeSearchChunks(firstRows, []), error: null };
+  }
+
+  const fallback = await supabase.rpc("search_chunks_for_study", {
+    ...baseParams,
+    min_similarity: STUDY_FALLBACK_MIN_SIMILARITY,
+  });
+
+  if (fallback.error) {
+    return { data: mergeSearchChunks(firstRows, []), error: null };
+  }
+
+  return {
+    data: mergeSearchChunks(firstRows, (fallback.data ?? []) as StudyChunk[]),
+    error: null,
+  };
+}
+
+async function fetchNeighborChunks(
+  supabase: SupabaseClient,
+  chunks: StudyChunk[]
+): Promise<StudyChunk[]> {
+  const wantedByResume = new Map<string, Set<number>>();
+
+  for (const chunk of chunks) {
+    const wanted = wantedByResume.get(chunk.resume_id) ?? new Set<number>();
+    if (chunk.chunk_index > 0) wanted.add(chunk.chunk_index - 1);
+    wanted.add(chunk.chunk_index + 1);
+    wantedByResume.set(chunk.resume_id, wanted);
+  }
+
+  const rows: StudyChunk[] = [];
+
+  for (const [resumeId, wantedIndexes] of Array.from(wantedByResume.entries())) {
+    const indexes = Array.from(wantedIndexes);
+    if (indexes.length === 0) continue;
+
+    const { data, error } = await supabase
+      .from("document_chunks")
+      .select("id, resume_id, chunk_index, content")
+      .eq("resume_id", resumeId)
+      .in("chunk_index", indexes);
+
+    if (error) continue;
+
+    rows.push(
+      ...((data ?? []) as Array<{
+        id: string;
+        resume_id: string;
+        chunk_index: number;
+        content: string;
+      }>).map((row) => ({ ...row, similarity: 0 }))
+    );
+  }
+
+  return rows;
+}
+
+function mergeChunksWithNeighbors(
+  chunks: StudyChunk[],
+  neighbors: StudyChunk[]
+): StudyChunk[] {
+  const neighborSeedRanks = new Map<string, number>();
+
+  for (const chunk of chunks) {
+    const rank = chunk.seedRank ?? 0;
+    for (const index of [chunk.chunk_index - 1, chunk.chunk_index + 1]) {
+      if (index < 0) continue;
+      const key = `${chunk.resume_id}:${index}`;
+      neighborSeedRanks.set(
+        key,
+        Math.min(neighborSeedRanks.get(key) ?? Number.MAX_SAFE_INTEGER, rank)
+      );
+    }
+  }
+
+  const byKey = new Map<string, StudyChunk>();
+  for (const chunk of chunks) {
+    byKey.set(chunkKey(chunk), chunk);
+  }
+
+  for (const neighbor of neighbors) {
+    const key = chunkKey(neighbor);
+    if (!byKey.has(key)) {
+      byKey.set(key, {
+        ...neighbor,
+        seedRank: neighborSeedRanks.get(key) ?? Number.MAX_SAFE_INTEGER,
+      });
+    }
+  }
+
+  return Array.from(byKey.values());
+}
+
+function limitContext(chunks: StudyChunk[]): StudyChunk[] {
+  const selected: StudyChunk[] = [];
+  let totalChars = 0;
+
+  const priorityOrder = [...chunks].sort((a, b) => {
+    const rankDiff = (a.seedRank ?? Number.MAX_SAFE_INTEGER) -
+      (b.seedRank ?? Number.MAX_SAFE_INTEGER);
+    if (rankDiff !== 0) return rankDiff;
+    if (a.resume_id !== b.resume_id) return a.resume_id.localeCompare(b.resume_id);
+    return a.chunk_index - b.chunk_index;
+  });
+
+  for (const chunk of priorityOrder) {
+    if (selected.length >= MAX_CONTEXT_CHUNKS) break;
+    const nextChars = totalChars + chunk.content.length;
+    if (selected.length > 0 && nextChars > MAX_CONTEXT_CHARS) continue;
+    selected.push(chunk);
+    totalChars = nextChars;
+  }
+
+  return selected.sort((a, b) => {
+    if (a.resume_id !== b.resume_id) return a.resume_id.localeCompare(b.resume_id);
+    return a.chunk_index - b.chunk_index;
+  });
+}
+
+async function expandChunksWithNeighbors(
+  supabase: SupabaseClient,
+  chunks: StudyChunk[]
+): Promise<StudyChunk[]> {
+  if (chunks.length === 0) return [];
+  const neighbors = await fetchNeighborChunks(supabase, chunks);
+  return limitContext(mergeChunksWithNeighbors(chunks, neighbors));
+}
+
+function toLlmChunks(chunks: StudyChunk[]) {
+  return chunks.map((chunk) => ({
+    content: chunk.content,
+    chunkIndex: chunk.chunk_index,
+    resumeId: chunk.resume_id,
+  }));
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -57,14 +255,10 @@ export async function POST(request: NextRequest) {
   }
 
   // 2. Recuperar chunks relevantes de los apuntes comprados
-  const { data: chunks, error: searchError } = await supabase.rpc(
-    "search_chunks_for_study",
-    {
-      query_embedding: JSON.stringify(queryEmbedding),
-      match_count: 5,
-      min_similarity: 0.35,
-      resume_ids: resumeIds,
-    }
+  const { data: chunks, error: searchError } = await searchStudyChunks(
+    supabase,
+    queryEmbedding,
+    resumeIds
   );
 
   if (searchError) {
@@ -74,9 +268,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const contextChunks = await expandChunksWithNeighbors(supabase, chunks);
+
   // --- MODELO PLATAFORMA (comportamiento original) ---
   if (!apiKeyId || apiKeyId === "platform") {
-    if (!chunks || chunks.length === 0) {
+    if (contextChunks.length === 0) {
       return NextResponse.json({
         query,
         answer: "No encontré información relevante en tus apuntes para responder esa pregunta.",
@@ -87,7 +283,7 @@ export async function POST(request: NextRequest) {
 
     let answer: string;
     try {
-      answer = await answerFromContext(query, chunks);
+      answer = await answerFromContext(query, toLlmChunks(contextChunks));
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       return NextResponse.json(
@@ -101,10 +297,10 @@ export async function POST(request: NextRequest) {
       answer,
       sources: [{ type: "note", label: "Tu apunte" }],
       model: "platform",
-      rawSources: chunks.map((c: { resume_id: string; chunk_index: number; similarity: number }) => ({
+      rawSources: contextChunks.map((c) => ({
         resumeId: c.resume_id,
         chunkIndex: c.chunk_index,
-        similarity: c.similarity,
+        similarity: Number(c.similarity ?? 0),
       })),
     });
   }
@@ -131,8 +327,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Construir contexto del apunte a partir de los chunks encontrados
-  const noteContext = chunks && chunks.length > 0
-    ? chunks.map((c: { content: string }, i: number) => `[Fragmento ${i + 1}]\n${c.content}`).join("\n\n")
+  const noteContext = contextChunks.length > 0
+    ? contextChunks.map((c, i) => `[Fragmento ${i + 1}]\n${c.content}`).join("\n\n")
     : "No se encontró contenido relevante en el apunte para esta pregunta.";
 
   // Buscar en internet en paralelo
