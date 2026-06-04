@@ -16,7 +16,8 @@
     "test": "npm run test -w @apunteshub/web",
     "test:e2e": "npm run test:e2e -w @apunteshub/web",
     "hls:convert": "node apps/web/scripts/convert-course-video-hls.mjs",
-    "hls:process-pending": "node apps/web/scripts/process-pending-hls.mjs"
+    "hls:process-pending": "node apps/web/scripts/process-pending-hls.mjs",
+    "search:reindex": "node apps/web/scripts/reindex-search.mjs"
   },
   "devDependencies": {
     "supabase": "^2.98.0",

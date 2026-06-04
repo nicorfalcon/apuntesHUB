@@ -3,6 +3,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateQueryEmbedding } from "@/lib/ai/embeddings";
+import {
+  isMeilisearchBrowseEnabled,
+  searchResumeIdsInMeilisearch,
+} from "@/lib/search/meilisearch";
 
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT = 15;
@@ -463,6 +467,42 @@ function rankHybridCandidates(
     .slice(0, RESULT_LIMIT);
 }
 
+// Revalida los IDs que devuelve Meilisearch contra Supabase (published + no
+// deleted), preservando el orden de Meilisearch y deduplicando. La similarity
+// se asigna decreciente según el rango para que el cliente conserve el orden.
+// Lanza si la revalidación falla, para que el caller caiga a Postgres.
+async function revalidateMeilisearchIds(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  ids: string[]
+): Promise<RankedCandidate[]> {
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+  for (const id of ids) {
+    if (!seen.has(id)) {
+      seen.add(id);
+      ordered.push(id);
+    }
+  }
+  if (ordered.length === 0) return [];
+
+  const { data, error } = await fetchPublishedResumeMetadata(supabase, ordered);
+  if (error) {
+    throw new Error(getErrorMessage(error));
+  }
+
+  const allowed = new Set(
+    ((data ?? []) as ResumeMetadata[]).map((resume) => resume.id)
+  );
+  const filtered = ordered.filter((id) => allowed.has(id));
+  const total = filtered.length;
+
+  return filtered.map((resumeId, rank) => ({
+    resumeId,
+    similarity: total > 0 ? (total - rank) / total : 0,
+  }));
+}
+
 export async function POST(request: NextRequest) {
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
@@ -494,6 +534,24 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const supabase = await createClient();
+
+  // Camino Meilisearch (solo si el feature flag está en true y hay env vars).
+  // Devuelve IDs ordenados; revalidamos contra Supabase antes de responder.
+  // Si Meilisearch falla, caemos al camino Postgres actual.
+  if (isMeilisearchBrowseEnabled()) {
+    try {
+      const ids = await searchResumeIdsInMeilisearch(query, RESULT_LIMIT);
+      const results = await revalidateMeilisearchIds(supabase, ids);
+      return NextResponse.json({ query, results, source: "meilisearch" });
+    } catch (err) {
+      console.warn(
+        "[ai:browse] meilisearch failed; falling back to Postgres",
+        { message: getErrorMessage(err) }
+      );
+    }
+  }
+
   let queryEmbedding: number[];
   try {
     queryEmbedding = await generateQueryEmbedding(query);
@@ -504,8 +562,6 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-
-  const supabase = await createClient();
 
   const hybrid = await searchHybridBrowseCandidates(supabase, query, queryEmbedding);
   if (!hybrid.error) {

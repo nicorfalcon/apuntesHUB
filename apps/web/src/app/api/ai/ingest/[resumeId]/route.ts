@@ -9,6 +9,7 @@ import {
   AiIngestionError,
   classifyAiIngestionError,
 } from "@/lib/ai/ingestion-errors";
+import { indexResumeInSearch } from "@/lib/search/meilisearch";
 
 // 300s: tope actual de Vercel en todos los planes (Fluid Compute). La ingesta
 // de PDFs grandes (extracción + embeddings + reingest) corre síncrona dentro de
@@ -245,6 +246,19 @@ export async function POST(
       durationMs: Date.now() - startedAt,
       insufficientText: hasInsufficientText,
     });
+
+    // Best-effort: reindexar el apunte en Meilisearch con los nuevos chunkTerms.
+    // No debe afectar el resultado de la ingesta. No-op si Meili no está
+    // configurado. Revalida internamente published/deleted contra Supabase.
+    try {
+      await indexResumeInSearch(resumeId);
+    } catch (searchErr) {
+      console.warn("[ai:ingest] meilisearch reindex failed (ignored)", {
+        resumeId,
+        message:
+          searchErr instanceof Error ? searchErr.message : String(searchErr),
+      });
+    }
 
     return NextResponse.json({
       ok: true,

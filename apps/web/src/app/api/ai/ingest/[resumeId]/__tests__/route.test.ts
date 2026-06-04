@@ -26,6 +26,8 @@ const h = vi.hoisted(() => ({
   jobUpdates: [] as Array<Record<string, unknown>>,
   // Detecta cualquier delete/insert manual sobre document_chunks (no debe ocurrir).
   manualChunkOps: [] as string[],
+  // Indexación best-effort en Meilisearch al finalizar la ingesta.
+  indexResumeInSearch: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -84,6 +86,10 @@ vi.mock("@/lib/ai/embeddings", () => ({
 
 vi.mock("@/lib/ai/rate-limit", () => ({
   checkRateLimit: h.checkRateLimit,
+}));
+
+vi.mock("@/lib/search/meilisearch", () => ({
+  indexResumeInSearch: h.indexResumeInSearch,
 }));
 
 import { POST } from "../route";
@@ -146,6 +152,7 @@ describe("POST /api/ai/ingest/[resumeId]", () => {
     });
     h.chunkPdfPages.mockReturnValue(SAMPLE_CHUNKS);
     h.generateEmbeddings.mockResolvedValue([[0.1, 0.2, 0.3]]);
+    h.indexResumeInSearch.mockResolvedValue({ status: "indexed" });
     // Despacha por nombre de RPC: claim atómico vs reemplazo transaccional.
     h.rpc.mockImplementation((fn: string) => {
       if (fn === "claim_ai_ingestion_job") {
@@ -402,5 +409,38 @@ describe("POST /api/ai/ingest/[resumeId]", () => {
       status: "failed",
       error_code: "COHERE_RATE_LIMIT",
     });
+  });
+
+  it("reindexa best-effort en Meilisearch al finalizar con éxito", async () => {
+    const res = await POST(makeRequest(), ctx());
+    expect(res.status).toBe(200);
+    expect(h.indexResumeInSearch).toHaveBeenCalledWith("r1");
+    // El job quedó marcado 'done' (no afectado por la indexación).
+    const lastJob = h.jobUpdates[h.jobUpdates.length - 1];
+    expect(lastJob).toMatchObject({ status: "done" });
+  });
+
+  it("si Meilisearch falla, la ingesta sigue respondiendo éxito", async () => {
+    const warnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    h.indexResumeInSearch.mockRejectedValue(new Error("meili down"));
+
+    const res = await POST(makeRequest(), ctx());
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toMatchObject({ ok: true });
+    // No marca el job como failed por culpa de Meilisearch.
+    const lastJob = h.jobUpdates[h.jobUpdates.length - 1];
+    expect(lastJob).toMatchObject({ status: "done" });
+    warnSpy.mockRestore();
+  });
+
+  it("si Meilisearch no está configurado (skipped), no rompe la ingesta", async () => {
+    h.indexResumeInSearch.mockResolvedValue({ status: "skipped" });
+    const res = await POST(makeRequest(), ctx());
+    expect(res.status).toBe(200);
+    expect(h.indexResumeInSearch).toHaveBeenCalledWith("r1");
   });
 });
