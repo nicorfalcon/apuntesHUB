@@ -2,6 +2,29 @@ import { getDocumentProxy, extractText } from "unpdf";
 import { resolve } from "path";
 import { pathToFileURL } from "url";
 
+// Polyfill de Promise.try: pdfjs (vía unpdf) la usa en ciertos PDFs (fuentes no
+// estándar / cmaps). Node 22 (V8 12.4) no la trae nativa, y al faltar lanza un
+// TypeError sincrónico DENTRO de un microtask desprendido de pdfjs, que escapa
+// al try/catch del route y se vuelve unhandledRejection: el job queda colgado en
+// "processing" para siempre. Esto la define antes de cualquier extracción, con
+// semántica idéntica al estándar (ejecuta fn ya y captura throws sincrónicos
+// como rechazo de la promesa).
+if (typeof (Promise as { try?: unknown }).try !== "function") {
+  (
+    Promise as unknown as {
+      try: <T, A extends unknown[]>(
+        fn: (...args: A) => T,
+        ...args: A
+      ) => Promise<Awaited<T>>;
+    }
+  ).try = function <T, A extends unknown[]>(
+    fn: (...args: A) => T,
+    ...args: A
+  ): Promise<Awaited<T>> {
+    return new Promise((resolve) => resolve(fn(...args) as Awaited<T>));
+  };
+}
+
 // Necesario para PDFs con fuentes no estándar (p.ej. apuntes de iPad).
 // outputFileTracingIncludes en next.config.mjs asegura que los cmaps
 // estén presentes en el bundle de Vercel.

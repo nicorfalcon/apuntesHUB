@@ -10,10 +10,13 @@ import {
   classifyAiIngestionError,
 } from "@/lib/ai/ingestion-errors";
 
-export const maxDuration = 60;
+// 300s: tope actual de Vercel en todos los planes (Fluid Compute). La ingesta
+// de PDFs grandes (extracción + embeddings + reingest) corre síncrona dentro de
+// esta request, así que necesita el techo alto. En `next dev` no se aplica.
+export const maxDuration = 300;
 
 // Límite de tamaño del PDF para procesar con IA. Evita cargar archivos enormes
-// en memoria dentro del maxDuration de 60s.
+// en memoria dentro del maxDuration.
 const MAX_PDF_BYTES = 25 * 1024 * 1024; // 25 MB
 
 export async function POST(

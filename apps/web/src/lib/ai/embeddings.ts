@@ -12,6 +12,12 @@ const TRUNCATE_MODE = "END" as const;
 
 const BATCH_LIMIT = 96;
 
+// Cantidad de lotes que se piden a Cohere en paralelo. Acotado a propósito: las
+// keys trial tienen rate limits bajos y disparar todos los lotes de golpe gatilla
+// COHERE_RATE_LIMIT. 4 da buen speedup sin pasarse. Si aun así pega el límite, el
+// route lo clasifica (classifyAiIngestionError) y queda visible.
+const EMBEDDING_CONCURRENCY = 4;
+
 // Quita diacríticos antes de vectorizar para que "Le Chatelier" y "Le Châtelier"
 // produzcan embeddings compatibles. El contenido original se guarda sin tocar en la DB.
 function normalizeForEmbedding(text: string): string {
@@ -26,26 +32,48 @@ function getClient(): CohereClient {
 
 export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   const client = getClient();
-  const allEmbeddings: number[][] = [];
 
+  // Particionar en lotes de hasta BATCH_LIMIT, guardando el índice de inicio
+  // para reensamblar en el orden original (los lotes terminan fuera de orden).
+  const batches: { start: number; texts: string[] }[] = [];
   for (let i = 0; i < texts.length; i += BATCH_LIMIT) {
-    const batch = texts.slice(i, i + BATCH_LIMIT);
-    const response = await client.embed({
-      model: EMBEDDING_MODEL,
-      texts: batch.map(normalizeForEmbedding),
-      inputType: "search_document",
-      truncate: TRUNCATE_MODE,
-    });
+    batches.push({ start: i, texts: texts.slice(i, i + BATCH_LIMIT) });
+  }
 
-    const embeddings = response.embeddings as number[][];
-    if (!embeddings?.length) {
-      throw new Error("Cohere no devolvió embeddings válidos");
-    }
+  const allEmbeddings: number[][] = new Array(texts.length);
 
-    for (const vec of embeddings) {
-      allEmbeddings.push(vec);
+  // Pool de workers: cada uno toma el siguiente lote pendiente hasta agotarlos.
+  // Acota la concurrencia a EMBEDDING_CONCURRENCY sin dependencias externas.
+  // `next++` es atómico (no hay await entre lectura y escritura), así que dos
+  // workers nunca toman el mismo lote.
+  let next = 0;
+  async function worker(): Promise<void> {
+    while (next < batches.length) {
+      const { start, texts: batchTexts } = batches[next++];
+      const response = await client.embed({
+        model: EMBEDDING_MODEL,
+        texts: batchTexts.map(normalizeForEmbedding),
+        inputType: "search_document",
+        truncate: TRUNCATE_MODE,
+      });
+
+      const embeddings = response.embeddings as number[][];
+      if (!embeddings?.length) {
+        throw new Error("Cohere no devolvió embeddings válidos");
+      }
+
+      for (let j = 0; j < embeddings.length; j++) {
+        allEmbeddings[start + j] = embeddings[j];
+      }
     }
   }
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(EMBEDDING_CONCURRENCY, batches.length) },
+      worker
+    )
+  );
 
   return allEmbeddings;
 }
