@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { extractPdfText } from "@/lib/ai/pdf-extractor";
-import { chunkText } from "@/lib/ai/chunker";
+import { extractPdfPages } from "@/lib/ai/pdf-extractor";
+import { chunkPdfPages } from "@/lib/ai/pdf-chunker";
 import { generateEmbeddings } from "@/lib/ai/embeddings";
 import { checkRateLimit } from "@/lib/ai/rate-limit";
 
@@ -95,45 +95,63 @@ export async function POST(
       throw new Error(`No se pudo descargar el PDF: ${fileError?.message ?? "sin detalle"}`);
     }
 
-    // 4. Extraer texto
+    // 4. Extraer texto POR PÁGINA (M3). Conserva numeración 1-based para citas.
+    const startedAt = Date.now();
     const arrayBuffer = await fileData.arrayBuffer();
-    const text = await extractPdfText(arrayBuffer);
+    const extracted = await extractPdfPages(arrayBuffer);
 
-    if (!text || text.trim().length === 0) {
+    if (!extracted.fullText || extracted.fullText.trim().length === 0) {
       throw new Error("El PDF no contiene texto extraíble");
     }
 
-    // 5. Chunkear
-    const chunks = chunkText(text);
+    // 5. Chunkear con el chunker M3 (limpieza + secciones + páginas + metadata).
+    const chunks = chunkPdfPages(extracted.pages);
 
-    // 6. Generar embeddings
-    const embeddings = await generateEmbeddings(chunks.map((c) => c.content));
-
-    // 7. Reemplazar chunks anteriores (idempotente)
-    const { error: deleteError } = await admin
-      .from("document_chunks")
-      .delete()
-      .eq("resume_id", resumeId);
-
-    if (deleteError) {
-      throw new Error(`Error limpiando chunks previos: ${deleteError.message}`);
+    if (chunks.length === 0) {
+      throw new Error("No se pudieron generar chunks a partir del PDF");
     }
 
-    // 8. Insertar chunks nuevos
-    const rows = chunks.map((chunk, i) => ({
-      resume_id: resumeId,
+    const hasInsufficientText =
+      extracted.fullText.trim().length < 80 ||
+      chunks.every((c) => c.metadata.hasShortText === true);
+
+    // 6. Generar embeddings ANTES de tocar la tabla. Si esto falla, los chunks
+    //    anteriores del apunte quedan intactos (no se borra nada todavía).
+    const embeddings = await generateEmbeddings(chunks.map((c) => c.content));
+
+    // 7. Reemplazo TRANSACCIONAL: una sola RPC hace delete + insert atómico.
+    //    Si algún insert falla, Postgres rollbackea también el delete y los
+    //    chunks viejos quedan intactos (nunca queda el apunte con 0 chunks).
+    //    El embedding viaja como texto JSON "[...]"; la RPC lo castea a vector.
+    const payloadChunks = chunks.map((chunk, i) => ({
       content: chunk.content,
       embedding: JSON.stringify(embeddings[i]),
       chunk_index: chunk.chunkIndex,
+      page_start: chunk.pageStart,
+      page_end: chunk.pageEnd,
+      section_title: chunk.sectionTitle ?? null,
+      token_count: chunk.tokenCount ?? null,
+      char_count: chunk.charCount,
+      metadata: chunk.metadata,
     }));
 
-    const { error: insertError } = await admin.from("document_chunks").insert(rows);
+    const { data: insertedCount, error: rpcError } = await admin.rpc(
+      "reingest_document_chunks",
+      { p_resume_id: resumeId, p_chunks: payloadChunks }
+    );
 
-    if (insertError) {
-      throw new Error(`Error insertando chunks: ${insertError.message}`);
+    if (rpcError) {
+      throw new Error(`Error reemplazando chunks: ${rpcError.message}`);
     }
 
-    // 9. Marcar job como done
+    // La RPC devuelve la cantidad insertada: debe coincidir con lo esperado.
+    if (insertedCount !== chunks.length) {
+      throw new Error(
+        `Conteo de chunks inconsistente: insertados ${insertedCount ?? "null"}, esperados ${chunks.length}`
+      );
+    }
+
+    // 9. Marcar job como done.
     await admin
       .from("ingestion_jobs")
       .update({
@@ -143,10 +161,21 @@ export async function POST(
       })
       .eq("id", job.id);
 
+    // Log de métricas SIN contenido del PDF.
+    console.info("[ingest] ok", {
+      resumeId,
+      pages: extracted.pageCount,
+      chunks: chunks.length,
+      durationMs: Date.now() - startedAt,
+      insufficientText: hasInsufficientText,
+    });
+
     return NextResponse.json({
       ok: true,
       resumeId,
       chunks: chunks.length,
+      pages: extracted.pageCount,
+      insufficientText: hasInsufficientText,
       jobId: job.id,
     });
   } catch (err) {

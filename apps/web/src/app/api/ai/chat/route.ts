@@ -31,6 +31,10 @@ type StudyChunk = {
   vector_score?: number | null;
   chunk_text_score?: number | null;
   seedRank?: number;
+  // Metadata M3 (puede faltar en chunks viejos -> null).
+  page_start?: number | null;
+  page_end?: number | null;
+  section_title?: string | null;
 };
 
 function chunkKey(chunk: Pick<StudyChunk, "resume_id" | "chunk_index">): string {
@@ -285,12 +289,127 @@ async function expandChunksWithNeighbors(
   return limitContext(mergeChunksWithNeighbors(chunks, neighbors));
 }
 
+/**
+ * Completa page_start/page_end/section_title de los chunks de contexto con una
+ * sola consulta batched por apunte. No toca las RPCs M2: la metadata se lee
+ * directo de document_chunks. Backward compatible: chunks viejos devuelven null
+ * y se ignoran al armar las citas.
+ */
+async function enrichWithPageMetadata(
+  supabase: SupabaseClient,
+  chunks: StudyChunk[]
+): Promise<StudyChunk[]> {
+  if (chunks.length === 0) return chunks;
+
+  const indexesByResume = new Map<string, Set<number>>();
+  for (const chunk of chunks) {
+    const set = indexesByResume.get(chunk.resume_id) ?? new Set<number>();
+    set.add(chunk.chunk_index);
+    indexesByResume.set(chunk.resume_id, set);
+  }
+
+  const metaByKey = new Map<
+    string,
+    { page_start: number | null; page_end: number | null; section_title: string | null }
+  >();
+
+  for (const [resumeId, indexSet] of Array.from(indexesByResume.entries())) {
+    const { data, error } = await supabase
+      .from("document_chunks")
+      .select("resume_id, chunk_index, page_start, page_end, section_title")
+      .eq("resume_id", resumeId)
+      .in("chunk_index", Array.from(indexSet));
+
+    if (error || !data) continue;
+
+    for (const row of data as Array<{
+      resume_id: string;
+      chunk_index: number;
+      page_start: number | null;
+      page_end: number | null;
+      section_title: string | null;
+    }>) {
+      metaByKey.set(`${row.resume_id}:${row.chunk_index}`, {
+        page_start: row.page_start,
+        page_end: row.page_end,
+        section_title: row.section_title,
+      });
+    }
+  }
+
+  return chunks.map((chunk) => {
+    const meta = metaByKey.get(chunkKey(chunk));
+    if (!meta) return chunk;
+    return {
+      ...chunk,
+      page_start: meta.page_start,
+      page_end: meta.page_end,
+      section_title: meta.section_title,
+    };
+  });
+}
+
 function toLlmChunks(chunks: StudyChunk[]) {
   return chunks.map((chunk) => ({
     content: chunk.content,
     chunkIndex: chunk.chunk_index,
     resumeId: chunk.resume_id,
+    pageStart: chunk.page_start ?? null,
+    pageEnd: chunk.page_end ?? null,
+    sectionTitle: chunk.section_title ?? null,
   }));
+}
+
+/**
+ * Resume las páginas usadas en el contexto en un string compacto con rangos,
+ * p.ej. "4-5, 8, 12-13". Vacío si ningún chunk tiene metadata de página
+ * (chunks viejos pre-M3 -> no se muestra chip de página).
+ */
+function summarizeContextPages(chunks: StudyChunk[]): string {
+  const pages = new Set<number>();
+  for (const c of chunks) {
+    const start = c.page_start;
+    if (typeof start !== "number") continue;
+    const end = typeof c.page_end === "number" ? c.page_end : start;
+    for (let p = start; p <= end; p++) pages.add(p);
+  }
+  if (pages.size === 0) return "";
+
+  const sorted = Array.from(pages).sort((a, b) => a - b);
+  const parts: string[] = [];
+  let rangeStart = sorted[0];
+  let prev = sorted[0];
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === prev + 1) {
+      prev = sorted[i];
+      continue;
+    }
+    parts.push(rangeStart === prev ? `${rangeStart}` : `${rangeStart}-${prev}`);
+    rangeStart = prev = sorted[i];
+  }
+  parts.push(rangeStart === prev ? `${rangeStart}` : `${rangeStart}-${prev}`);
+  return parts.join(", ");
+}
+
+/** Construye la etiqueta de cita: "páginas 4-5 | sección: X" si hay metadata. */
+function formatChunkLabel(chunk: {
+  pageStart?: number | null;
+  pageEnd?: number | null;
+  sectionTitle?: string | null;
+}): string {
+  const parts: string[] = [];
+  const { pageStart, pageEnd, sectionTitle } = chunk;
+  if (typeof pageStart === "number") {
+    if (typeof pageEnd === "number" && pageEnd !== pageStart) {
+      parts.push(`páginas ${pageStart}-${pageEnd}`);
+    } else {
+      parts.push(`página ${pageStart}`);
+    }
+  }
+  if (sectionTitle && sectionTitle.trim().length > 0) {
+    parts.push(`sección: ${sectionTitle.trim()}`);
+  }
+  return parts.join(" | ");
 }
 
 export async function POST(request: NextRequest) {
@@ -352,7 +471,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const contextChunks = await expandChunksWithNeighbors(supabase, chunks);
+  const expandedChunks = await expandChunksWithNeighbors(supabase, chunks);
+  const contextChunks = await enrichWithPageMetadata(supabase, expandedChunks);
 
   // --- MODELO PLATAFORMA (comportamiento original) ---
   if (!apiKeyId || apiKeyId === "platform") {
@@ -376,15 +496,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const pages = summarizeContextPages(contextChunks);
+
     return NextResponse.json({
       query,
       answer,
-      sources: [{ type: "note", label: "Tu apunte" }],
+      sources: [
+        { type: "note", label: "Tu apunte", ...(pages ? { pages } : {}) },
+      ],
       model: "platform",
       rawSources: contextChunks.map((c) => ({
         resumeId: c.resume_id,
         chunkIndex: c.chunk_index,
         similarity: chunkSimilarity(c),
+        pageStart: c.page_start ?? null,
+        pageEnd: c.page_end ?? null,
+        sectionTitle: c.section_title ?? null,
       })),
     });
   }
@@ -410,9 +537,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Error al procesar la API key" }, { status: 500 });
   }
 
-  // Construir contexto del apunte a partir de los chunks encontrados
+  // Construir contexto del apunte a partir de los chunks encontrados.
+  // Incluye páginas/sección cuando la metadata M3 está disponible.
   const noteContext = contextChunks.length > 0
-    ? contextChunks.map((c, i) => `[Fragmento ${i + 1}]\n${c.content}`).join("\n\n")
+    ? contextChunks
+        .map((c, i) => {
+          const label = formatChunkLabel({
+            pageStart: c.page_start,
+            pageEnd: c.page_end,
+            sectionTitle: c.section_title,
+          });
+          const header = label
+            ? `[Fragmento ${i + 1} | ${label}]`
+            : `[Fragmento ${i + 1}]`;
+          return `${header}\n${c.content}`;
+        })
+        .join("\n\n")
     : "No se encontró contenido relevante en el apunte para esta pregunta.";
 
   // Buscar en internet en paralelo
@@ -443,10 +583,19 @@ export async function POST(request: NextRequest) {
 
   const { cleanText, sources } = parseSourcesFromResponse(rawText);
 
+  // Adjuntamos las páginas de forma determinística a la fuente del apunte:
+  // no confiamos en que el modelo las informe bien. Solo si hay metadata M3.
+  const contextPages = summarizeContextPages(contextChunks);
+  const sourcesWithPages = contextPages
+    ? sources.map((s) =>
+        s.type === "note" ? { ...s, pages: s.pages ?? contextPages } : s
+      )
+    : sources;
+
   return NextResponse.json({
     query,
     answer: cleanText,
-    sources,
+    sources: sourcesWithPages,
     model: userKey.provider,
     modelId: userKey.model_id,
   });

@@ -3,6 +3,13 @@ import { CohereClient } from "cohere-ai";
 export const EMBEDDING_MODEL = "embed-multilingual-v3.0";
 export const EMBEDDING_DIM = 1024;
 
+// El modelo tiene una ventana MÁXIMA de 512 tokens. El chunker (pdf-chunker.ts)
+// está calibrado (DEFAULT_CHUNK_OPTIONS) para producir chunks de ~400 tokens y
+// no excederla. `truncate: "END"` queda como red de seguridad explícita para el
+// caso patológico (bloques sin cortes naturales): documenta el comportamiento
+// del proveedor, no es la estrategia principal.
+const TRUNCATE_MODE = "END" as const;
+
 const BATCH_LIMIT = 96;
 
 // Quita diacríticos antes de vectorizar para que "Le Chatelier" y "Le Châtelier"
@@ -27,6 +34,7 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
       model: EMBEDDING_MODEL,
       texts: batch.map(normalizeForEmbedding),
       inputType: "search_document",
+      truncate: TRUNCATE_MODE,
     });
 
     const embeddings = response.embeddings as number[][];
@@ -48,6 +56,7 @@ export async function generateQueryEmbedding(text: string): Promise<number[]> {
     model: EMBEDDING_MODEL,
     texts: [normalizeForEmbedding(text)],
     inputType: "search_query",
+    truncate: TRUNCATE_MODE,
   });
 
   const embeddings = response.embeddings as number[][];

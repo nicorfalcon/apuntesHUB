@@ -35,6 +35,8 @@ describe("generateEmbeddings", () => {
       model: EMBEDDING_MODEL,
       texts: ["hola"],
       inputType: "search_document",
+      // truncate: "END" como red de seguridad ante el límite de 512 tokens.
+      truncate: "END",
     });
   });
 
@@ -74,7 +76,7 @@ describe("generateQueryEmbedding", () => {
     h.embed.mockResolvedValue({ embeddings: [[1, 2, 3]] });
     const vec = await generateQueryEmbedding("¿qué es Le Châtelier?");
     expect(h.embed).toHaveBeenCalledWith(
-      expect.objectContaining({ inputType: "search_query" })
+      expect.objectContaining({ inputType: "search_query", truncate: "END" })
     );
     expect(vec).toEqual([1, 2, 3]);
   });

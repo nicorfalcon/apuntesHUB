@@ -529,6 +529,77 @@ describe("POST /api/ai/chat", () => {
     });
   });
 
+  describe("metadata de página (M3)", () => {
+    beforeEach(() => {
+      h.generateQueryEmbedding.mockResolvedValue([0.1, 0.2]);
+    });
+
+    it("pasa páginas y sección al contexto cuando la metadata existe", async () => {
+      // given: la semilla viene de la RPC sin metadata; document_chunks la aporta.
+      h.rpcSearchChunks.mockResolvedValue({
+        data: [{ resume_id: "r1", chunk_index: 0, similarity: 0.9, content: "fragmento" }],
+        error: null,
+      });
+      h.documentChunks = [
+        {
+          id: "r1-0",
+          resume_id: "r1",
+          chunk_index: 0,
+          content: "fragmento",
+          page_start: 4,
+          page_end: 5,
+          section_title: "Normalización",
+        } as never,
+      ];
+      h.answerFromContext.mockResolvedValue("respuesta con páginas");
+
+      // when
+      const res = await POST(makeRequest(VALID_QUERY));
+
+      // then
+      expect(res.status).toBe(200);
+      const context = h.answerFromContext.mock.calls[0][1] as Array<{
+        chunkIndex: number;
+        pageStart: number | null;
+        pageEnd: number | null;
+        sectionTitle: string | null;
+      }>;
+      const seed = context.find((c) => c.chunkIndex === 0)!;
+      expect(seed.pageStart).toBe(4);
+      expect(seed.pageEnd).toBe(5);
+      expect(seed.sectionTitle).toBe("Normalización");
+
+      // La fuente del apunte expone las páginas para el chip de la UI.
+      const body = await res.json();
+      expect(body.sources).toEqual([
+        { type: "note", label: "Tu apunte", pages: "4-5" },
+      ]);
+    });
+
+    it("no rompe con chunks viejos sin metadata de página", async () => {
+      // given: document_chunks sin columnas de página (chunks pre-M3).
+      h.rpcSearchChunks.mockResolvedValue({
+        data: [{ resume_id: "r1", chunk_index: 0, similarity: 0.9, content: "viejo" }],
+        error: null,
+      });
+      h.documentChunks = [];
+      h.answerFromContext.mockResolvedValue("respuesta sin páginas");
+
+      // when
+      const res = await POST(makeRequest(VALID_QUERY));
+
+      // then
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.answer).toBe("respuesta sin páginas");
+      const context = h.answerFromContext.mock.calls[0][1] as Array<{
+        pageStart: number | null;
+      }>;
+      // pageStart null/undefined: el prompt simplemente no incluye página.
+      expect(context[0].pageStart ?? null).toBeNull();
+    });
+  });
+
   describe("modelo propio del usuario", () => {
     beforeEach(() => {
       h.generateQueryEmbedding.mockResolvedValue([0.1]);

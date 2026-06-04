@@ -285,28 +285,46 @@ export type Database = {
       }
       document_chunks: {
         Row: {
+          char_count: number | null
           chunk_index: number
           content: string
           created_at: string | null
           embedding: string | null
           id: string
+          metadata: Json
+          page_end: number | null
+          page_start: number | null
           resume_id: string
+          section_title: string | null
+          token_count: number | null
         }
         Insert: {
+          char_count?: number | null
           chunk_index: number
           content: string
           created_at?: string | null
           embedding?: string | null
           id?: string
+          metadata?: Json
+          page_end?: number | null
+          page_start?: number | null
           resume_id: string
+          section_title?: string | null
+          token_count?: number | null
         }
         Update: {
+          char_count?: number | null
           chunk_index?: number
           content?: string
           created_at?: string | null
           embedding?: string | null
           id?: string
+          metadata?: Json
+          page_end?: number | null
+          page_start?: number | null
           resume_id?: string
+          section_title?: string | null
+          token_count?: number | null
         }
         Relationships: [
           {
@@ -1550,6 +1568,10 @@ export type Database = {
         Returns: boolean
       }
       purchase_resume: { Args: { p_resume_id: string }; Returns: Json }
+      reingest_document_chunks: {
+        Args: { p_resume_id: string; p_chunks: Json }
+        Returns: number
+      }
       revoke_all_my_sessions: { Args: never; Returns: undefined }
       revoke_my_session: { Args: { p_session_id: string }; Returns: undefined }
       search_chunks: {
