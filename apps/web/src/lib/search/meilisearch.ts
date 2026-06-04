@@ -14,7 +14,7 @@
 
 import { Meilisearch, type Index } from "meilisearch";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { deriveChunkTerms } from "./chunk-terms";
+import { deriveChunkTerms, deriveAcademicAliases } from "./chunk-terms";
 
 export type SearchableResumeDocument = {
   id: string;
@@ -232,7 +232,15 @@ function buildResumeDocument(
     fileName: fileNameFromPath(resume.file_url),
     // No existen estas columnas en la BD todavía: PoC con valores vacíos.
     tags: [],
-    keywords: [],
+    // keywords = aliases académicos curados por reglas a partir de señales del
+    // contenido (NO contenido del PDF). Permiten encontrar temas con nombre
+    // propio (p. ej. "le chatelier") aunque el texto extraído no los contenga.
+    keywords: deriveAcademicAliases({
+      title: resume.title,
+      subject: resume.subject,
+      description: resume.description,
+      chunkTerms,
+    }),
     aiSummary: null,
     chunkTerms,
     createdAt: resume.created_at ?? new Date().toISOString(),

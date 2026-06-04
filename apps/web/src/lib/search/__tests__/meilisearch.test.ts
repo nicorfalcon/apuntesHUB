@@ -160,12 +160,15 @@ describe("indexResumeInSearch", () => {
       status: "published",
       sellerId: "seller-1",
       tags: [],
-      keywords: [],
       aiSummary: null,
     });
     // chunkTerms es señal de búsqueda derivada, no contenido completo.
     expect(Array.isArray(doc.chunkTerms)).toBe(true);
     expect(doc.chunkTerms).toContain("le chatelier");
+    // keywords = aliases académicos curados por reglas (no contenido del PDF).
+    expect(Array.isArray(doc.keywords)).toBe(true);
+    expect(doc.keywords).toContain("le chatelier");
+    expect(doc.keywords).toContain("desplazamiento del equilibrio");
     // No se filtra el contenido completo del chunk.
     expect(JSON.stringify(doc)).not.toContain(
       "El principio de Le Chatelier y el equilibrio quimico."

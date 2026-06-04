@@ -162,3 +162,146 @@ export function deriveChunkTerms(contents: Array<string | null | undefined>): st
     return [];
   }
 }
+
+// ---------------------------------------------------------------------------
+// Aliases académicos (keywords curadas por reglas)
+// ---------------------------------------------------------------------------
+//
+// Algunos temas tienen un "nombre" (Le Chatelier) que el PDF puede no contener
+// literalmente, o que la extracción de texto rompe. Para que igual se puedan
+// encontrar, derivamos un puñado de aliases académicos a partir de SEÑALES del
+// contenido (no del contenido en sí): título/materia/descripción + chunkTerms.
+//
+// Reglas conservadoras (para no contaminar el índice con falsos positivos):
+//   - Cada regla exige una categoría "ancla" obligatoria (el tema central).
+//   - Y al menos {@link MIN_ALIAS_SIGNALS} categorías de señal distintas.
+//   - Y al menos 1 señal ESPECÍFICA del dominio (no solo señales compartidas):
+//     esto evita disparar en Física/termodinámica/gases, que comparten
+//     "equilibrio", "temperatura", "presión", "concentración" con la química
+//     pero no son sobre Le Chatelier.
+//   - Nunca se dispara por una sola palabra aislada.
+//   - Los aliases salen normalizados (lowercase, sin acentos) y acotados en
+//     largo (mismo límite que chunkTerms) y cantidad.
+//   - Resultado deduplicado.
+
+// Mínimo de categorías de señal distintas para emitir los aliases de una regla.
+const MIN_ALIAS_SIGNALS = 3;
+
+// Tope de aliases emitidos en total. Pequeño a propósito: son keywords curadas,
+// no contenido. Acota el documento aunque se agreguen más reglas.
+export const MAX_ACADEMIC_ALIASES = 16;
+
+type AliasRule = {
+  name: string;
+  // Categoría ancla: debe matchear sí o sí (el tema central de la regla).
+  // Se evalúa contra el haystack normalizado (título+materia+desc+chunkTerms).
+  anchor: RegExp;
+  // Señales ESPECÍFICAS del dominio: discriminan el tema de áreas vecinas.
+  // Debe matchear AL MENOS UNA para disparar. Cuentan hacia el umbral.
+  specificSignals: RegExp[];
+  // Señales COMPARTIDAS con otras áreas (Física/termo/gases): suman al umbral
+  // pero NO alcanzan solas (sin al menos una específica, la regla no dispara).
+  sharedSignals: RegExp[];
+  // Aliases a emitir si la regla dispara. Se normalizan y deduplican luego.
+  aliases: string[];
+};
+
+// Las regex corren contra texto YA normalizado (minúsculas, sin acentos, con
+// espacios como separadores), por eso usan formas sin tilde y `\b` = espacio.
+const ACADEMIC_ALIAS_RULES: AliasRule[] = [
+  {
+    name: "le-chatelier",
+    // Le Chatelier es, por definición, sobre el equilibrio (o su nombre literal).
+    anchor: /equilibri|chatelier/,
+    // Señales que SÍ indican química/Le Chatelier (no termodinámica genérica).
+    specificSignals: [
+      /chatelier/, // el nombre literal
+      /desplaz/, // se desplaza, desplazamiento (del equilibrio)
+      /perturba/, // perturbacion, perturbation
+      /cte de equilibri|constante de equilibri/, // constante de equilibrio
+      /quimic/, // quimica, quimico
+    ],
+    // Compartidas con Física/gases/termo: necesarias pero no suficientes.
+    sharedSignals: [
+      /equilibri/, // equilibrio, equilibrium, equilibria
+      /temperatur/, // temperatura, temperature
+      /presion/,
+      /concentracion/,
+    ],
+    aliases: [
+      "le chatelier",
+      "principio de le chatelier",
+      "chatelier",
+      "desplazamiento del equilibrio",
+      "perturbacion del equilibrio",
+    ],
+  },
+];
+
+/**
+ * Deriva aliases académicos ("keywords" curadas) a partir de señales del
+ * contenido, para mejorar el recall de temas con nombre propio aunque el PDF no
+ * los contenga literalmente.
+ *
+ * Es pura y robusta: ante cualquier entrada vacía/rara o error devuelve [].
+ * NO indexa contenido: solo emite términos cortos predefinidos cuando hay
+ * suficientes señales.
+ */
+export function deriveAcademicAliases(input: {
+  title: string | null;
+  subject: string | null;
+  description: string | null;
+  chunkTerms: string[];
+}): string[] {
+  try {
+    const haystack = normalize(
+      [
+        input.title ?? "",
+        input.subject ?? "",
+        input.description ?? "",
+        ...(Array.isArray(input.chunkTerms) ? input.chunkTerms : []),
+      ].join(" ")
+    );
+    if (haystack.length === 0) return [];
+
+    const out: string[] = [];
+    for (const rule of ACADEMIC_ALIAS_RULES) {
+      // 1) Ancla obligatoria (el tema central).
+      if (!rule.anchor.test(haystack)) continue;
+
+      // 2) Al menos una señal ESPECÍFICA del dominio: sin esto, señales solo
+      //    compartidas (equilibrio+temperatura+presión) NO bastan, evitando
+      //    falsos positivos en Física/termodinámica/gases.
+      let specific = 0;
+      for (const signal of rule.specificSignals) {
+        if (signal.test(haystack)) specific += 1;
+      }
+      if (specific === 0) continue;
+
+      // 3) Al menos MIN_ALIAS_SIGNALS categorías distintas en total
+      //    (específicas + compartidas).
+      let shared = 0;
+      for (const signal of rule.sharedSignals) {
+        if (signal.test(haystack)) shared += 1;
+      }
+      if (specific + shared < MIN_ALIAS_SIGNALS) continue;
+
+      for (const alias of rule.aliases) out.push(alias);
+    }
+
+    // Normalizar, acotar largo y deduplicar manteniendo el orden.
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const alias of out) {
+      const term = normalize(alias);
+      if (term.length === 0 || term.length > MAX_CHUNK_TERM_LENGTH) continue;
+      if (seen.has(term)) continue;
+      seen.add(term);
+      result.push(term);
+    }
+
+    return result.slice(0, MAX_ACADEMIC_ALIASES);
+  } catch {
+    return [];
+  }
+}
