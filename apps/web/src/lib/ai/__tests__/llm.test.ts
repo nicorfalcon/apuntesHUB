@@ -70,6 +70,64 @@ describe("answerFromContext", () => {
     expect(systemMsg.content).toMatch(/listar.*transcribir/i);
   });
 
+  it("incluye instrucciones y contexto para preguntas de seguimiento", async () => {
+    h.create.mockResolvedValue({
+      choices: [{ message: { content: "ok" } }],
+    });
+
+    await answerFromContext("me podés explicar más sobre eso", [
+      { content: "Le Chatelier aparece en equilibrio químico.", chunkIndex: 0, resumeId: "r-1" },
+    ], {
+      recentMessages: [{ role: "user", content: "qué es Le Chatelier" }],
+    });
+
+    const payload = h.create.mock.calls[0][0];
+    const systemMsg = payload.messages.find(
+      (m: { role: string }) => m.role === "system"
+    );
+    const userMsg = payload.messages.find(
+      (m: { role: string }) => m.role === "user"
+    );
+    expect(systemMsg.content).toMatch(/Preguntas de seguimiento/i);
+    expect(systemMsg.content).toMatch(/historial reciente/i);
+    expect(userMsg.content).toContain("Historial reciente:");
+    expect(userMsg.content).toContain("Usuario: qué es Le Chatelier");
+    expect(userMsg.content).toContain("Pregunta actual: me podés explicar más sobre eso");
+  });
+
+  it("incluye metadata del apunte e instrucciones para ejemplos y términos no literales", async () => {
+    h.create.mockResolvedValue({
+      choices: [{ message: { content: "ok" } }],
+    });
+
+    await answerFromContext("Qué es Chatelier?", [
+      {
+        content: "Cuando se modifica la temperatura, la presión o la concentración, el equilibrio se desplaza.",
+        chunkIndex: 0,
+        resumeId: "r-1",
+      },
+    ], {
+      studyMetadata: {
+        resumeTitle: "Equilibrio Químico",
+        subject: "Química",
+        topics: ["Le Chatelier", "equilibrio químico"],
+      },
+    });
+
+    const payload = h.create.mock.calls[0][0];
+    const systemMsg = payload.messages.find(
+      (m: { role: string }) => m.role === "system"
+    );
+    const userMsg = payload.messages.find(
+      (m: { role: string }) => m.role === "user"
+    );
+    expect(systemMsg.content).toContain("Ejemplo ilustrativo:");
+    expect(systemMsg.content).toContain("No atribuyas al apunte ejemplos que no estén en el contexto");
+    expect(systemMsg.content).toContain("NUNCA inventes números de página");
+    expect(systemMsg.content).toContain("no aparece literalmente");
+    expect(userMsg.content).toContain("Temas declarados del apunte: Le Chatelier, equilibrio químico");
+  });
+
   it("usa temperature 0.3 y max_tokens 800", async () => {
     h.create.mockResolvedValue({
       choices: [{ message: { content: "ok" } }],

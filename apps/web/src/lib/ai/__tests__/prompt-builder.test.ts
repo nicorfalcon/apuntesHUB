@@ -41,6 +41,32 @@ describe("buildEnrichedPrompt", () => {
     expect(prompt).toContain("[Fuente web 1 - Wikipedia]\nDefinición A");
     expect(prompt).toContain("[Fuente web 2 - MDN]\nDefinición B");
   });
+
+  it("incluye historial reciente e instrucciones de follow-up cuando se provee", () => {
+    const prompt = buildEnrichedPrompt("explicame más sobre eso", "apunte", [], {
+      recentMessages: [{ role: "user", content: "qué es Le Chatelier" }],
+    });
+
+    expect(prompt).toContain("HISTORIAL RECIENTE:");
+    expect(prompt).toContain("Usuario: qué es Le Chatelier");
+    expect(prompt).toContain("interpretala con el historial reciente");
+  });
+
+  it("incluye topics e instrucciones para ejemplos ilustrativos y citas", () => {
+    const prompt = buildEnrichedPrompt("Qué es Chatelier?", "fragmentos", [], {
+      studyMetadata: {
+        resumeTitle: "Equilibrio Químico",
+        subject: "Química",
+        topics: ["Le Chatelier", "temperatura"],
+      },
+    });
+
+    expect(prompt).toContain("Temas declarados del apunte: Le Chatelier, temperatura");
+    expect(prompt).toContain("Ejemplo ilustrativo:");
+    expect(prompt).toContain("No atribuyas al apunte ejemplos que no estén en el contexto");
+    expect(prompt).toContain("No inventes páginas");
+    expect(prompt).toContain("no aparece literalmente");
+  });
 });
 
 describe("parseSourcesFromResponse", () => {

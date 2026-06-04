@@ -5,6 +5,7 @@ import { generateQueryEmbedding } from "@/lib/ai/embeddings";
 import { answerFromContext } from "@/lib/ai/llm";
 import { checkRateLimit } from "@/lib/ai/rate-limit";
 import { validateChatRequest } from "@/lib/ai/chat-request";
+import { rewriteStudyChatQuery } from "@/lib/ai/study-chat-query";
 import { decryptApiKey } from "@/lib/crypto/api-key-encryption";
 import { searchWeb } from "@/lib/search/web-search";
 import { buildEnrichedPrompt, parseSourcesFromResponse } from "@/lib/ai/prompt-builder";
@@ -35,6 +36,11 @@ type StudyChunk = {
   page_start?: number | null;
   page_end?: number | null;
   section_title?: string | null;
+};
+
+type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
 };
 
 function chunkKey(chunk: Pick<StudyChunk, "resume_id" | "chunk_index">): string {
@@ -251,22 +257,49 @@ function mergeChunksWithNeighbors(
     }
   }
 
-  return Array.from(byKey.values());
+  const orderedSeeds = [...chunks].sort((a, b) => {
+    const rankDiff = (a.seedRank ?? Number.MAX_SAFE_INTEGER) -
+      (b.seedRank ?? Number.MAX_SAFE_INTEGER);
+    if (rankDiff !== 0) return rankDiff;
+    return chunkSimilarity(b) - chunkSimilarity(a);
+  });
+
+  const emitted = new Set<string>();
+  const ordered: StudyChunk[] = [];
+
+  for (const seed of orderedSeeds) {
+    const group = [seed.chunk_index - 1, seed.chunk_index, seed.chunk_index + 1]
+      .filter((index) => index >= 0)
+      .map((index) => byKey.get(`${seed.resume_id}:${index}`))
+      .filter((chunk): chunk is StudyChunk => Boolean(chunk))
+      .sort((a, b) => a.chunk_index - b.chunk_index);
+
+    for (const chunk of group) {
+      const key = chunkKey(chunk);
+      if (emitted.has(key)) continue;
+      emitted.add(key);
+      ordered.push(chunk);
+    }
+  }
+
+  const leftovers = Array.from(byKey.values())
+    .filter((chunk) => !emitted.has(chunkKey(chunk)))
+    .sort((a, b) => {
+      const rankDiff = (a.seedRank ?? Number.MAX_SAFE_INTEGER) -
+        (b.seedRank ?? Number.MAX_SAFE_INTEGER);
+      if (rankDiff !== 0) return rankDiff;
+      if (a.resume_id !== b.resume_id) return a.resume_id.localeCompare(b.resume_id);
+      return a.chunk_index - b.chunk_index;
+    });
+
+  return [...ordered, ...leftovers];
 }
 
 function limitContext(chunks: StudyChunk[]): StudyChunk[] {
   const selected: StudyChunk[] = [];
   let totalChars = 0;
 
-  const priorityOrder = [...chunks].sort((a, b) => {
-    const rankDiff = (a.seedRank ?? Number.MAX_SAFE_INTEGER) -
-      (b.seedRank ?? Number.MAX_SAFE_INTEGER);
-    if (rankDiff !== 0) return rankDiff;
-    if (a.resume_id !== b.resume_id) return a.resume_id.localeCompare(b.resume_id);
-    return a.chunk_index - b.chunk_index;
-  });
-
-  for (const chunk of priorityOrder) {
+  for (const chunk of chunks) {
     if (selected.length >= MAX_CONTEXT_CHUNKS) break;
     const nextChars = totalChars + chunk.content.length;
     if (selected.length > 0 && nextChars > MAX_CONTEXT_CHARS) continue;
@@ -274,10 +307,7 @@ function limitContext(chunks: StudyChunk[]): StudyChunk[] {
     totalChars = nextChars;
   }
 
-  return selected.sort((a, b) => {
-    if (a.resume_id !== b.resume_id) return a.resume_id.localeCompare(b.resume_id);
-    return a.chunk_index - b.chunk_index;
-  });
+  return selected;
 }
 
 async function expandChunksWithNeighbors(
@@ -360,6 +390,13 @@ function toLlmChunks(chunks: StudyChunk[]) {
   }));
 }
 
+function toLlmMessages(messages: ChatMessage[]) {
+  return messages.slice(-6).map((message) => ({
+    role: message.role,
+    content: message.content,
+  }));
+}
+
 /**
  * Resume las páginas usadas en el contexto en un string compacto con rangos,
  * p.ej. "4-5, 8, 12-13". Vacío si ningún chunk tiene metadata de página
@@ -431,7 +468,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: { query?: string; resumeIds?: string[]; apiKeyId?: string };
+  let body: {
+    query?: string;
+    resumeIds?: string[];
+    apiKeyId?: string;
+    messages?: Array<{ role?: unknown; content?: unknown }>;
+    resumeTitle?: string;
+    subject?: string;
+    topics?: unknown;
+  };
   try {
     body = await request.json();
   } catch {
@@ -442,12 +487,19 @@ export async function POST(request: NextRequest) {
   if ("error" in validation) {
     return NextResponse.json({ error: validation.error }, { status: validation.status });
   }
-  const { query, resumeIds, apiKeyId } = validation;
+  const { query, resumeIds, apiKeyId, messages, resumeTitle, subject, topics } = validation;
 
-  // 1. Generar embedding de la pregunta (siempre, para ambas rutas)
+  const { retrievalQuery } = rewriteStudyChatQuery({
+    latestUserMessage: query,
+    recentMessages: messages,
+    resumeTitle,
+    subject,
+  });
+
+  // 1. Generar embedding de la query de recuperación (siempre, para ambas rutas)
   let queryEmbedding: number[];
   try {
-    queryEmbedding = await generateQueryEmbedding(query);
+    queryEmbedding = await generateQueryEmbedding(retrievalQuery);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
@@ -459,7 +511,7 @@ export async function POST(request: NextRequest) {
   // 2. Recuperar chunks relevantes de los apuntes comprados
   const { data: chunks, error: searchError } = await searchStudyChunks(
     supabase,
-    query,
+    retrievalQuery,
     queryEmbedding,
     resumeIds
   );
@@ -487,7 +539,10 @@ export async function POST(request: NextRequest) {
 
     let answer: string;
     try {
-      answer = await answerFromContext(query, toLlmChunks(contextChunks));
+      answer = await answerFromContext(query, toLlmChunks(contextChunks), {
+        recentMessages: toLlmMessages(messages),
+        studyMetadata: { resumeTitle, subject, topics },
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       return NextResponse.json(
@@ -559,7 +614,10 @@ export async function POST(request: NextRequest) {
   const webResults = await searchWeb(query);
 
   // Construir prompt enriquecido
-  const prompt = buildEnrichedPrompt(query, noteContext, webResults);
+  const prompt = buildEnrichedPrompt(query, noteContext, webResults, {
+    recentMessages: toLlmMessages(messages),
+    studyMetadata: { resumeTitle, subject, topics },
+  });
 
   let rawText: string;
   try {

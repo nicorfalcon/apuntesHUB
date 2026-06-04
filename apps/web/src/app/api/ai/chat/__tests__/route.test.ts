@@ -309,6 +309,103 @@ describe("POST /api/ai/chat", () => {
       );
     });
 
+    it("usa la query reformulada para embedding y RPC, pero conserva la pregunta original en el prompt", async () => {
+      // given
+      const latestQuery = "me podés explicar más sobre eso";
+      h.rpcSearchChunks.mockResolvedValue({
+        data: [
+          chunk("r1", 0, "Le Chatelier ajusta el equilibrio", 0.91),
+          chunk("r1", 1, "concentración y presión", 0.89),
+          chunk("r1", 2, "temperatura", 0.87),
+          chunk("r1", 3, "ejemplo", 0.85),
+        ],
+        error: null,
+      });
+      h.answerFromContext.mockResolvedValue("respuesta enfocada");
+
+      // when
+      const res = await POST(makeRequest({
+        query: latestQuery,
+        resumeIds: ["r1"],
+        messages: [
+          { role: "user", content: "qué es Le Chatelier" },
+          { role: "assistant", content: "El principio de Le Chatelier describe..." },
+        ],
+        resumeTitle: "Equilibrio Químico",
+        subject: "Química",
+      }));
+
+      // then
+      expect(res.status).toBe(200);
+      const retrievalQuery = h.generateQueryEmbedding.mock.calls[0][0] as string;
+      expect(retrievalQuery).toContain("Le Chatelier");
+      expect(retrievalQuery).toContain("Equilibrio Químico");
+      expect(retrievalQuery).not.toBe(latestQuery);
+      expect(h.rpcSearchChunks).toHaveBeenCalledWith(
+        "search_chunks_hybrid_for_study",
+        expect.objectContaining({ query_text: retrievalQuery })
+      );
+      expect(h.answerFromContext).toHaveBeenCalledWith(
+        latestQuery,
+        expect.any(Array),
+        expect.objectContaining({
+          recentMessages: expect.arrayContaining([
+            { role: "user", content: "qué es Le Chatelier" },
+          ]),
+        })
+      );
+    });
+
+    it("pasa topics del apunte al LLM como metadata de orientación", async () => {
+      // given
+      h.rpcSearchChunks.mockResolvedValue({
+        data: [
+          chunk("r1", 0, "El equilibrio se desplaza ante cambios de temperatura.", 0.91),
+        ],
+        error: null,
+      });
+      h.answerFromContext.mockResolvedValue("respuesta sobre Chatelier");
+
+      // when
+      const res = await POST(makeRequest({
+        query: "Qué es Chatelier?",
+        resumeIds: ["r1"],
+        resumeTitle: "Equilibrio Químico",
+        subject: "Química",
+        topics: ["Le Chatelier", "temperatura"],
+      }));
+
+      // then
+      expect(res.status).toBe(200);
+      expect(h.answerFromContext).toHaveBeenCalledWith(
+        "Qué es Chatelier?",
+        expect.any(Array),
+        expect.objectContaining({
+          studyMetadata: {
+            resumeTitle: "Equilibrio Químico",
+            subject: "Química",
+            topics: ["Le Chatelier", "temperatura"],
+          },
+        })
+      );
+    });
+
+    it("no rompe con historial vacío", async () => {
+      // given
+      h.rpcSearchChunks.mockResolvedValue({
+        data: [chunk("r1", 0, "ctx", 0.9)],
+        error: null,
+      });
+      h.answerFromContext.mockResolvedValue("ok");
+
+      // when
+      const res = await POST(makeRequest({ ...VALID_QUERY, messages: [] }));
+
+      // then
+      expect(res.status).toBe(200);
+      expect(h.generateQueryEmbedding).toHaveBeenCalledWith(VALID_QUERY.query);
+    });
+
     it("usa fallback M1 cuando la RPC híbrida falla", async () => {
       // given
       h.rpcSearchChunks.mockImplementation((name: string) => {
@@ -402,6 +499,65 @@ describe("POST /api/ai/chat", () => {
         expect.objectContaining({ resumeId: "r1", chunkIndex: 1 }),
         expect.objectContaining({ resumeId: "r1", chunkIndex: 2 }),
       ]);
+    });
+
+    it("ordena grupos de contexto por relevancia de seed y mantiene vecinos cerca", async () => {
+      // given
+      h.rpcSearchChunks.mockResolvedValue({
+        data: [
+          chunk("r1", 10, "seed más relevante", 0.95),
+          chunk("r2", 5, "seed menos relevante", 0.86),
+          chunk("r3", 1, "otro seed", 0.8),
+          chunk("r4", 1, "otro seed más", 0.79),
+        ],
+        error: null,
+      });
+      h.documentChunks = [
+        chunk("r1", 9, "vecino del seed relevante"),
+        chunk("r2", 4, "vecino del seed menos relevante"),
+      ];
+      h.answerFromContext.mockResolvedValue("respuesta ordenada");
+
+      // when
+      const res = await POST(makeRequest(VALID_QUERY));
+
+      // then
+      expect(res.status).toBe(200);
+      const context = h.answerFromContext.mock.calls[0][1] as Array<{
+        resumeId: string;
+        chunkIndex: number;
+      }>;
+      expect(context.slice(0, 4)).toEqual([
+        expect.objectContaining({ resumeId: "r1", chunkIndex: 9 }),
+        expect.objectContaining({ resumeId: "r1", chunkIndex: 10 }),
+        expect.objectContaining({ resumeId: "r2", chunkIndex: 4 }),
+        expect.objectContaining({ resumeId: "r2", chunkIndex: 5 }),
+      ]);
+    });
+
+    it("no loguea contenido completo del usuario al reformular follow-ups", async () => {
+      // given
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+      h.rpcSearchChunks.mockResolvedValue({
+        data: [chunk("r1", 0, "ctx", 0.9)],
+        error: null,
+      });
+      h.answerFromContext.mockResolvedValue("ok");
+
+      // when
+      const res = await POST(makeRequest({
+        query: "me podés explicar más sobre eso",
+        messages: [{ role: "user", content: "qué es Le Chatelier con dato sensible" }],
+      }));
+
+      // then
+      expect(res.status).toBe(200);
+      expect(logSpy).not.toHaveBeenCalled();
+      expect(warnSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining("dato sensible"),
+        expect.anything()
+      );
+      logSpy.mockRestore();
     });
 
     it("activa fallback cuando hay menos de 4 chunks", async () => {
@@ -728,6 +884,45 @@ describe("POST /api/ai/chat", () => {
       expect(body.model).toBe("openai");
       expect(body.modelId).toBe("gpt-4o");
       expect(body.sources).toEqual([{ type: "note", label: "Tu apunte" }]);
+    });
+
+    it("incluye topics e historial en el prompt del modelo propio", async () => {
+      // given
+      h.adminUserKeySingle.mockResolvedValue({
+        data: {
+          id: "k1",
+          provider: "openai",
+          model_id: "gpt-4o",
+          key_encrypted: "x",
+          key_iv: "y",
+        },
+      });
+      h.decryptApiKey.mockReturnValue("sk-plain");
+      h.searchWeb.mockResolvedValue([]);
+      h.callUserModel.mockResolvedValue({
+        text:
+          'Respuesta.\nFUENTES_JSON:[{"type":"note","label":"Tu apunte"}]',
+      });
+
+      // when
+      const res = await POST(
+        makeRequest({
+          query: "dame un ejemplo de eso",
+          apiKeyId: "k1",
+          messages: [{ role: "user", content: "Qué es Chatelier?" }],
+          resumeTitle: "Equilibrio Químico",
+          subject: "Química",
+          topics: ["Le Chatelier"],
+        })
+      );
+
+      // then
+      expect(res.status).toBe(200);
+      const prompt = h.callUserModel.mock.calls[0][0].prompt as string;
+      expect(prompt).toContain("Temas declarados del apunte: Le Chatelier");
+      expect(prompt).toContain("HISTORIAL RECIENTE:");
+      expect(prompt).toContain("Usuario: Qué es Chatelier?");
+      expect(prompt).toContain("Ejemplo ilustrativo:");
     });
   });
 });

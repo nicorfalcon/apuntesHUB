@@ -707,7 +707,13 @@ export function ViewerLayout({
         </main>
       </div>
 
-      <AiChatPanel resumeId={resumeId} resumeTitle={resume.title} aiReady={aiReady} />
+      <AiChatPanel
+        resumeId={resumeId}
+        resumeTitle={resume.title}
+        resumeSubject={resume.subject}
+        resumeTopics={resume.topics}
+        aiReady={aiReady}
+      />
     </div>
   );
 }

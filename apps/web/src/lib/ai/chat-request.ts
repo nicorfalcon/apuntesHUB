@@ -4,14 +4,31 @@ export interface ChatRequestBody {
   query?: string;
   resumeIds?: string[];
   apiKeyId?: string;
+  messages?: Array<{ role?: unknown; content?: unknown }>;
+  resumeTitle?: string;
+  subject?: string;
+  topics?: unknown;
 }
 
 export type ChatRequestValidation =
   | { error: string; status: number }
-  | { query: string; resumeIds: string[] | null; apiKeyId: string | undefined };
+  | {
+      query: string;
+      resumeIds: string[] | null;
+      apiKeyId: string | undefined;
+      messages: Array<{ role: "user" | "assistant"; content: string }>;
+      resumeTitle: string | null;
+      subject: string | null;
+      topics: string[];
+    };
 
 export const MAX_QUERY_LENGTH = 500;
 export const MAX_RESUME_IDS = 10;
+const MAX_CHAT_HISTORY_MESSAGES = 6;
+const MAX_CHAT_HISTORY_MESSAGE_LENGTH = 1_000;
+const MAX_CHAT_CONTEXT_FIELD_LENGTH = 120;
+const MAX_CHAT_TOPICS = 12;
+const MAX_CHAT_TOPIC_LENGTH = 80;
 
 /**
  * Valida el body de una solicitud al chat de IA. Devuelve `{ error, status }`
@@ -44,6 +61,43 @@ export function validateChatRequest(
 
   const resumeIds =
     body.resumeIds && body.resumeIds.length > 0 ? body.resumeIds : null;
+  const messages = Array.isArray(body.messages)
+    ? body.messages
+        .filter((message): message is { role: "user" | "assistant"; content: string } =>
+          (message.role === "user" || message.role === "assistant") &&
+          typeof message.content === "string" &&
+          message.content.trim().length > 0
+        )
+        .slice(-MAX_CHAT_HISTORY_MESSAGES)
+        .map((message) => ({
+          role: message.role,
+          content: message.content.trim().slice(0, MAX_CHAT_HISTORY_MESSAGE_LENGTH),
+        }))
+    : [];
+  const resumeTitle = typeof body.resumeTitle === "string"
+    ? body.resumeTitle.trim().slice(0, MAX_CHAT_CONTEXT_FIELD_LENGTH) || null
+    : null;
+  const subject = typeof body.subject === "string"
+    ? body.subject.trim().slice(0, MAX_CHAT_CONTEXT_FIELD_LENGTH) || null
+    : null;
+  const topics = Array.isArray(body.topics)
+    ? Array.from(
+        new Set(
+          body.topics
+            .filter((topic): topic is string => typeof topic === "string")
+            .map((topic) => topic.trim().slice(0, MAX_CHAT_TOPIC_LENGTH))
+            .filter(Boolean)
+        )
+      ).slice(0, MAX_CHAT_TOPICS)
+    : [];
 
-  return { query, resumeIds, apiKeyId: body.apiKeyId };
+  return {
+    query,
+    resumeIds,
+    apiKeyId: body.apiKeyId,
+    messages,
+    resumeTitle,
+    subject,
+    topics,
+  };
 }

@@ -18,6 +18,10 @@ describe("validateChatRequest", () => {
       query: "¿Qué es la recursión?",
       resumeIds: ["r1", "r2"],
       apiKeyId: "key-1",
+      messages: [],
+      resumeTitle: null,
+      subject: null,
+      topics: [],
     });
   });
 
@@ -74,5 +78,35 @@ describe("validateChatRequest", () => {
       resumeIds: Array.from({ length: 10 }, (_, i) => `r${i}`),
     });
     expect("error" in result).toBe(false);
+  });
+
+  it("normaliza historial reciente y contexto del apunte", () => {
+    const result = validateChatRequest({
+      query: "seguimiento",
+      messages: [
+        { role: "system", content: "ignorar" },
+        { role: "user", content: "  qué es Le Chatelier  " },
+        { role: "assistant", content: "x".repeat(1200) },
+      ],
+      resumeTitle: "  Equilibrio Químico  ",
+      subject: " Química ",
+      topics: [
+        " Le Chatelier ",
+        "Le Chatelier",
+        "equilibrio químico",
+        42,
+        "x".repeat(100),
+      ],
+    });
+
+    expect(result).toMatchObject({
+      messages: [
+        { role: "user", content: "qué es Le Chatelier" },
+        { role: "assistant", content: "x".repeat(1000) },
+      ],
+      resumeTitle: "Equilibrio Químico",
+      subject: "Química",
+      topics: ["Le Chatelier", "equilibrio químico", "x".repeat(80)],
+    });
   });
 });

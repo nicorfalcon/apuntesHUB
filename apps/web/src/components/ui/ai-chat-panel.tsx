@@ -15,6 +15,8 @@ interface Message {
 interface AiChatPanelProps {
   resumeId: string;
   resumeTitle: string;
+  resumeSubject?: string;
+  resumeTopics?: string[] | null;
   aiReady: boolean;
 }
 
@@ -35,7 +37,13 @@ function XIcon() {
   );
 }
 
-export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps) {
+export function AiChatPanel({
+  resumeId,
+  resumeTitle,
+  resumeSubject,
+  resumeTopics,
+  aiReady,
+}: AiChatPanelProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -59,6 +67,9 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
     setError(null);
 
     try {
+      const recentMessages = messages
+        .map((message) => ({ role: message.role, content: message.content }))
+        .slice(-6);
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -66,6 +77,10 @@ export function AiChatPanel({ resumeId, resumeTitle, aiReady }: AiChatPanelProps
           query: q,
           resumeIds: [resumeId],
           apiKeyId: selectedModel.id,
+          messages: recentMessages,
+          resumeTitle,
+          subject: resumeSubject,
+          topics: resumeTopics ?? [],
         }),
       });
       const data = await res.json();
