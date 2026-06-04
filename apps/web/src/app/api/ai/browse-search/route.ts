@@ -15,6 +15,11 @@ const RESULT_LIMIT = 50;
 const METADATA_MIN_SCORE = 0.22;
 const METADATA_ONLY_SCORE_CAP = 0.78;
 const VECTOR_METADATA_BOOST = 0.18;
+const HYBRID_VECTOR_WEIGHT = 0.55;
+const HYBRID_CHUNK_TEXT_WEIGHT = 0.25;
+const HYBRID_METADATA_WEIGHT = 0.2;
+const RESUME_METADATA_SELECT =
+  "id, title, subject, career, university, description, file_url";
 
 type VectorCandidate = {
   resume_id: string;
@@ -29,6 +34,16 @@ type ResumeMetadata = {
   university: string;
   description: string | null;
   file_url: string | null;
+};
+
+type HybridBrowseCandidate = {
+  resume_id: string;
+  score: number;
+  vector_score?: number | null;
+  chunk_text_score?: number | null;
+  metadata_score?: number | null;
+  best_chunk_index?: number | null;
+  match_reason?: string | null;
 };
 
 type RankedCandidate = {
@@ -117,6 +132,14 @@ function tokenizeNormalizedText(text: string): string[] {
 
 function isWeakQueryToken(token: string): boolean {
   return STOPWORDS.has(token) || WEAK_METADATA_TOKENS.has(token);
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null && "message" in error) {
+    return String((error as { message?: unknown }).message);
+  }
+  return String(error);
 }
 
 function extractQueryTokens(query: string): string[] {
@@ -322,6 +345,80 @@ async function searchVectorCandidates(
   };
 }
 
+function dedupeHybridCandidates(rows: HybridBrowseCandidate[]): HybridBrowseCandidate[] {
+  const byResume = new Map<string, HybridBrowseCandidate>();
+
+  for (const row of rows) {
+    const score = Number(row.score ?? 0);
+    const current = byResume.get(row.resume_id);
+    if (!current || score > Number(current.score ?? 0)) {
+      byResume.set(row.resume_id, { ...row, score });
+    }
+  }
+
+  return Array.from(byResume.values()).sort(
+    (a, b) => Number(b.score ?? 0) - Number(a.score ?? 0)
+  );
+}
+
+async function searchHybridBrowseCandidates(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  query: string,
+  queryEmbedding: number[]
+): Promise<{ data: HybridBrowseCandidate[]; error: { message: string } | null }> {
+  let result: { data: unknown; error: { message: string } | null };
+  try {
+    result = await supabase.rpc("search_resumes_hybrid_browse", {
+      query_text: query,
+      query_embedding: JSON.stringify(queryEmbedding),
+      match_count: RESULT_LIMIT,
+      vector_weight: HYBRID_VECTOR_WEIGHT,
+      chunk_text_weight: HYBRID_CHUNK_TEXT_WEIGHT,
+      metadata_weight: HYBRID_METADATA_WEIGHT,
+      min_vector_similarity: VECTOR_FALLBACK_MIN_SIMILARITY,
+    });
+  } catch (error) {
+    const message = getErrorMessage(error);
+    console.warn(
+      "[ai:browse] search_resumes_hybrid_browse failed; falling back to M1",
+      { message }
+    );
+    return { data: [], error: { message } };
+  }
+
+  if (result.error) {
+    console.warn(
+      "[ai:browse] search_resumes_hybrid_browse failed; falling back to M1",
+      { message: getErrorMessage(result.error) }
+    );
+    return { data: [], error: result.error };
+  }
+
+  return {
+    data: dedupeHybridCandidates((result.data ?? []) as HybridBrowseCandidate[]),
+    error: null,
+  };
+}
+
+async function fetchPublishedResumeMetadata(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  resumeIds?: string[]
+): Promise<{ data: ResumeMetadata[] | null; error: { message: string } | null }> {
+  const query = supabase
+    .from("resumes")
+    .select(RESUME_METADATA_SELECT)
+    .eq("status", "published")
+    .is("deleted_at", null);
+
+  if (resumeIds && resumeIds.length > 0) {
+    return query.in("id", resumeIds);
+  }
+
+  return query;
+}
+
 function rankHybridCandidates(
   vectorRows: VectorCandidate[],
   metadataRows: ResumeMetadata[],
@@ -410,6 +507,37 @@ export async function POST(request: NextRequest) {
 
   const supabase = await createClient();
 
+  const hybrid = await searchHybridBrowseCandidates(supabase, query, queryEmbedding);
+  if (!hybrid.error) {
+    if (hybrid.data.length === 0) {
+      return NextResponse.json({ query, results: [] });
+    }
+
+    const resumeIds = hybrid.data.map((row) => row.resume_id);
+    const { data: resumesMeta, error: metadataError } =
+      await fetchPublishedResumeMetadata(supabase, resumeIds);
+    if (metadataError) {
+      console.warn(
+        "[ai:browse] hybrid resume revalidation failed; falling back to M1",
+        { message: getErrorMessage(metadataError) }
+      );
+    } else {
+      const allowedResumeIds = new Set(
+        ((resumesMeta ?? []) as ResumeMetadata[]).map((resume) => resume.id)
+      );
+
+      const results = hybrid.data
+        .filter((row) => allowedResumeIds.has(row.resume_id))
+        .map((row) => ({
+          resumeId: row.resume_id,
+          similarity: Math.min(Number(row.score ?? 0), 0.99),
+        }))
+        .slice(0, RESULT_LIMIT);
+
+      return NextResponse.json({ query, results });
+    }
+  }
+
   const { data, error } = await searchVectorCandidates(supabase, queryEmbedding);
 
   if (error) {
@@ -419,11 +547,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { data: resumesMeta, error: metadataError } = await supabase
-    .from("resumes")
-    .select("id, title, subject, career, university, description, file_url")
-    .eq("status", "published")
-    .is("deleted_at", null);
+  const { data: resumesMeta, error: metadataError } =
+    await fetchPublishedResumeMetadata(supabase);
 
   const results = metadataError
     ? data.map((row) => ({ resumeId: row.resume_id, similarity: row.similarity }))

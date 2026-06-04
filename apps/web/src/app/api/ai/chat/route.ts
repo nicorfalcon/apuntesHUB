@@ -26,7 +26,10 @@ type StudyChunk = {
   resume_id: string;
   chunk_index: number;
   content: string;
+  score?: number | null;
   similarity?: number | null;
+  vector_score?: number | null;
+  chunk_text_score?: number | null;
   seedRank?: number;
 };
 
@@ -34,24 +37,36 @@ function chunkKey(chunk: Pick<StudyChunk, "resume_id" | "chunk_index">): string 
   return `${chunk.resume_id}:${chunk.chunk_index}`;
 }
 
+function chunkSimilarity(chunk: StudyChunk): number {
+  return Number(chunk.similarity ?? chunk.score ?? 0);
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null && "message" in error) {
+    return String((error as { message?: unknown }).message);
+  }
+  return String(error);
+}
+
 function mergeSearchChunks(primary: StudyChunk[], fallback: StudyChunk[]): StudyChunk[] {
   const byKey = new Map<string, StudyChunk>();
 
   for (const chunk of [...primary, ...fallback]) {
     const key = chunkKey(chunk);
-    const similarity = Number(chunk.similarity ?? 0);
+    const similarity = chunkSimilarity(chunk);
     const current = byKey.get(key);
-    if (!current || similarity > Number(current.similarity ?? 0)) {
+    if (!current || similarity > chunkSimilarity(current)) {
       byKey.set(key, { ...chunk, similarity });
     }
   }
 
   return Array.from(byKey.values())
-    .sort((a, b) => Number(b.similarity ?? 0) - Number(a.similarity ?? 0))
+    .sort((a, b) => chunkSimilarity(b) - chunkSimilarity(a))
     .map((chunk, index) => ({ ...chunk, seedRank: index }));
 }
 
-async function searchStudyChunks(
+async function searchLegacyStudyChunks(
   supabase: SupabaseClient,
   queryEmbedding: number[],
   resumeIds: string[] | null
@@ -83,6 +98,74 @@ async function searchStudyChunks(
 
   if (fallback.error) {
     return { data: mergeSearchChunks(firstRows, []), error: null };
+  }
+
+  return {
+    data: mergeSearchChunks(firstRows, (fallback.data ?? []) as StudyChunk[]),
+    error: null,
+  };
+}
+
+async function searchStudyChunks(
+  supabase: SupabaseClient,
+  query: string,
+  queryEmbedding: number[],
+  resumeIds: string[] | null
+): Promise<{ data: StudyChunk[]; error: { message: string } | null }> {
+  const baseParams = {
+    query_text: query,
+    query_embedding: JSON.stringify(queryEmbedding),
+    resume_ids: resumeIds,
+    match_count: STUDY_MATCH_COUNT,
+  };
+
+  let first: { data: unknown; error: { message: string } | null };
+  try {
+    first = await supabase.rpc("search_chunks_hybrid_for_study", {
+      ...baseParams,
+      min_vector_similarity: STUDY_MIN_SIMILARITY,
+    });
+  } catch (error) {
+    console.warn(
+      "[ai:chat] search_chunks_hybrid_for_study failed; falling back to M1",
+      { message: getErrorMessage(error) }
+    );
+    return searchLegacyStudyChunks(supabase, queryEmbedding, resumeIds);
+  }
+
+  if (first.error) {
+    console.warn(
+      "[ai:chat] search_chunks_hybrid_for_study failed; falling back to M1",
+      { message: getErrorMessage(first.error) }
+    );
+    return searchLegacyStudyChunks(supabase, queryEmbedding, resumeIds);
+  }
+
+  const firstRows = (first.data ?? []) as StudyChunk[];
+  if (firstRows.length >= STUDY_FALLBACK_MIN_RESULTS) {
+    return { data: mergeSearchChunks(firstRows, []), error: null };
+  }
+
+  let fallback: { data: unknown; error: { message: string } | null };
+  try {
+    fallback = await supabase.rpc("search_chunks_hybrid_for_study", {
+      ...baseParams,
+      min_vector_similarity: STUDY_FALLBACK_MIN_SIMILARITY,
+    });
+  } catch (error) {
+    console.warn(
+      "[ai:chat] search_chunks_hybrid_for_study failed; falling back to M1",
+      { message: getErrorMessage(error) }
+    );
+    return searchLegacyStudyChunks(supabase, queryEmbedding, resumeIds);
+  }
+
+  if (fallback.error) {
+    console.warn(
+      "[ai:chat] search_chunks_hybrid_for_study failed; falling back to M1",
+      { message: getErrorMessage(fallback.error) }
+    );
+    return searchLegacyStudyChunks(supabase, queryEmbedding, resumeIds);
   }
 
   return {
@@ -257,6 +340,7 @@ export async function POST(request: NextRequest) {
   // 2. Recuperar chunks relevantes de los apuntes comprados
   const { data: chunks, error: searchError } = await searchStudyChunks(
     supabase,
+    query,
     queryEmbedding,
     resumeIds
   );
@@ -300,7 +384,7 @@ export async function POST(request: NextRequest) {
       rawSources: contextChunks.map((c) => ({
         resumeId: c.resume_id,
         chunkIndex: c.chunk_index,
-        similarity: Number(c.similarity ?? 0),
+        similarity: chunkSimilarity(c),
       })),
     });
   }

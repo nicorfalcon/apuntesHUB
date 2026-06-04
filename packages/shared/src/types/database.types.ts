@@ -1563,6 +1563,17 @@ export type Database = {
           similarity: number
         }[]
       }
+      search_chunks_browse: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+          min_similarity?: number
+        }
+        Returns: {
+          resume_id: string
+          similarity: number
+        }[]
+      }
       search_chunks_for_study: {
         Args: {
           query_embedding: string
@@ -1575,6 +1586,45 @@ export type Database = {
           chunk_index: number
           content: string
           similarity: number
+        }[]
+      }
+      search_chunks_hybrid_for_study: {
+        Args: {
+          query_text: string
+          query_embedding: string
+          resume_ids?: string[] | null
+          match_count?: number
+          min_vector_similarity?: number
+          vector_weight?: number
+          chunk_text_weight?: number
+        }
+        Returns: {
+          resume_id: string
+          chunk_index: number
+          content: string
+          score: number
+          vector_score: number
+          chunk_text_score: number
+        }[]
+      }
+      search_resumes_hybrid_browse: {
+        Args: {
+          query_text: string
+          query_embedding: string
+          match_count?: number
+          vector_weight?: number
+          chunk_text_weight?: number
+          metadata_weight?: number
+          min_vector_similarity?: number
+        }
+        Returns: {
+          resume_id: string
+          score: number
+          vector_score: number
+          chunk_text_score: number
+          metadata_score: number
+          best_chunk_index: number | null
+          match_reason: string
         }[]
       }
     }

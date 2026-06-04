@@ -89,6 +89,8 @@ vi.mock("@/lib/ai/model-router", () => ({
 
 import { POST } from "../route";
 
+let warnSpy: ReturnType<typeof vi.spyOn>;
+
 function makeRequest(
   body: unknown,
   init: { raw?: string } = {}
@@ -127,10 +129,12 @@ describe("POST /api/ai/chat", () => {
       remaining: 19,
       resetAt: Date.now() + 60_000,
     });
+    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     h.documentChunks = [];
   });
 
   afterEach(() => {
+    warnSpy.mockRestore();
     vi.clearAllMocks();
   });
 
@@ -263,6 +267,109 @@ describe("POST /api/ai/chat", () => {
       expect(body.rawSources).toHaveLength(1);
     });
 
+    it("usa la RPC híbrida y conserva score como similarity para las fuentes", async () => {
+      // given
+      h.rpcSearchChunks.mockImplementation((name: string) => {
+        if (name === "search_chunks_hybrid_for_study") {
+          return Promise.resolve({
+            data: [
+              { resume_id: "r1", chunk_index: 0, score: 0.73, content: "fts" },
+              { resume_id: "r1", chunk_index: 1, score: 0.71, content: "vector" },
+              { resume_id: "r1", chunk_index: 2, score: 0.69, content: "mas" },
+              { resume_id: "r1", chunk_index: 3, score: 0.67, content: "ctx" },
+            ],
+            error: null,
+          });
+        }
+
+        return Promise.resolve({ data: [], error: null });
+      });
+      h.answerFromContext.mockResolvedValue("respuesta híbrida");
+
+      // when
+      const res = await POST(makeRequest({ ...VALID_QUERY, resumeIds: ["r1"] }));
+      const body = await res.json();
+
+      // then
+      expect(res.status).toBe(200);
+      expect(h.rpcSearchChunks).toHaveBeenCalledWith(
+        "search_chunks_hybrid_for_study",
+        expect.objectContaining({
+          query_text: VALID_QUERY.query,
+          resume_ids: ["r1"],
+          min_vector_similarity: 0.3,
+        })
+      );
+      expect(h.rpcSearchChunks).not.toHaveBeenCalledWith(
+        "search_chunks_for_study",
+        expect.anything()
+      );
+      expect(body.rawSources[0]).toEqual(
+        expect.objectContaining({ resumeId: "r1", chunkIndex: 0, similarity: 0.73 })
+      );
+    });
+
+    it("usa fallback M1 cuando la RPC híbrida falla", async () => {
+      // given
+      h.rpcSearchChunks.mockImplementation((name: string) => {
+        if (name === "search_chunks_hybrid_for_study") {
+          return Promise.resolve({
+            data: null,
+            error: { message: "function not found" },
+          });
+        }
+
+        return Promise.resolve({
+          data: [chunk("r1", 0, "legacy", 0.66)],
+          error: null,
+        });
+      });
+      h.answerFromContext.mockResolvedValue("respuesta legacy");
+
+      // when
+      const res = await POST(makeRequest(VALID_QUERY));
+
+      // then
+      expect(res.status).toBe(200);
+      expect(h.rpcSearchChunks).toHaveBeenCalledWith(
+        "search_chunks_for_study",
+        expect.objectContaining({ min_similarity: 0.3 })
+      );
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[ai:chat] search_chunks_hybrid_for_study failed; falling back to M1",
+        { message: "function not found" }
+      );
+    });
+
+    it("usa fallback M1 cuando la RPC híbrida lanza excepción", async () => {
+      // given
+      h.rpcSearchChunks.mockImplementation((name: string) => {
+        if (name === "search_chunks_hybrid_for_study") {
+          throw new Error("hybrid network error");
+        }
+
+        return Promise.resolve({
+          data: [chunk("r1", 0, "legacy after throw", 0.64)],
+          error: null,
+        });
+      });
+      h.answerFromContext.mockResolvedValue("respuesta legacy por throw");
+
+      // when
+      const res = await POST(makeRequest(VALID_QUERY));
+      const body = await res.json();
+
+      // then
+      expect(res.status).toBe(200);
+      expect(body.rawSources).toEqual([
+        expect.objectContaining({ resumeId: "r1", chunkIndex: 0, similarity: 0.64 }),
+      ]);
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[ai:chat] search_chunks_hybrid_for_study failed; falling back to M1",
+        { message: "hybrid network error" }
+      );
+    });
+
     it("agrega vecinos solo del mismo resume_id", async () => {
       // given
       h.rpcSearchChunks
@@ -323,7 +430,7 @@ describe("POST /api/ai/chat", () => {
       expect(h.rpcSearchChunks).toHaveBeenCalledTimes(2);
       expect(h.rpcSearchChunks.mock.calls[1][1]).toMatchObject({
         match_count: 15,
-        min_similarity: 0.24,
+        min_vector_similarity: 0.24,
       });
       expect(body.rawSources).toHaveLength(4);
     });

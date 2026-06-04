@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 type ResumeRow = {
@@ -19,8 +19,13 @@ const h = vi.hoisted(() => ({
   metadataSelect: vi.fn(),
   metadataEq: vi.fn(),
   metadataIs: vi.fn(),
+  metadataIn: vi.fn(),
   generateQueryEmbedding: vi.fn(),
   metadataRows: [] as ResumeRow[],
+  metadataError: null as { message: string } | null,
+  hybridRows: [] as Array<{ resume_id: string; score: number }>,
+  hybridError: { message: "hybrid rpc missing" } as { message: string } | null,
+  hybridThrow: null as unknown,
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -29,6 +34,29 @@ vi.mock("@/lib/supabase/server", () => ({
     from: (table: string) => {
       h.from(table);
       let statusFilter: string | null = null;
+      let deletedAtIsNull = false;
+
+      const filteredRows = (ids?: string[]) => {
+        if (h.metadataError) {
+          return { data: null, error: h.metadataError };
+        }
+
+        let rows = h.metadataRows;
+
+        if (statusFilter) {
+          rows = rows.filter((row) =>
+            row.status === undefined || row.status === statusFilter
+          );
+        }
+        if (deletedAtIsNull) {
+          rows = rows.filter((row) => row.deleted_at == null);
+        }
+        if (ids) {
+          rows = rows.filter((row) => ids.includes(row.id));
+        }
+
+        return { data: rows, error: null };
+      };
 
       return {
         select: (columns: string) => {
@@ -39,20 +67,21 @@ vi.mock("@/lib/supabase/server", () => ({
               if (column === "status") statusFilter = value;
 
               return {
-                is: async (isColumn: string, isValue: null) => {
+                is: (isColumn: string, isValue: null) => {
                   h.metadataIs(isColumn, isValue);
-                  let rows = h.metadataRows;
-
-                  if (statusFilter) {
-                    rows = rows.filter((row) =>
-                      row.status === undefined || row.status === statusFilter
-                    );
-                  }
                   if (isColumn === "deleted_at" && isValue === null) {
-                    rows = rows.filter((row) => row.deleted_at == null);
+                    deletedAtIsNull = true;
                   }
 
-                  return { data: rows, error: null };
+                  return {
+                    in: async (inColumn: string, ids: string[]) => {
+                      h.metadataIn(inColumn, ids);
+                      return filteredRows(ids);
+                    },
+                    then: (
+                      resolve: (value: ReturnType<typeof filteredRows>) => unknown
+                    ) => resolve(filteredRows()),
+                  };
                 },
               };
             },
@@ -101,22 +130,169 @@ function mockVectorRows(
   primary: Array<{ resume_id: string; similarity: number }>,
   fallback: Array<{ resume_id: string; similarity: number }> = []
 ) {
-  h.rpc.mockImplementation((_name: string, params: { min_similarity: number }) =>
-    Promise.resolve({
+  h.rpc.mockImplementation((name: string, params: { min_similarity: number }) => {
+    if (name === "search_resumes_hybrid_browse") {
+      if (h.hybridThrow) throw h.hybridThrow;
+      return Promise.resolve({ data: h.hybridRows, error: h.hybridError });
+    }
+
+    return Promise.resolve({
       data: params.min_similarity === 0.32 ? primary : fallback,
       error: null,
-    })
-  );
+    });
+  });
 }
+
+let warnSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   vi.resetAllMocks();
+  warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
   h.metadataRows = [];
+  h.metadataError = null;
+  h.hybridRows = [];
+  h.hybridError = { message: "hybrid rpc missing" };
+  h.hybridThrow = null;
   h.generateQueryEmbedding.mockResolvedValue([0.1, 0.2, 0.3]);
   mockVectorRows([]);
 });
 
+afterEach(() => {
+  warnSpy.mockRestore();
+});
+
 describe("POST /api/ai/browse-search", () => {
+  it("usa la RPC híbrida cuando está disponible y conserva el contrato de respuesta", async () => {
+    h.hybridError = null;
+    h.hybridRows = [{ resume_id: "hybrid-title", score: 0.31 }];
+    h.metadataRows = [
+      resume({
+        id: "hybrid-title",
+        title: "Algebra lineal",
+        subject: "Matematica",
+      }),
+    ];
+
+    const res = await POST(makeRequest("algebra lineal"));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.results).toEqual([
+      { resumeId: "hybrid-title", similarity: 0.31 },
+    ]);
+    expect(h.rpc).toHaveBeenCalledWith(
+      "search_resumes_hybrid_browse",
+      expect.objectContaining({
+        query_text: "algebra lineal",
+        vector_weight: 0.55,
+        chunk_text_weight: 0.25,
+        metadata_weight: 0.2,
+      })
+    );
+    expect(h.rpc).not.toHaveBeenCalledWith(
+      "search_chunks_browse",
+      expect.anything()
+    );
+    expect(h.metadataIn).toHaveBeenCalledWith("id", ["hybrid-title"]);
+  });
+
+  it("deduplica resultados híbridos por resume_id usando el mejor score", async () => {
+    h.hybridError = null;
+    h.hybridRows = [
+      { resume_id: "dup-1", score: 0.22 },
+      { resume_id: "dup-1", score: 0.44 },
+    ];
+    h.metadataRows = [resume({ id: "dup-1" })];
+
+    const res = await POST(makeRequest("termodinamica"));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.results).toEqual([{ resumeId: "dup-1", similarity: 0.44 }]);
+  });
+
+  it("revalida published/deleted_at sobre resultados híbridos", async () => {
+    h.hybridError = null;
+    h.hybridRows = [{ resume_id: "draft-1", score: 0.9 }];
+    h.metadataRows = [
+      resume({
+        id: "draft-1",
+        title: "Algebra lineal",
+        subject: "Matematica",
+        status: "draft",
+      }),
+    ];
+
+    const res = await POST(makeRequest("algebra lineal"));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.results).toEqual([]);
+  });
+
+  it("usa fallback M1 si la RPC híbrida falla", async () => {
+    h.hybridError = { message: "function not found" };
+    mockVectorRows([{ resume_id: "vector-fallback", similarity: 0.81 }]);
+
+    const res = await POST(makeRequest("neurociencia"));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.results).toEqual([
+      expect.objectContaining({ resumeId: "vector-fallback", similarity: 0.81 }),
+    ]);
+    expect(h.rpc).toHaveBeenCalledWith(
+      "search_chunks_browse",
+      expect.objectContaining({ min_similarity: 0.32 })
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[ai:browse] search_resumes_hybrid_browse failed; falling back to M1",
+      { message: "function not found" }
+    );
+  });
+
+  it("usa fallback M1 si la RPC híbrida lanza excepción", async () => {
+    h.hybridThrow = new Error("network exploded");
+    mockVectorRows([{ resume_id: "vector-after-throw", similarity: 0.77 }]);
+
+    const res = await POST(makeRequest("neurociencia"));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.results).toEqual([
+      expect.objectContaining({
+        resumeId: "vector-after-throw",
+        similarity: 0.77,
+      }),
+    ]);
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[ai:browse] search_resumes_hybrid_browse failed; falling back to M1",
+      { message: "network exploded" }
+    );
+  });
+
+  it("usa fallback M1 si falla la revalidación de resumes post-M2", async () => {
+    h.hybridError = null;
+    h.hybridRows = [{ resume_id: "hybrid-unverified", score: 0.93 }];
+    h.metadataError = { message: "metadata select failed" };
+    mockVectorRows([{ resume_id: "vector-after-revalidation", similarity: 0.74 }]);
+
+    const res = await POST(makeRequest("algebra lineal"));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.results).toEqual([
+      expect.objectContaining({
+        resumeId: "vector-after-revalidation",
+        similarity: 0.74,
+      }),
+    ]);
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[ai:browse] hybrid resume revalidation failed; falling back to M1",
+      { message: "metadata select failed" }
+    );
+  });
+
   it("no devuelve apuntes unpublished por metadata", async () => {
     h.metadataRows = [
       resume({
