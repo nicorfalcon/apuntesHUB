@@ -8,6 +8,17 @@ type DocumentChunkRow = {
   content: string;
 };
 
+type PurchaseMetadataRow = {
+  resume_id: string;
+  buyer_id?: string;
+  status?: string;
+  resumes: {
+    title: string | null;
+    subject: string | null;
+    topics: string[] | null;
+  } | null;
+};
+
 // Mocks hoisted: las funciones que el handler importa están centralizadas acá
 // para reprogramarlas por test sin reescribir el vi.mock.
 const h = vi.hoisted(() => ({
@@ -23,29 +34,62 @@ const h = vi.hoisted(() => ({
   callUserModel: vi.fn(),
   adminUserKeySingle: vi.fn(),
   documentChunks: [] as DocumentChunkRow[],
+  purchaseRows: [] as PurchaseMetadataRow[],
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: { getUser: h.getUser },
     rpc: h.rpcSearchChunks,
-    from: () => ({
-      select: () => ({
-        eq: (column: string, value: string) => ({
-          in: async (inColumn: string, indexes: number[]) => {
-            h.neighborChunksEq(column, value);
-            h.neighborChunksIn(inColumn, indexes);
-            return {
-              data: h.documentChunks.filter(
-                (row) =>
-                  row.resume_id === value && indexes.includes(row.chunk_index)
-              ),
-              error: null,
-            };
+    from: (table: string) => {
+      if (table === "purchases") {
+        const filters: Record<string, unknown> = {};
+        const builder = {
+          select: () => builder,
+          eq: (column: string, value: unknown) => {
+            filters[column] = value;
+            return builder;
           },
+          in: (column: string, values: unknown[]) => {
+            filters[column] = values;
+            return builder;
+          },
+          limit: async () => ({
+            data: h.purchaseRows.filter((row) => {
+              if (filters.buyer_id && row.buyer_id && row.buyer_id !== filters.buyer_id) {
+                return false;
+              }
+              if (filters.status && row.status && row.status !== filters.status) {
+                return false;
+              }
+              const resumeIds = filters.resume_id as string[] | undefined;
+              if (resumeIds && !resumeIds.includes(row.resume_id)) return false;
+              return true;
+            }),
+            error: null,
+          }),
+        };
+        return builder;
+      }
+
+      return {
+        select: () => ({
+          eq: (column: string, value: string) => ({
+            in: async (inColumn: string, indexes: number[]) => {
+              h.neighborChunksEq(column, value);
+              h.neighborChunksIn(inColumn, indexes);
+              return {
+                data: h.documentChunks.filter(
+                  (row) =>
+                    row.resume_id === value && indexes.includes(row.chunk_index)
+                ),
+                error: null,
+              };
+            },
+          }),
         }),
-      }),
-    }),
+      };
+    },
   }),
 }));
 
@@ -131,6 +175,7 @@ describe("POST /api/ai/chat", () => {
     });
     warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     h.documentChunks = [];
+    h.purchaseRows = [];
   });
 
   afterEach(() => {
@@ -267,6 +312,107 @@ describe("POST /api/ai/chat", () => {
       expect(body.rawSources).toHaveLength(1);
     });
 
+    it("devuelve activity para modo verdadero/falso cuando el LLM responde JSON válido", async () => {
+      // given
+      h.rpcSearchChunks.mockResolvedValue({
+        data: [chunk("r1", 0, "Le Chatelier y temperatura", 0.9)],
+        error: null,
+      });
+      h.answerFromContext.mockResolvedValue(JSON.stringify({
+        type: "true_false",
+        title: "Le Chatelier",
+        questions: [
+          {
+            id: "q1",
+            statement: "El equilibrio puede responder a cambios de temperatura.",
+            answer: true,
+            explanation: "El contexto menciona temperatura como perturbación.",
+            sourceLabel: "pág. 1",
+          },
+        ],
+      }));
+
+      // when
+      const res = await POST(makeRequest({
+        query: "armame verdadero o falso",
+        resumeIds: ["r1"],
+        answerMode: "true_false",
+      }));
+
+      // then
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.answer).toBe("Actividad lista para practicar.");
+      expect(body.activity).toMatchObject({
+        type: "true_false",
+        title: "Le Chatelier",
+        questions: [expect.objectContaining({ answer: true })],
+      });
+      expect(body.sources).toEqual([{ type: "note", label: "Tu apunte" }]);
+    });
+
+    it("reintenta una vez en plataforma y devuelve activity si el segundo intento valida", async () => {
+      // given
+      h.rpcSearchChunks.mockResolvedValue({
+        data: [chunk("r1", 0, "Kc y Kp", 0.9)],
+        error: null,
+      });
+      h.answerFromContext
+        .mockResolvedValueOnce("```json\n{ roto")
+        .mockResolvedValueOnce(JSON.stringify({
+          type: "multiple_choice",
+          title: "Kc y Kp",
+          questions: [
+            {
+              id: "q1",
+              question: "¿Qué relaciona Kp con Kc?",
+              options: ["RT", "Masa", "Color", "Hora"],
+              correctOptionIndex: 0,
+              explanation: "El contexto lo menciona.",
+            },
+          ],
+        }));
+
+      // when
+      const res = await POST(makeRequest({
+        query: "armame multiple choice sobre kc y kp",
+        resumeIds: ["r1"],
+        answerMode: "multiple_choice",
+      }));
+
+      // then
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(h.answerFromContext).toHaveBeenCalledTimes(2);
+      expect(h.answerFromContext.mock.calls[1][2]).toMatchObject({ repair: true });
+      expect(body.activity).toMatchObject({ type: "multiple_choice" });
+      expect(body.answer).toBe("Actividad lista para practicar.");
+    });
+
+    it("no expone JSON crudo si una actividad de plataforma no valida", async () => {
+      // given
+      h.rpcSearchChunks.mockResolvedValue({
+        data: [chunk("r1", 0, "ctx", 0.9)],
+        error: null,
+      });
+      h.answerFromContext.mockResolvedValue('{"type":"true_false","questions":[');
+
+      // when
+      const res = await POST(makeRequest({
+        query: "armame verdadero o falso",
+        resumeIds: ["r1"],
+        answerMode: "true_false",
+      }));
+
+      // then
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.activity).toBeUndefined();
+      expect(body.answer).toContain("No pude armar tarjetas interactivas");
+      expect(body.answer).toContain("practicar");
+      expect(body.answer).not.toContain('"type"');
+    });
+
     it("usa la RPC híbrida y conserva score como similarity para las fuentes", async () => {
       // given
       h.rpcSearchChunks.mockImplementation((name: string) => {
@@ -358,6 +504,18 @@ describe("POST /api/ai/chat", () => {
 
     it("pasa topics del apunte al LLM como metadata de orientación", async () => {
       // given
+      h.purchaseRows = [
+        {
+          resume_id: "r1",
+          buyer_id: VALID_USER.id,
+          status: "completed",
+          resumes: {
+            title: "Equilibrio Químico DB",
+            subject: "Química DB",
+            topics: ["Le Chatelier", "temperatura"],
+          },
+        },
+      ];
       h.rpcSearchChunks.mockResolvedValue({
         data: [
           chunk("r1", 0, "El equilibrio se desplaza ante cambios de temperatura.", 0.91),
@@ -372,7 +530,8 @@ describe("POST /api/ai/chat", () => {
         resumeIds: ["r1"],
         resumeTitle: "Equilibrio Químico",
         subject: "Química",
-        topics: ["Le Chatelier", "temperatura"],
+        topics: ["Tema falso del cliente"],
+        answerMode: "quiz",
       }));
 
       // then
@@ -382,10 +541,38 @@ describe("POST /api/ai/chat", () => {
         expect.any(Array),
         expect.objectContaining({
           studyMetadata: {
-            resumeTitle: "Equilibrio Químico",
-            subject: "Química",
+            resumeTitle: "Equilibrio Químico DB",
+            subject: "Química DB",
             topics: ["Le Chatelier", "temperatura"],
           },
+          answerMode: "quiz",
+        })
+      );
+    });
+
+    it("no usa topics enviados por cliente si no están autorizados en DB", async () => {
+      // given
+      h.purchaseRows = [];
+      h.rpcSearchChunks.mockResolvedValue({
+        data: [chunk("r1", 0, "ctx", 0.9)],
+        error: null,
+      });
+      h.answerFromContext.mockResolvedValue("respuesta");
+
+      // when
+      const res = await POST(makeRequest({
+        query: "Qué es Chatelier?",
+        resumeIds: ["r1"],
+        topics: ["Topic falso"],
+      }));
+
+      // then
+      expect(res.status).toBe(200);
+      expect(h.answerFromContext).toHaveBeenCalledWith(
+        "Qué es Chatelier?",
+        expect.any(Array),
+        expect.objectContaining({
+          studyMetadata: { resumeTitle: null, subject: null, topics: [] },
         })
       );
     });
@@ -886,8 +1073,239 @@ describe("POST /api/ai/chat", () => {
       expect(body.sources).toEqual([{ type: "note", label: "Tu apunte" }]);
     });
 
+    it("devuelve activity para multiple choice con modelo propio", async () => {
+      // given
+      h.adminUserKeySingle.mockResolvedValue({
+        data: {
+          id: "k1",
+          provider: "openai",
+          model_id: "gpt-4o",
+          key_encrypted: "x",
+          key_iv: "y",
+        },
+      });
+      h.decryptApiKey.mockReturnValue("sk-plain");
+      h.searchWeb.mockResolvedValue([]);
+      h.callUserModel.mockResolvedValue({
+        text: JSON.stringify({
+          type: "multiple_choice",
+          title: "Equilibrio químico",
+          questions: [
+            {
+              id: "q1",
+              question: "¿Qué perturbación aparece en el contexto?",
+              options: ["Temperatura", "Mitosis", "Sintaxis", "Geometría"],
+              correctOptionIndex: 0,
+              explanation: "El fragmento menciona temperatura.",
+            },
+          ],
+        }),
+      });
+
+      // when
+      const res = await POST(
+        makeRequest({
+          query: "multiple choice",
+          apiKeyId: "k1",
+          resumeIds: ["r1"],
+          answerMode: "multiple_choice",
+        })
+      );
+
+      // then
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.answer).toBe("Actividad lista para practicar.");
+      expect(body.activity).toMatchObject({
+        type: "multiple_choice",
+        questions: [expect.objectContaining({ correctOptionIndex: 0 })],
+      });
+      expect(body.sources).toEqual([{ type: "note", label: "Tu apunte" }]);
+    });
+
+    it("modo estructurado: primer intento inválido y segundo válido devuelve activity", async () => {
+      // given
+      h.adminUserKeySingle.mockResolvedValue({
+        data: {
+          id: "k1",
+          provider: "gemini",
+          model_id: "gemini-2.5-flash",
+          key_encrypted: "x",
+          key_iv: "y",
+        },
+      });
+      h.decryptApiKey.mockReturnValue("sk-plain");
+      h.searchWeb.mockResolvedValue([]);
+      h.callUserModel
+        .mockResolvedValueOnce({ text: "```json\n{ roto sin cerrar" })
+        .mockResolvedValueOnce({
+          text: JSON.stringify({
+            type: "multiple_choice",
+            title: "Kc y Kp",
+            questions: [
+              {
+                id: "q1",
+                question: "¿Qué relaciona Kp con Kc?",
+                options: ["RT", "La masa", "El color", "La hora"],
+                correctOptionIndex: 0,
+                explanation: "Kp = Kc(RT)^Δn según el apunte.",
+              },
+            ],
+          }),
+        });
+
+      // when
+      const res = await POST(
+        makeRequest({
+          query: "armame multiple choice sobre kc y kp",
+          apiKeyId: "k1",
+          resumeIds: ["r1"],
+          answerMode: "multiple_choice",
+        })
+      );
+
+      // then
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(h.callUserModel).toHaveBeenCalledTimes(2);
+      expect(body.answer).toBe("Actividad lista para practicar.");
+      expect(body.activity).toMatchObject({ type: "multiple_choice" });
+      // En modo estructurado NO se usa búsqueda web aunque el modelo la soporte.
+      expect(h.searchWeb).not.toHaveBeenCalled();
+    });
+
+    it("modo estructurado: ambos intentos inválidos cae a fallback textual sin JSON crudo", async () => {
+      // given
+      h.adminUserKeySingle.mockResolvedValue({
+        data: {
+          id: "k1",
+          provider: "gemini",
+          model_id: "gemini-2.5-flash",
+          key_encrypted: "x",
+          key_iv: "y",
+        },
+      });
+      h.decryptApiKey.mockReturnValue("sk-plain");
+      h.callUserModel.mockResolvedValue({
+        text: '```json\n{ "type": "multiple_choice", "questions": [',
+      });
+
+      // when
+      const res = await POST(
+        makeRequest({
+          query: "armame multiple choice sobre kc y kp",
+          apiKeyId: "k1",
+          resumeIds: ["r1"],
+          answerMode: "multiple_choice",
+        })
+      );
+
+      // then
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(h.callUserModel).toHaveBeenCalledTimes(2);
+      expect(body.activity).toBeUndefined();
+      expect(body.answer).toContain("No pude armar tarjetas interactivas");
+      expect(body.answer).not.toContain('"type"');
+    });
+
+    it("true_false con modelo propio repara en el segundo intento", async () => {
+      // given
+      h.adminUserKeySingle.mockResolvedValue({
+        data: {
+          id: "k1",
+          provider: "gemini",
+          model_id: "gemini-2.5-flash",
+          key_encrypted: "x",
+          key_iv: "y",
+        },
+      });
+      h.decryptApiKey.mockReturnValue("sk-plain");
+      h.callUserModel
+        .mockResolvedValueOnce({ text: "no es json" })
+        .mockResolvedValueOnce({
+          text: JSON.stringify({
+            type: "true_false",
+            title: "Le Chatelier",
+            questions: [
+              {
+                id: "q1",
+                statement: "El equilibrio responde a la temperatura.",
+                answer: true,
+                explanation: "El apunte lo menciona.",
+              },
+            ],
+          }),
+        });
+
+      // when
+      const res = await POST(
+        makeRequest({
+          query: "armame verdadero o falso sobre Le Chatelier",
+          apiKeyId: "k1",
+          resumeIds: ["r1"],
+          answerMode: "true_false",
+        })
+      );
+
+      // then
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.activity).toMatchObject({ type: "true_false" });
+    });
+
+    it("modo normal usa web y no reintenta ni parsea actividad", async () => {
+      // given
+      h.adminUserKeySingle.mockResolvedValue({
+        data: {
+          id: "k1",
+          provider: "openai",
+          model_id: "gpt-4o",
+          key_encrypted: "x",
+          key_iv: "y",
+        },
+      });
+      h.decryptApiKey.mockReturnValue("sk-plain");
+      h.searchWeb.mockResolvedValue([
+        { source: "Wikipedia", snippet: "algo", url: "https://a.com" },
+      ]);
+      h.callUserModel.mockResolvedValue({
+        text: 'Respuesta normal.\nFUENTES_JSON:[{"type":"note","label":"Tu apunte"}]',
+      });
+
+      // when
+      const res = await POST(
+        makeRequest({
+          query: "explicame kc y kp",
+          apiKeyId: "k1",
+          resumeIds: ["r1"],
+          answerMode: "explain",
+        })
+      );
+
+      // then
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(h.searchWeb).toHaveBeenCalledTimes(1);
+      expect(h.callUserModel).toHaveBeenCalledTimes(1);
+      expect(body.answer).toBe("Respuesta normal.");
+      expect(body.activity).toBeUndefined();
+    });
+
     it("incluye topics e historial en el prompt del modelo propio", async () => {
       // given
+      h.purchaseRows = [
+        {
+          resume_id: "r1",
+          buyer_id: VALID_USER.id,
+          status: "completed",
+          resumes: {
+            title: "Equilibrio Químico",
+            subject: "Química",
+            topics: ["Le Chatelier"],
+          },
+        },
+      ];
       h.adminUserKeySingle.mockResolvedValue({
         data: {
           id: "k1",
@@ -909,10 +1327,10 @@ describe("POST /api/ai/chat", () => {
         makeRequest({
           query: "dame un ejemplo de eso",
           apiKeyId: "k1",
+          resumeIds: ["r1"],
+          answerMode: "example",
           messages: [{ role: "user", content: "Qué es Chatelier?" }],
-          resumeTitle: "Equilibrio Químico",
-          subject: "Química",
-          topics: ["Le Chatelier"],
+          topics: ["Topic falso"],
         })
       );
 
@@ -922,6 +1340,7 @@ describe("POST /api/ai/chat", () => {
       expect(prompt).toContain("Temas declarados del apunte: Le Chatelier");
       expect(prompt).toContain("HISTORIAL RECIENTE:");
       expect(prompt).toContain("Usuario: Qué es Chatelier?");
+      expect(prompt).toContain("Modo de respuesta: Dar ejemplo");
       expect(prompt).toContain("Ejemplo ilustrativo:");
     });
   });

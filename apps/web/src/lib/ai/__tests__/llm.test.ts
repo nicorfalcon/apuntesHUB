@@ -125,7 +125,95 @@ describe("answerFromContext", () => {
     expect(systemMsg.content).toContain("No atribuyas al apunte ejemplos que no estén en el contexto");
     expect(systemMsg.content).toContain("NUNCA inventes números de página");
     expect(systemMsg.content).toContain("no aparece literalmente");
+    expect(systemMsg.content).toContain("Según el apunte");
+    expect(systemMsg.content).toContain("Esto significa");
+    expect(systemMsg.content).toContain("Para practicar");
     expect(userMsg.content).toContain("Temas declarados del apunte: Le Chatelier, equilibrio químico");
+  });
+
+  it("incluye el modo de respuesta elegido sin relajar grounding", async () => {
+    h.create.mockResolvedValue({
+      choices: [{ message: { content: "ok" } }],
+    });
+
+    await answerFromContext("haceme preguntas", [
+      { content: "El equilibrio puede desplazarse ante perturbaciones.", chunkIndex: 0, resumeId: "r-1" },
+    ], {
+      answerMode: "quiz",
+    });
+
+    const payload = h.create.mock.calls[0][0];
+    const systemMsg = payload.messages.find(
+      (m: { role: string }) => m.role === "system"
+    );
+    const userMsg = payload.messages.find(
+      (m: { role: string }) => m.role === "user"
+    );
+    expect(systemMsg.content).toContain("Modo de respuesta: Mini quiz");
+    expect(systemMsg.content).toContain("nunca permite saltear las reglas");
+    expect(userMsg.content).toContain("Modo de respuesta: Mini quiz");
+  });
+
+  it("pide JSON estricto para verdadero/falso sin inventar páginas", async () => {
+    h.create.mockResolvedValue({
+      choices: [{ message: { content: "{}" } }],
+    });
+
+    await answerFromContext("armame verdadero o falso", [
+      {
+        content: "El equilibrio se desplaza ante cambios de temperatura.",
+        chunkIndex: 0,
+        resumeId: "r-1",
+        pageStart: 1,
+        pageEnd: 2,
+      },
+    ], {
+      answerMode: "true_false",
+    });
+
+    const payload = h.create.mock.calls[0][0];
+    const systemMsg = payload.messages.find(
+      (m: { role: string }) => m.role === "system"
+    );
+    expect(systemMsg.content).toContain('"type": "true_false"');
+    expect(systemMsg.content).toContain("ÚNICAMENTE con JSON válido");
+    expect(systemMsg.content).toContain("Generá exactamente 3 preguntas");
+    expect(systemMsg.content).toContain("No inventes páginas");
+    expect(payload.max_tokens).toBe(1100);
+  });
+
+  it("pide JSON estricto para multiple choice", async () => {
+    h.create.mockResolvedValue({
+      choices: [{ message: { content: "{}" } }],
+    });
+
+    await answerFromContext("multiple choice", [
+      { content: "La concentración afecta el equilibrio.", chunkIndex: 0, resumeId: "r-1" },
+    ], {
+      answerMode: "multiple_choice",
+    });
+
+    const payload = h.create.mock.calls[0][0];
+    const systemMsg = payload.messages.find(
+      (m: { role: string }) => m.role === "system"
+    );
+    expect(systemMsg.content).toContain('"type": "multiple_choice"');
+    expect(systemMsg.content).toContain('"correctOptionIndex": 0');
+    expect(systemMsg.content).toContain("distractores plausibles no ambiguos");
+  });
+
+  it("escala max_tokens en modos estructurados según count", async () => {
+    h.create.mockResolvedValue({ choices: [{ message: { content: "{}" } }] });
+
+    await answerFromContext("multiple choice", [
+      { content: "ctx", chunkIndex: 0, resumeId: "r-1" },
+    ], { answerMode: "multiple_choice", count: 3 });
+    expect(h.create.mock.calls[0][0].max_tokens).toBe(1100);
+
+    await answerFromContext("multiple choice", [
+      { content: "ctx", chunkIndex: 0, resumeId: "r-1" },
+    ], { answerMode: "multiple_choice", count: 5 });
+    expect(h.create.mock.calls[1][0].max_tokens).toBe(1700);
   });
 
   it("usa temperature 0.3 y max_tokens 800", async () => {

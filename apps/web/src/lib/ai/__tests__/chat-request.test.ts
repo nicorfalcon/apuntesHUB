@@ -22,7 +22,17 @@ describe("validateChatRequest", () => {
       resumeTitle: null,
       subject: null,
       topics: [],
+      answerMode: "auto",
+      count: 3,
     });
+  });
+
+  it("normaliza count: acepta 3 y 5, cae a 3 ante valores inválidos", () => {
+    expect(validateChatRequest({ query: "x", count: 5 })).toMatchObject({ count: 5 });
+    expect(validateChatRequest({ query: "x", count: 3 })).toMatchObject({ count: 3 });
+    expect(validateChatRequest({ query: "x", count: 99 })).toMatchObject({ count: 3 });
+    expect(validateChatRequest({ query: "x", count: "5" })).toMatchObject({ count: 3 });
+    expect(validateChatRequest({ query: "x" })).toMatchObject({ count: 3 });
   });
 
   it("normaliza resumeIds vacío a null", () => {
@@ -107,6 +117,27 @@ describe("validateChatRequest", () => {
       resumeTitle: "Equilibrio Químico",
       subject: "Química",
       topics: ["Le Chatelier", "equilibrio químico", "x".repeat(80)],
+    });
+  });
+
+  it("normaliza answerMode válido", () => {
+    const result = validateChatRequest({
+      query: "explicá esto",
+      answerMode: "true_false",
+    });
+
+    expect(result).toMatchObject({ answerMode: "true_false" });
+    expect(validateChatRequest({ query: "x", answerMode: "multiple_choice" })).toMatchObject({
+      answerMode: "multiple_choice",
+    });
+  });
+
+  it("usa auto si answerMode es inválido o no viene", () => {
+    expect(validateChatRequest({ query: "x", answerMode: "modo-raro" })).toMatchObject({
+      answerMode: "auto",
+    });
+    expect(validateChatRequest({ query: "x" })).toMatchObject({
+      answerMode: "auto",
     });
   });
 });

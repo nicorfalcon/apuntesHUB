@@ -1,3 +1,5 @@
+import { FileText, Globe2 } from "lucide-react";
+
 export interface Source {
   type: "note" | "web";
   label: string;
@@ -14,7 +16,11 @@ export function SourcePills({ sources }: { sources: Source[] }) {
       {sources.map((source, i) => {
         const content = (
           <>
-            <span>{source.type === "note" ? "📄" : "🌐"}</span>
+            {source.type === "note" ? (
+              <FileText aria-hidden="true" className="h-3 w-3" />
+            ) : (
+              <Globe2 aria-hidden="true" className="h-3 w-3" />
+            )}
             <span>{source.label}</span>
             {source.pages && <span>· pág. {source.pages}</span>}
           </>

@@ -1,5 +1,16 @@
 import { isExtractionAttempt } from "@/lib/ai/extraction-guard";
 
+export type StudyChatAnswerMode =
+  | "auto"
+  | "explain"
+  | "summary"
+  | "example"
+  | "quiz"
+  | "true_false"
+  | "multiple_choice"
+  | "step_by_step"
+  | "beginner";
+
 export interface ChatRequestBody {
   query?: string;
   resumeIds?: string[];
@@ -8,6 +19,8 @@ export interface ChatRequestBody {
   resumeTitle?: string;
   subject?: string;
   topics?: unknown;
+  answerMode?: unknown;
+  count?: unknown;
 }
 
 export type ChatRequestValidation =
@@ -20,7 +33,13 @@ export type ChatRequestValidation =
       resumeTitle: string | null;
       subject: string | null;
       topics: string[];
+      answerMode: StudyChatAnswerMode;
+      count: number;
     };
+
+/** Cantidades de preguntas permitidas para una práctica estructurada. */
+export const ALLOWED_ACTIVITY_COUNTS = [3, 5] as const;
+export const DEFAULT_ACTIVITY_COUNT = 3;
 
 export const MAX_QUERY_LENGTH = 500;
 export const MAX_RESUME_IDS = 10;
@@ -29,6 +48,17 @@ const MAX_CHAT_HISTORY_MESSAGE_LENGTH = 1_000;
 const MAX_CHAT_CONTEXT_FIELD_LENGTH = 120;
 const MAX_CHAT_TOPICS = 12;
 const MAX_CHAT_TOPIC_LENGTH = 80;
+const ANSWER_MODES = new Set<StudyChatAnswerMode>([
+  "auto",
+  "explain",
+  "summary",
+  "example",
+  "quiz",
+  "true_false",
+  "multiple_choice",
+  "step_by_step",
+  "beginner",
+]);
 
 /**
  * Valida el body de una solicitud al chat de IA. Devuelve `{ error, status }`
@@ -90,6 +120,13 @@ export function validateChatRequest(
         )
       ).slice(0, MAX_CHAT_TOPICS)
     : [];
+  const answerMode = typeof body.answerMode === "string" &&
+    ANSWER_MODES.has(body.answerMode as StudyChatAnswerMode)
+    ? (body.answerMode as StudyChatAnswerMode)
+    : "auto";
+  const count = ALLOWED_ACTIVITY_COUNTS.includes(body.count as 3 | 5)
+    ? (body.count as number)
+    : DEFAULT_ACTIVITY_COUNT;
 
   return {
     query,
@@ -99,5 +136,7 @@ export function validateChatRequest(
     resumeTitle,
     subject,
     topics,
+    answerMode,
+    count,
   };
 }

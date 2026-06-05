@@ -66,6 +66,81 @@ describe("buildEnrichedPrompt", () => {
     expect(prompt).toContain("No atribuyas al apunte ejemplos que no estén en el contexto");
     expect(prompt).toContain("No inventes páginas");
     expect(prompt).toContain("no aparece literalmente");
+    expect(prompt).toContain("Según el apunte");
+    expect(prompt).toContain("Esto significa");
+    expect(prompt).toContain("Para practicar");
+  });
+
+  it("incluye el modo de respuesta elegido", () => {
+    const prompt = buildEnrichedPrompt("haceme preguntas", "fragmentos", [], {
+      answerMode: "quiz",
+    });
+
+    expect(prompt).toContain("Modo de respuesta: Mini quiz");
+    expect(prompt).toContain("nunca permite saltear las reglas");
+  });
+
+  it("pide JSON estricto para verdadero/falso", () => {
+    const prompt = buildEnrichedPrompt("armame verdadero o falso", "fragmentos", [], {
+      answerMode: "true_false",
+    });
+
+    expect(prompt).toContain("Modo de respuesta: Verdadero/Falso");
+    expect(prompt).toContain("ACTIVIDAD_JSON_ESTRICTA");
+    expect(prompt).toContain('"type": "true_false"');
+    expect(prompt).toContain("respondé únicamente con JSON válido");
+    expect(prompt).toContain("No inventes páginas");
+    expect(prompt).toContain("no agregues FUENTES_JSON");
+  });
+
+  it("pide JSON estricto para multiple choice", () => {
+    const prompt = buildEnrichedPrompt("multiple choice", "fragmentos", [], {
+      answerMode: "multiple_choice",
+    });
+
+    expect(prompt).toContain("Modo de respuesta: Multiple choice");
+    expect(prompt).toContain('"type": "multiple_choice"');
+    expect(prompt).toContain('"correctOptionIndex": 0');
+    expect(prompt).toContain("4 opciones");
+  });
+
+  it("refuerza reglas anti-markdown y de formato JSON en modos estructurados", () => {
+    const prompt = buildEnrichedPrompt("multiple choice", "fragmentos", [], {
+      answerMode: "multiple_choice",
+    });
+
+    expect(prompt).toContain("No uses markdown");
+    expect(prompt).toContain("comillas dobles");
+    expect(prompt).toContain("No uses trailing commas");
+    expect(prompt).toContain("exactamente 4 opciones");
+  });
+
+  it("el prompt estructurado ignora la web y no arrastra rótulos de tutor ni FUENTES_JSON obligatorias", () => {
+    const webResults: WebResult[] = [
+      { source: "Wikipedia", snippet: "contenido externo", url: "https://a.com" } as WebResult,
+    ];
+    const prompt = buildEnrichedPrompt("armame multiple choice", "fragmentos", webResults, {
+      answerMode: "multiple_choice",
+    });
+
+    // No se inyecta contexto web ni se pide la sección FUENTES_JSON obligatoria.
+    expect(prompt).not.toContain("RESULTADOS DE BÚSQUEDA WEB");
+    expect(prompt).not.toContain("contenido externo");
+    expect(prompt).not.toContain("SIEMPRE incluí");
+    expect(prompt).not.toContain("Según el apunte");
+  });
+
+  it("agrega la instrucción de reparación cuando repair=true", () => {
+    const base = buildEnrichedPrompt("multiple choice", "fragmentos", [], {
+      answerMode: "multiple_choice",
+    });
+    const repaired = buildEnrichedPrompt("multiple choice", "fragmentos", [], {
+      answerMode: "multiple_choice",
+      repair: true,
+    });
+
+    expect(base).not.toContain("Tu respuesta anterior");
+    expect(repaired).toContain("Tu respuesta anterior NO fue JSON válido");
   });
 });
 

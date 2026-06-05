@@ -5,11 +5,19 @@ import { generateQueryEmbedding } from "@/lib/ai/embeddings";
 import { answerFromContext } from "@/lib/ai/llm";
 import { checkRateLimit } from "@/lib/ai/rate-limit";
 import { validateChatRequest } from "@/lib/ai/chat-request";
+import type { ChatRequestBody } from "@/lib/ai/chat-request";
 import { rewriteStudyChatQuery } from "@/lib/ai/study-chat-query";
 import { decryptApiKey } from "@/lib/crypto/api-key-encryption";
 import { searchWeb } from "@/lib/search/web-search";
 import { buildEnrichedPrompt, parseSourcesFromResponse } from "@/lib/ai/prompt-builder";
 import { callUserModel } from "@/lib/ai/model-router";
+import {
+  STRUCTURED_ACTIVITY_FALLBACK_TEXT,
+  isStructuredActivityMode,
+  looksLikeJsonResponse,
+  parseStudyActivity,
+} from "@/lib/ai/study-activity";
+import type { StudyActivity } from "@/lib/ai/study-activity";
 
 export const maxDuration = 60;
 
@@ -19,6 +27,9 @@ const STUDY_FALLBACK_MIN_SIMILARITY = 0.24;
 const STUDY_FALLBACK_MIN_RESULTS = 4;
 const MAX_CONTEXT_CHUNKS = 18;
 const MAX_CONTEXT_CHARS = 12_000;
+const MAX_STUDY_METADATA_RESUMES = 10;
+const MAX_STUDY_METADATA_TOPICS = 12;
+const MAX_STUDY_METADATA_TOPIC_LENGTH = 80;
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -43,6 +54,24 @@ type ChatMessage = {
   content: string;
 };
 
+type StudyMetadata = {
+  resumeTitle: string | null;
+  subject: string | null;
+  topics: string[];
+};
+
+/**
+ * Construye el texto de respuesta para un modo estructurado cuando NO se pudo
+ * parsear una actividad: si el modelo devolvió prosa útil la mostramos tal cual;
+ * si devolvió JSON inválido (que sería feo de mostrar), usamos un fallback con
+ * preguntas genéricas para practicar. Nunca expone JSON crudo.
+ */
+function structuredFallbackText(rawText: string, cleanProse: string): string {
+  if (looksLikeJsonResponse(rawText)) return STRUCTURED_ACTIVITY_FALLBACK_TEXT;
+  const prose = cleanProse.trim();
+  return prose.length > 0 ? prose : STRUCTURED_ACTIVITY_FALLBACK_TEXT;
+}
+
 function chunkKey(chunk: Pick<StudyChunk, "resume_id" | "chunk_index">): string {
   return `${chunk.resume_id}:${chunk.chunk_index}`;
 }
@@ -57,6 +86,101 @@ function getErrorMessage(error: unknown): string {
     return String((error as { message?: unknown }).message);
   }
   return String(error);
+}
+
+function cleanMetadataText(value: unknown, maxLength: number): string | null {
+  if (typeof value !== "string") return null;
+  const text = value.trim().slice(0, maxLength);
+  return text.length > 0 ? text : null;
+}
+
+function normalizeMetadataTopics(topics: unknown): string[] {
+  if (!Array.isArray(topics)) return [];
+  return Array.from(
+    new Set(
+      topics
+        .map((topic) => cleanMetadataText(topic, MAX_STUDY_METADATA_TOPIC_LENGTH))
+        .filter((topic): topic is string => Boolean(topic))
+    )
+  );
+}
+
+function firstResumeRelation(row: { resumes?: unknown }): {
+  title?: unknown;
+  subject?: unknown;
+  topics?: unknown;
+} | null {
+  const resume = row.resumes;
+  if (Array.isArray(resume)) return (resume[0] as Record<string, unknown> | undefined) ?? null;
+  if (typeof resume === "object" && resume !== null) {
+    return resume as Record<string, unknown>;
+  }
+  return null;
+}
+
+async function getStudyMetadataForChat({
+  supabase,
+  userId,
+  resumeIds,
+  fallback,
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  resumeIds: string[] | null;
+  fallback: { resumeTitle: string | null; subject: string | null };
+}): Promise<StudyMetadata> {
+  try {
+    let query = supabase
+      .from("purchases")
+      .select("resume_id, resumes(title, subject, topics)")
+      .eq("buyer_id", userId)
+      .eq("status", "completed");
+
+    if (resumeIds && resumeIds.length > 0) {
+      query = query.in("resume_id", resumeIds);
+    }
+
+    const { data, error } = await query.limit(MAX_STUDY_METADATA_RESUMES);
+    if (error) {
+      console.warn("[ai:chat] study metadata load failed", {
+        message: getErrorMessage(error),
+        requestedResumeCount: resumeIds?.length ?? null,
+      });
+      return { resumeTitle: fallback.resumeTitle, subject: fallback.subject, topics: [] };
+    }
+
+    const titles: string[] = [];
+    const subjects: string[] = [];
+    const topics: string[] = [];
+
+    for (const row of (data ?? []) as Array<{ resumes?: unknown }>) {
+      const resume = firstResumeRelation(row);
+      if (!resume) continue;
+
+      const title = cleanMetadataText(resume.title, 120);
+      const subject = cleanMetadataText(resume.subject, 120);
+      if (title && !titles.includes(title)) titles.push(title);
+      if (subject && !subjects.includes(subject)) subjects.push(subject);
+
+      for (const topic of normalizeMetadataTopics(resume.topics)) {
+        if (!topics.includes(topic) && topics.length < MAX_STUDY_METADATA_TOPICS) {
+          topics.push(topic);
+        }
+      }
+    }
+
+    return {
+      resumeTitle: titles.slice(0, 3).join(" | ") || fallback.resumeTitle,
+      subject: subjects.slice(0, 3).join(", ") || fallback.subject,
+      topics,
+    };
+  } catch (error) {
+    console.warn("[ai:chat] study metadata load failed", {
+      message: getErrorMessage(error),
+      requestedResumeCount: resumeIds?.length ?? null,
+    });
+    return { resumeTitle: fallback.resumeTitle, subject: fallback.subject, topics: [] };
+  }
 }
 
 function mergeSearchChunks(primary: StudyChunk[], fallback: StudyChunk[]): StudyChunk[] {
@@ -468,15 +592,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: {
-    query?: string;
-    resumeIds?: string[];
-    apiKeyId?: string;
-    messages?: Array<{ role?: unknown; content?: unknown }>;
-    resumeTitle?: string;
-    subject?: string;
-    topics?: unknown;
-  };
+  let body: ChatRequestBody;
   try {
     body = await request.json();
   } catch {
@@ -487,13 +603,20 @@ export async function POST(request: NextRequest) {
   if ("error" in validation) {
     return NextResponse.json({ error: validation.error }, { status: validation.status });
   }
-  const { query, resumeIds, apiKeyId, messages, resumeTitle, subject, topics } = validation;
+  const { query, resumeIds, apiKeyId, messages, resumeTitle, subject, answerMode, count } = validation;
+
+  const studyMetadata = await getStudyMetadataForChat({
+    supabase,
+    userId: user.id,
+    resumeIds,
+    fallback: { resumeTitle, subject },
+  });
 
   const { retrievalQuery } = rewriteStudyChatQuery({
     latestUserMessage: query,
     recentMessages: messages,
-    resumeTitle,
-    subject,
+    resumeTitle: studyMetadata.resumeTitle,
+    subject: studyMetadata.subject,
   });
 
   // 1. Generar embedding de la query de recuperación (siempre, para ambas rutas)
@@ -537,11 +660,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const llmChunks = toLlmChunks(contextChunks);
+    const llmMessages = toLlmMessages(messages);
+    const structuredMode = isStructuredActivityMode(answerMode);
+
     let answer: string;
     try {
-      answer = await answerFromContext(query, toLlmChunks(contextChunks), {
-        recentMessages: toLlmMessages(messages),
-        studyMetadata: { resumeTitle, subject, topics },
+      answer = await answerFromContext(query, llmChunks, {
+        recentMessages: llmMessages,
+        studyMetadata,
+        answerMode,
+        count,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -551,14 +680,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let activity: StudyActivity | null = structuredMode
+      ? parseStudyActivity(answer, answerMode, count)
+      : null;
+
+    // Segundo intento (máximo 1) solo para modos estructurados que no parsearon.
+    if (structuredMode && !activity) {
+      const repaired = await answerFromContext(query, llmChunks, {
+        recentMessages: llmMessages,
+        studyMetadata,
+        answerMode,
+        repair: true,
+        count,
+      }).catch(() => null);
+
+      if (repaired) {
+        const repairedActivity = parseStudyActivity(repaired, answerMode, count);
+        if (repairedActivity) {
+          activity = repairedActivity;
+        } else if (!looksLikeJsonResponse(repaired) && looksLikeJsonResponse(answer)) {
+          // El reintento devolvió prosa útil en vez de JSON roto: preferila.
+          answer = repaired;
+        }
+      }
+    }
+
     const pages = summarizeContextPages(contextChunks);
+    const sources = [
+      { type: "note" as const, label: "Tu apunte", ...(pages ? { pages } : {}) },
+    ];
+    const safeAnswer = activity
+      ? "Actividad lista para practicar."
+      : structuredMode
+        ? structuredFallbackText(answer, answer)
+        : answer;
 
     return NextResponse.json({
       query,
-      answer,
-      sources: [
-        { type: "note", label: "Tu apunte", ...(pages ? { pages } : {}) },
-      ],
+      answer: safeAnswer,
+      sources,
+      ...(activity ? { activity } : {}),
       model: "platform",
       rawSources: contextChunks.map((c) => ({
         resumeId: c.resume_id,
@@ -610,24 +771,34 @@ export async function POST(request: NextRequest) {
         .join("\n\n")
     : "No se encontró contenido relevante en el apunte para esta pregunta.";
 
-  // Buscar en internet en paralelo
-  const webResults = await searchWeb(query);
+  const structuredMode = isStructuredActivityMode(answerMode);
 
-  // Construir prompt enriquecido
-  const prompt = buildEnrichedPrompt(query, noteContext, webResults, {
-    recentMessages: toLlmMessages(messages),
-    studyMetadata: { resumeTitle, subject, topics },
-  });
+  // En modos estructurados (V/F, multiple choice) NO usamos búsqueda web aunque
+  // el toggle esté prendido: la actividad debe basarse solo en el apunte y
+  // devolver JSON estricto. La web aumenta el riesgo de salida no estructurada.
+  const webResults = structuredMode ? [] : await searchWeb(query);
+  const llmMessages = toLlmMessages(messages);
 
-  let rawText: string;
-  try {
+  async function callOwnModel(repair: boolean): Promise<string> {
+    const prompt = buildEnrichedPrompt(query, noteContext, webResults, {
+      recentMessages: llmMessages,
+      studyMetadata,
+      answerMode,
+      repair,
+      count,
+    });
     const response = await callUserModel({
-      provider: userKey.provider,
-      modelId: userKey.model_id,
+      provider: userKey!.provider,
+      modelId: userKey!.model_id,
       apiKey: plainApiKey,
       prompt,
     });
-    rawText = response.text;
+    return response.text;
+  }
+
+  let rawText: string;
+  try {
+    rawText = await callOwnModel(false);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (message.includes("timeout") || message.includes("AbortError")) {
@@ -639,21 +810,49 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 502 });
   }
 
+  let parsedActivity: StudyActivity | null = structuredMode
+    ? parseStudyActivity(rawText, answerMode, count)
+    : null;
+
+  // Segundo intento (máximo 1) de reparación solo para modos estructurados.
+  if (structuredMode && !parsedActivity) {
+    const repaired = await callOwnModel(true).catch(() => null);
+    if (repaired) {
+      const repairedActivity = parseStudyActivity(repaired, answerMode, count);
+      if (repairedActivity) {
+        parsedActivity = repairedActivity;
+        rawText = repaired;
+      } else if (!looksLikeJsonResponse(repaired) && looksLikeJsonResponse(rawText)) {
+        // El reintento devolvió prosa útil en vez de JSON roto: preferila.
+        rawText = repaired;
+      }
+    }
+  }
+
   const { cleanText, sources } = parseSourcesFromResponse(rawText);
 
   // Adjuntamos las páginas de forma determinística a la fuente del apunte:
   // no confiamos en que el modelo las informe bien. Solo si hay metadata M3.
   const contextPages = summarizeContextPages(contextChunks);
+  const baseSources = parsedActivity
+    ? [{ type: "note" as const, label: "Tu apunte" }]
+    : sources;
   const sourcesWithPages = contextPages
-    ? sources.map((s) =>
+    ? baseSources.map((s) =>
         s.type === "note" ? { ...s, pages: s.pages ?? contextPages } : s
       )
-    : sources;
+    : baseSources;
+  const answer = parsedActivity
+    ? "Actividad lista para practicar."
+    : structuredMode
+      ? structuredFallbackText(rawText, cleanText)
+      : cleanText;
 
   return NextResponse.json({
     query,
-    answer: cleanText,
+    answer,
     sources: sourcesWithPages,
+    ...(parsedActivity ? { activity: parsedActivity } : {}),
     model: userKey.provider,
     modelId: userKey.model_id,
   });
