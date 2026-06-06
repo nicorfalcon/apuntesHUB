@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   BookOpen,
@@ -32,6 +39,7 @@ import {
 import { TutorList } from "@/components/tutors/tutor-list";
 import type { TutorListItem } from "@/components/tutors/types";
 import { CourseList } from "@/components/courses/course-list";
+import { Pagination } from "./pagination";
 import { formatCourseType } from "@/components/courses/format";
 import type { RecordedCourseItem } from "@/components/courses/types";
 import { closeOtherExploreDropdowns } from "./dropdown-utils";
@@ -40,6 +48,8 @@ import { useE2EHydrationReady } from "@/lib/e2e/use-e2e-hydration-ready";
 export type ExploreTab = "apuntes" | "particulares" | "grabadas";
 
 type SortKey = "recent" | "price_asc" | "price_desc" | "rating";
+
+const PAGE_SIZE = 6;
 
 interface ExploreTabsProps {
   activeTab: ExploreTab;
@@ -291,6 +301,11 @@ export function ExploreTabs({
   >(new Set());
   const [courseDuration, setCourseDuration] =
     useState<CourseDurationFilter>("all");
+
+  const [apuntesPage, setApuntesPage] = useState(1);
+  const [tutorsPage, setTutorsPage] = useState(1);
+  const [coursesPage, setCoursesPage] = useState(1);
+  const resultsTopRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!initialCareer) return;
@@ -561,6 +576,71 @@ export function ExploreTabs({
     selectedCourseUniversities.size +
     (courseDuration === "all" ? 0 : 1);
 
+  // Reset a la primera página cuando cambian los filtros de cada vertical.
+  useEffect(() => {
+    setApuntesPage(1);
+  }, [
+    query,
+    selectedUniversities,
+    selectedCareers,
+    selectedSubjects,
+    priceRange,
+    sort,
+    aiSearch,
+    aiResultIds,
+  ]);
+
+  useEffect(() => {
+    setTutorsPage(1);
+  }, [
+    tutorQuery,
+    selectedTutorModalities,
+    selectedTutorSubjects,
+    tutorAvailability,
+    tutorRateRange,
+  ]);
+
+  useEffect(() => {
+    setCoursesPage(1);
+  }, [
+    courseQuery,
+    selectedCourseTypes,
+    selectedCourseSubjects,
+    selectedCourseUniversities,
+    courseDuration,
+  ]);
+
+  const resumesTotalPages = Math.max(
+    1,
+    Math.ceil(filteredResumes.length / PAGE_SIZE)
+  );
+  const tutorsTotalPages = Math.max(
+    1,
+    Math.ceil(filteredTutors.length / PAGE_SIZE)
+  );
+  const coursesTotalPages = Math.max(
+    1,
+    Math.ceil(filteredCourses.length / PAGE_SIZE)
+  );
+
+  const pagedResumes = filteredResumes.slice(
+    (apuntesPage - 1) * PAGE_SIZE,
+    apuntesPage * PAGE_SIZE
+  );
+  const pagedTutors = filteredTutors.slice(
+    (tutorsPage - 1) * PAGE_SIZE,
+    tutorsPage * PAGE_SIZE
+  );
+  const pagedCourses = filteredCourses.slice(
+    (coursesPage - 1) * PAGE_SIZE,
+    coursesPage * PAGE_SIZE
+  );
+
+  function changePage(setter: Dispatch<SetStateAction<number>>, page: number) {
+    setter(page);
+    resultsTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   function clearFilters() {
     setQuery("");
     setSelectedUniversities(new Set());
@@ -729,7 +809,10 @@ export function ExploreTabs({
           )}
         </div>
 
-        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          ref={resultsTopRef}
+          className="mt-5 flex flex-col gap-3 scroll-mt-24 sm:flex-row sm:items-center sm:justify-between"
+        >
           <p className="text-lg font-semibold text-foreground">
             {totalLabel}
           </p>
@@ -817,19 +900,33 @@ export function ExploreTabs({
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredResumes.map((resume) => (
-                  <ResumeCard
-                    key={resume.id}
-                    resume={resume}
-                    purchased={purchasedSet.has(resume.id)}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                  {pagedResumes.map((resume) => (
+                    <ResumeCard
+                      key={resume.id}
+                      resume={resume}
+                      purchased={purchasedSet.has(resume.id)}
+                    />
+                  ))}
+                </div>
+                <Pagination
+                  currentPage={apuntesPage}
+                  totalPages={resumesTotalPages}
+                  onPageChange={(page) => changePage(setApuntesPage, page)}
+                />
+              </>
             )
           ) : activeTab === "particulares" ? (
             filteredTutors.length > 0 ? (
-              <TutorList tutors={filteredTutors} />
+              <>
+                <TutorList tutors={pagedTutors} />
+                <Pagination
+                  currentPage={tutorsPage}
+                  totalPages={tutorsTotalPages}
+                  onPageChange={(page) => changePage(setTutorsPage, page)}
+                />
+              </>
             ) : tutors.length > 0 ? (
               <div className="rounded-[28px] border border-dashed border-gray-200 bg-white/70 px-6 py-16 text-center dark:border-white/10 dark:bg-white/[0.03]">
                 <p className="text-3xl font-bold text-foreground">
@@ -856,7 +953,14 @@ export function ExploreTabs({
             )
           ) : (
             filteredCourses.length > 0 ? (
-              <CourseList courses={filteredCourses} />
+              <>
+                <CourseList courses={pagedCourses} />
+                <Pagination
+                  currentPage={coursesPage}
+                  totalPages={coursesTotalPages}
+                  onPageChange={(page) => changePage(setCoursesPage, page)}
+                />
+              </>
             ) : courses.length > 0 ? (
               <div className="rounded-[28px] border border-dashed border-gray-200 bg-white/70 px-6 py-16 text-center dark:border-white/10 dark:bg-white/[0.03]">
                 <p className="text-3xl font-bold text-foreground">

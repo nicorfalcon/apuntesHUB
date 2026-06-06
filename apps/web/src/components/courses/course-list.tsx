@@ -6,20 +6,13 @@ interface CourseListProps {
 }
 
 export function CourseList({ courses }: CourseListProps) {
-  const [featuredCourse, ...rest] = courses;
-
-  if (!featuredCourse) return null;
+  if (courses.length === 0) return null;
 
   return (
-    <div className="space-y-4">
-      <CourseCard course={featuredCourse} featured />
-      {rest.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {rest.map((course) => (
-            <CourseCard key={course.id} course={course} />
-          ))}
-        </div>
-      )}
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {courses.map((course) => (
+        <CourseCard key={course.id} course={course} />
+      ))}
     </div>
   );
 }
