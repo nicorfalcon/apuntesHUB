@@ -7,8 +7,8 @@ const COLUMNS = [
     title: "Producto",
     links: [
       { label: "Explorar apuntes", href: "/explorar" },
+      { label: "Estudiá con IA", href: "#estudiar-ia" },
       { label: "Vender apuntes", href: "/register" },
-      { label: "Precios", href: "#precios" },
       { label: "Universidades", href: "/explorar" },
     ],
   },

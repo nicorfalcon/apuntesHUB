@@ -2,12 +2,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Hero } from "@/components/landing/hero";
 import { AboutStats } from "@/components/landing/about-stats";
+import { StudyAI } from "@/components/landing/study-ai";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { Categories } from "@/components/landing/categories";
 import { Payments } from "@/components/landing/payments";
 import { Sellers } from "@/components/landing/sellers";
 import { Testimonials } from "@/components/landing/testimonials";
-import { Pricing } from "@/components/landing/pricing";
 import { FAQ } from "@/components/landing/faq";
 import { FinalCTA } from "@/components/landing/final-cta";
 import { Footer } from "@/components/landing/footer";
@@ -25,8 +25,11 @@ export default async function LandingPage() {
       {/* 1. Hero — navbar + headline + buscador + trust signals */}
       <Hero />
 
-      {/* 3. Quienes somos + Stats */}
+      {/* 2. Quienes somos + Stats */}
       <AboutStats />
+
+      {/* 3. Estudiá con IA — chat, modo estudio, búsqueda por temas */}
+      <StudyAI />
 
       {/* 4. Como funciona — / 001, / 002, / 003 */}
       <HowItWorks />
@@ -43,16 +46,13 @@ export default async function LandingPage() {
       {/* 8. Testimonios */}
       <Testimonials />
 
-      {/* 9. Precios */}
-      <Pricing />
-
-      {/* 10. FAQ  */}
+      {/* 9. FAQ  */}
       <FAQ />
 
-      {/* 11. CTA final */}
+      {/* 10. CTA final */}
       <FinalCTA />
 
-      {/* 12. Footer editorial */}
+      {/* 11. Footer editorial */}
       <Footer />
     </div>
   );

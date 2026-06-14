@@ -39,8 +39,8 @@ export function Hero() {
             <a href="#vendedores" className="landing-hover-green rounded-full px-2 py-1 text-sm font-medium tracking-wide text-white/60 transition-all hover:text-[#d9e8e4]">
               Vende tus apuntes
             </a>
-            <a href="#precios" className="landing-hover-green rounded-full px-2 py-1 text-sm font-medium tracking-wide text-white/60 transition-all hover:text-[#d9e8e4]">
-              Precios
+            <a href="#estudiar-ia" className="landing-hover-green rounded-full px-2 py-1 text-sm font-medium tracking-wide text-white/60 transition-all hover:text-[#d9e8e4]">
+              Estudiá con IA
             </a>
           </div>
 
