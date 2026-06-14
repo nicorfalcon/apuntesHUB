@@ -47,7 +47,6 @@ vi.mock("@/lib/courses/access", async (importActual) => {
 });
 
 import { GET } from "../route";
-import { CourseModuleAccessError } from "@/lib/courses/access";
 
 function makeRequest(assetId = ASSET_ID) {
   const req = new Request(`http://localhost/api/video/hls/key/${assetId}`);
