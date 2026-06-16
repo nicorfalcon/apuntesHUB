@@ -2,12 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   deriveChunkTerms,
   deriveAcademicAliases,
-  normalizeSectionTitles,
   MAX_CHUNK_TERMS,
   MAX_CHUNK_TERM_LENGTH,
   MAX_ACADEMIC_ALIASES,
-  MAX_SECTION_TITLES,
-  MAX_SECTION_TITLE_LENGTH,
 } from "../chunk-terms";
 
 describe("deriveChunkTerms", () => {
@@ -266,60 +263,5 @@ describe("deriveAcademicAliases", () => {
         chunkTerms: [],
       })
     ).toEqual([]);
-  });
-});
-
-describe("normalizeSectionTitles", () => {
-  it("trimea, colapsa espacios y preserva mayúsculas/acentos", () => {
-    expect(
-      normalizeSectionTitles(["  Equilibrio   químico  "])
-    ).toEqual(["Equilibrio químico"]);
-  });
-
-  it("deduplica case/acento-insensitive conservando la primera forma legible", () => {
-    expect(
-      normalizeSectionTitles([
-        "Equilibrio Químico",
-        "equilibrio quimico",
-        "EQUILIBRIO QUÍMICO",
-      ])
-    ).toEqual(["Equilibrio Químico"]);
-  });
-
-  it("descarta headings genéricos/numéricos sin token de contenido", () => {
-    expect(
-      normalizeSectionTitles([
-        "Introducción",
-        "Unidad 1",
-        "Tema 2",
-        "Constante de equilibrio",
-      ])
-    ).toEqual(["Constante de equilibrio"]);
-  });
-
-  it("ignora entradas no string, vacías o demasiado largas", () => {
-    expect(
-      normalizeSectionTitles([
-        null,
-        undefined,
-        "   ",
-        "x".repeat(MAX_SECTION_TITLE_LENGTH + 1),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        123 as any,
-        "Reacciones reversibles",
-      ])
-    ).toEqual(["Reacciones reversibles"]);
-  });
-
-  it("acota la cantidad a MAX_SECTION_TITLES", () => {
-    const titles = Array.from(
-      { length: MAX_SECTION_TITLES + 10 },
-      (_, i) => `Seccion contenido ${i}`
-    );
-    expect(normalizeSectionTitles(titles)).toHaveLength(MAX_SECTION_TITLES);
-  });
-
-  it("es robusto ante entradas vacías", () => {
-    expect(normalizeSectionTitles([])).toEqual([]);
   });
 });

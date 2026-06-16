@@ -6,8 +6,6 @@ const h = vi.hoisted(() => ({
   indexResumeInSearch: vi.fn(),
   removeResumeFromSearch: vi.fn(),
   reindexPublishedResumes: vi.fn(),
-  backfillResumeTopicsFromChunks: vi.fn(),
-  backfillAllPublishedResumesTopics: vi.fn(),
   getUser: vi.fn(),
   resumeMaybeSingle: vi.fn(),
 }));
@@ -17,11 +15,6 @@ vi.mock("@/lib/search/meilisearch", () => ({
   indexResumeInSearch: h.indexResumeInSearch,
   removeResumeFromSearch: h.removeResumeFromSearch,
   reindexPublishedResumes: h.reindexPublishedResumes,
-}));
-
-vi.mock("@/lib/resumes/backfill-topics", () => ({
-  backfillResumeTopicsFromChunks: h.backfillResumeTopicsFromChunks,
-  backfillAllPublishedResumesTopics: h.backfillAllPublishedResumesTopics,
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -68,15 +61,6 @@ beforeEach(() => {
     total: 2,
     indexed: 2,
     batches: 1,
-  });
-  h.backfillResumeTopicsFromChunks.mockResolvedValue({
-    status: "updated",
-    added: 2,
-  });
-  h.backfillAllPublishedResumesTopics.mockResolvedValue({
-    total: 3,
-    updated: 2,
-    unchanged: 1,
   });
   h.getUser.mockResolvedValue({ data: { user: { id: "seller-1" } } });
   h.resumeMaybeSingle.mockResolvedValue({
@@ -219,70 +203,6 @@ describe("POST /api/admin/search/reindex", () => {
           message: "meili internal boom",
         })
       );
-    });
-  });
-
-  describe("backfill-topics masivo", () => {
-    it("403 sin secret admin", async () => {
-      const res = await POST(makeRequest({ action: "backfill-topics" }));
-      expect(res.status).toBe(403);
-      expect(h.backfillAllPublishedResumesTopics).not.toHaveBeenCalled();
-    });
-
-    it("con secret válido completa topics de todos y reindexa", async () => {
-      const res = await POST(
-        makeRequest({ action: "backfill-topics" }, `Bearer ${SECRET}`)
-      );
-      const body = await res.json();
-      expect(res.status).toBe(200);
-      expect(h.backfillAllPublishedResumesTopics).toHaveBeenCalledTimes(1);
-      expect(h.reindexPublishedResumes).toHaveBeenCalledTimes(1);
-      expect(body).toMatchObject({
-        ok: true,
-        backfill: { total: 3, updated: 2, unchanged: 1 },
-        reindex: { indexed: 2 },
-      });
-    });
-
-    it("500 si el backfill masivo lanza (mensaje seguro)", async () => {
-      h.backfillAllPublishedResumesTopics.mockRejectedValue(
-        new Error("backfill boom interno")
-      );
-      const res = await POST(
-        makeRequest({ action: "backfill-topics" }, `Bearer ${SECRET}`)
-      );
-      const body = await res.json();
-      expect(res.status).toBe(500);
-      expect(body.error).toBe("Falló el backfill de temas");
-      expect(JSON.stringify(body)).not.toContain("backfill boom interno");
-    });
-  });
-
-  describe("backfill-topics puntual", () => {
-    it("seller dueño → completa topics del apunte y lo reindexa", async () => {
-      const res = await POST(
-        makeRequest({ resumeId: "r1", action: "backfill-topics" })
-      );
-      const body = await res.json();
-      expect(res.status).toBe(200);
-      expect(h.backfillResumeTopicsFromChunks).toHaveBeenCalledWith("r1");
-      expect(h.indexResumeInSearch).toHaveBeenCalledWith("r1");
-      // No dispara el camino masivo.
-      expect(h.backfillAllPublishedResumesTopics).not.toHaveBeenCalled();
-      expect(body).toMatchObject({
-        ok: true,
-        topics: { status: "updated", added: 2 },
-        index: { status: "indexed" },
-      });
-    });
-
-    it("403 si un seller ajeno intenta el backfill puntual", async () => {
-      h.getUser.mockResolvedValue({ data: { user: { id: "otro" } } });
-      const res = await POST(
-        makeRequest({ resumeId: "r1", action: "backfill-topics" })
-      );
-      expect(res.status).toBe(403);
-      expect(h.backfillResumeTopicsFromChunks).not.toHaveBeenCalled();
     });
   });
 

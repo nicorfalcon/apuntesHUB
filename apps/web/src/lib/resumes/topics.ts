@@ -79,21 +79,3 @@ export function normalizeResumeTopics(topics: unknown): string[] {
 
   return result;
 }
-
-/**
- * Combina los temas declarados por el vendedor con temas derivados
- * automaticamente (p. ej. los titulos de seccion / indice del apunte).
- *
- * Los del vendedor van PRIMERO (prioridad); los derivados solo rellenan los
- * lugares restantes hasta {@link MAX_RESUME_TOPICS}. Normaliza, deduplica
- * (case/accent-insensitive, gana el primero) y acota igual que
- * {@link normalizeResumeTopics}. Puro y robusto ante entradas no-array.
- */
-export function mergeResumeTopics(
-  vendorTopics: unknown,
-  derivedTopics: unknown
-): string[] {
-  const vendor = Array.isArray(vendorTopics) ? vendorTopics : [];
-  const derived = Array.isArray(derivedTopics) ? derivedTopics : [];
-  return normalizeResumeTopics([...vendor, ...derived]);
-}

@@ -15,13 +15,6 @@
 export const MAX_CHUNK_TERMS = 50;
 export const MAX_CHUNK_TERM_LENGTH = 80;
 
-// Tope de títulos de sección (el "índice" del apunte) que se indexan como señal.
-// Un apunte real rara vez tiene más; acota el documento sin perder recall útil.
-export const MAX_SECTION_TITLES = 120;
-// Largo máximo de un título de sección. Más largo que un término porque un
-// heading puede ser una frase ("Equilibrio químico y constante de equilibrio").
-export const MAX_SECTION_TITLE_LENGTH = 120;
-
 // Tope de caracteres a procesar en total, para acotar el trabajo en apuntes muy
 // grandes. No afecta seguridad: solo limita cuánto texto se analiza.
 const MAX_TOTAL_CHARS = 250_000;
@@ -165,51 +158,6 @@ export function deriveChunkTerms(contents: Array<string | null | undefined>): st
     });
 
     return ranked.slice(0, MAX_CHUNK_TERMS).map((c) => c.term);
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Normaliza los títulos de sección (el "índice"/TOC del apunte que produce el
- * chunker) para usarlos como señal de búsqueda en Meilisearch.
- *
- * A diferencia de chunkTerms, NO es contenido del PDF: son los encabezados de
- * sección, equivalentes a los temas del índice. Cada título:
- *   - se trimea y se le colapsan los espacios (se preserva mayúsculas/acentos);
- *   - debe tener al menos un token "de contenido" (descarta "Introducción",
- *     "Unidad 1", "Tema 2", etc. que no aportan señal);
- *   - tiene a lo sumo {@link MAX_SECTION_TITLE_LENGTH} caracteres;
- *   - se deduplica case/acento-insensitive (un mismo heading se repite en muchos
- *     chunks), conservando la primera forma legible.
- *
- * Es pura y robusta: ante cualquier entrada vacía/rara o error devuelve [].
- */
-export function normalizeSectionTitles(
-  titles: Array<string | null | undefined>
-): string[] {
-  try {
-    const seen = new Set<string>();
-    const result: string[] = [];
-
-    for (const raw of titles) {
-      if (typeof raw !== "string") continue;
-      const display = raw.replace(/\s+/g, " ").trim();
-      if (display.length === 0 || display.length > MAX_SECTION_TITLE_LENGTH) {
-        continue;
-      }
-      const normalized = normalize(display);
-      if (normalized.length === 0) continue;
-      // Descarta headings sin ningún token de contenido (genéricos/numéricos).
-      const hasContent = normalized.split(" ").some(isContentToken);
-      if (!hasContent) continue;
-      if (seen.has(normalized)) continue;
-      seen.add(normalized);
-      result.push(display);
-      if (result.length >= MAX_SECTION_TITLES) break;
-    }
-
-    return result;
   } catch {
     return [];
   }

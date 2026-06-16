@@ -10,11 +10,6 @@ import {
   classifyAiIngestionError,
 } from "@/lib/ai/ingestion-errors";
 import { indexResumeInSearch } from "@/lib/search/meilisearch";
-import { normalizeSectionTitles } from "@/lib/search/chunk-terms";
-import {
-  mergeResumeTopics,
-  normalizeResumeTopics,
-} from "@/lib/resumes/topics";
 
 // 300s: tope actual de Vercel en todos los planes (Fluid Compute). La ingesta
 // de PDFs grandes (extracción + embeddings + reingest) corre síncrona dentro de
@@ -53,7 +48,7 @@ export async function POST(
 
   const { data: resume, error: resumeError } = await supabase
     .from("resumes")
-    .select("id, seller_id, file_url, topics")
+    .select("id, seller_id, file_url")
     .eq("id", resumeId)
     .single();
 
@@ -251,41 +246,6 @@ export async function POST(
       durationMs: Date.now() - startedAt,
       insufficientText: hasInsufficientText,
     });
-
-    // Best-effort: completar los "Temas del apunte" con los títulos de sección
-    // (el índice/TOC detectado por el chunker), SIN pisar los que cargó el
-    // vendedor. Mejora el recall de la búsqueda pública en los dos caminos de
-    // Explorar (Meilisearch usa `topics`; el fallback Postgres lo puntúa en
-    // scoreResumeMetadata). Se hace ANTES de reindexar para que el índice tome
-    // los temas combinados. No debe afectar el resultado de la ingesta.
-    try {
-      const derivedTopics = normalizeSectionTitles(
-        chunks.map((c) => c.sectionTitle ?? null)
-      );
-      if (derivedTopics.length > 0) {
-        const existingTopics = normalizeResumeTopics(resume.topics ?? []);
-        const mergedTopics = mergeResumeTopics(existingTopics, derivedTopics);
-        // Solo escribimos si realmente se agregó al menos un tema nuevo.
-        if (mergedTopics.length > existingTopics.length) {
-          const { error: topicsError } = await admin
-            .from("resumes")
-            .update({ topics: mergedTopics })
-            .eq("id", resumeId);
-          if (topicsError) {
-            console.warn("[ai:ingest] topics auto-fill failed (ignored)", {
-              resumeId,
-              message: topicsError.message,
-            });
-          }
-        }
-      }
-    } catch (topicsErr) {
-      console.warn("[ai:ingest] topics auto-fill threw (ignored)", {
-        resumeId,
-        message:
-          topicsErr instanceof Error ? topicsErr.message : String(topicsErr),
-      });
-    }
 
     // Best-effort: reindexar el apunte en Meilisearch con los nuevos chunkTerms.
     // No debe afectar el resultado de la ingesta. No-op si Meili no está

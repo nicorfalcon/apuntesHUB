@@ -14,11 +14,7 @@
 
 import { Meilisearch, type Index } from "meilisearch";
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  deriveChunkTerms,
-  deriveAcademicAliases,
-  normalizeSectionTitles,
-} from "./chunk-terms";
+import { deriveChunkTerms, deriveAcademicAliases } from "./chunk-terms";
 import { normalizeResumeTopics } from "@/lib/resumes/topics";
 
 export type SearchableResumeDocument = {
@@ -34,10 +30,6 @@ export type SearchableResumeDocument = {
   // topics = "Temas del apunte" declarados por el vendedor. Senal de busqueda de
   // alta prioridad: resuelven el caso en que el PDF no nombra el concepto.
   topics: string[];
-  // sectionTitles = títulos de sección (el "índice"/TOC del apunte) derivados por
-  // el chunker. Señal de búsqueda: equivalen a los temas del índice, aunque el
-  // vendedor no los haya declarado como topics. NO es contenido del PDF.
-  sectionTitles: string[];
   tags: string[];
   keywords: string[];
   aiSummary: string | null;
@@ -155,9 +147,6 @@ export async function configureResumesIndex(): Promise<void> {
     searchableAttributes: [
       "title",
       "topics",
-      // El índice/TOC del apunte va alto: son los temas reales del material,
-      // por encima de señales más ruidosas (keywords/chunkTerms).
-      "sectionTitles",
       "subject",
       "description",
       "career",
@@ -210,49 +199,36 @@ function fileNameFromPath(path: string | null): string | null {
   }
 }
 
-/** Señales de búsqueda derivadas de los chunks de un apunte. */
-type ChunkSearchSignals = {
-  chunkTerms: string[];
-  sectionTitles: string[];
-};
-
 /**
- * Lee hasta {@link MAX_CHUNKS_FOR_TERMS} chunks del apunte y deriva las señales
- * de búsqueda: términos (chunkTerms) y los títulos de sección (el índice/TOC).
- * NUNCA persiste el contenido: solo devuelve listas acotadas de señales.
- * Ante cualquier error devuelve listas vacías para no romper la indexación.
+ * Lee hasta {@link MAX_CHUNKS_FOR_TERMS} chunks del apunte y deriva términos.
+ * NUNCA persiste el contenido: solo devuelve la lista acotada de términos.
+ * Ante cualquier error devuelve [] para no romper la indexación.
  */
-async function deriveChunkSignalsForResume(
+async function deriveChunkTermsForResume(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   admin: any,
   resumeId: string
-): Promise<ChunkSearchSignals> {
+): Promise<string[]> {
   try {
     const { data, error } = await admin
       .from("document_chunks")
-      .select("content, section_title")
+      .select("content")
       .eq("resume_id", resumeId)
       .order("chunk_index", { ascending: true })
       .limit(MAX_CHUNKS_FOR_TERMS);
-    if (error || !data) return { chunkTerms: [], sectionTitles: [] };
-    const rows = data as Array<{
-      content: string | null;
-      section_title: string | null;
-    }>;
-    return {
-      chunkTerms: deriveChunkTerms(rows.map((row) => row.content)),
-      sectionTitles: normalizeSectionTitles(rows.map((row) => row.section_title)),
-    };
+    if (error || !data) return [];
+    return deriveChunkTerms(
+      (data as Array<{ content: string | null }>).map((row) => row.content)
+    );
   } catch {
-    return { chunkTerms: [], sectionTitles: [] };
+    return [];
   }
 }
 
 function buildResumeDocument(
   resume: ResumeRow,
-  signals: ChunkSearchSignals
+  chunkTerms: string[]
 ): SearchableResumeDocument {
-  const { chunkTerms, sectionTitles } = signals;
   return {
     id: resume.id,
     title: resume.title ?? "",
@@ -267,9 +243,6 @@ function buildResumeDocument(
     // profundidad: hoy se guardan ya normalizados desde el form, pero el guardado
     // es client-side; ver deuda en resume-form.tsx).
     topics: normalizeResumeTopics(resume.topics ?? []),
-    // Títulos de sección (índice/TOC) derivados de los chunks. Ya vienen
-    // normalizados y deduplicados desde deriveChunkSignalsForResume.
-    sectionTitles,
     // No existe esta columna en la BD todavía: PoC con valores vacíos.
     tags: [],
     // keywords = aliases académicos curados por reglas a partir de señales del
@@ -318,8 +291,8 @@ export async function indexResumeInSearch(
     return { status: "removed" };
   }
 
-  const signals = await deriveChunkSignalsForResume(admin, resumeId);
-  const document = buildResumeDocument(resume, signals);
+  const chunkTerms = await deriveChunkTermsForResume(admin, resumeId);
+  const document = buildResumeDocument(resume, chunkTerms);
   await index.addDocuments([document], { primaryKey: "id" });
   return { status: "indexed" };
 }
@@ -378,8 +351,8 @@ export async function reindexPublishedResumes(): Promise<{
 
     const documents: SearchableResumeDocument[] = [];
     for (const row of rows) {
-      const signals = await deriveChunkSignalsForResume(admin, row.id);
-      documents.push(buildResumeDocument(row, signals));
+      const chunkTerms = await deriveChunkTermsForResume(admin, row.id);
+      documents.push(buildResumeDocument(row, chunkTerms));
     }
 
     await index.addDocuments(documents, { primaryKey: "id" });

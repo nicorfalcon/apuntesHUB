@@ -24,10 +24,7 @@ const h = vi.hoisted(() => ({
   createIndex: vi.fn(),
   // estado de la "BD" mockeada
   resumeRows: [] as ResumeRow[],
-  chunkRowsByResume: {} as Record<
-    string,
-    Array<{ content: string | null; section_title?: string | null }>
-  >,
+  chunkRowsByResume: {} as Record<string, Array<{ content: string | null }>>,
 }));
 
 vi.mock("meilisearch", () => {
@@ -181,34 +178,6 @@ describe("indexResumeInSearch", () => {
     expect(doc.fileName).toBe("le-chatelier.pdf");
   });
 
-  it("indexa los títulos de sección (índice/TOC) como sectionTitles, deduplicados y sin headings genéricos", async () => {
-    h.resumeRows = [row({ id: "rs", topics: [] })];
-    h.chunkRowsByResume["rs"] = [
-      { content: "texto", section_title: "Equilibrio químico" },
-      { content: "texto", section_title: " Equilibrio  químico " }, // dup (case/espacios)
-      { content: "texto", section_title: "Constante de equilibrio" },
-      { content: "texto", section_title: "Introducción" }, // genérico → se descarta
-      { content: "texto", section_title: null },
-    ];
-
-    const { indexResumeInSearch } = await import("../meilisearch");
-    await indexResumeInSearch("rs");
-    const [docs] = h.addDocuments.mock.calls[0];
-    expect(docs[0].sectionTitles).toEqual([
-      "Equilibrio químico",
-      "Constante de equilibrio",
-    ]);
-  });
-
-  it("indexa sectionTitles vacío si el apunte no tiene chunks (no rompe)", async () => {
-    h.resumeRows = [row({ id: "rs0" })];
-    h.chunkRowsByResume["rs0"] = [];
-    const { indexResumeInSearch } = await import("../meilisearch");
-    await indexResumeInSearch("rs0");
-    const [docs] = h.addDocuments.mock.calls[0];
-    expect(docs[0].sectionTitles).toEqual([]);
-  });
-
   it("remueve del índice si el apunte está unpublished (no indexa)", async () => {
     h.resumeRows = [row({ id: "r2", status: "draft" })];
     const { indexResumeInSearch } = await import("../meilisearch");
@@ -297,11 +266,6 @@ describe("configureResumesIndex", () => {
     // topics va alto (justo después de title) y por encima de chunkTerms.
     expect(topicsIdx).toBe(titleIdx + 1);
     expect(topicsIdx).toBeLessThan(chunkIdx);
-    // El índice/TOC (sectionTitles) va alto: después de topics y por encima de
-    // chunkTerms.
-    const sectionIdx = searchable.indexOf("sectionTitles");
-    expect(sectionIdx).toBe(topicsIdx + 1);
-    expect(sectionIdx).toBeLessThan(chunkIdx);
   });
 });
 
