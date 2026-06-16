@@ -24,6 +24,10 @@ const h = vi.hoisted(() => ({
   rpcCalls: [] as Array<{ fn: string; args: Record<string, unknown> }>,
   // Payloads de update (done/failed) sobre ingestion_jobs.
   jobUpdates: [] as Array<Record<string, unknown>>,
+  // Payloads de update sobre resumes (auto-completado de topics).
+  resumeUpdates: [] as Array<Record<string, unknown>>,
+  // Fuerza un error en el update de resumes (para probar best-effort).
+  resumeUpdateError: null as { message: string } | null,
   // Detecta cualquier delete/insert manual sobre document_chunks (no debe ocurrir).
   manualChunkOps: [] as string[],
   // Indexación best-effort en Meilisearch al finalizar la ingesta.
@@ -62,10 +66,15 @@ vi.mock("@/lib/supabase/admin", () => ({
         h.manualChunkOps.push(`insert:${table}`);
         return { error: null };
       },
-      // ingestion_jobs.update(...).eq()
+      // ingestion_jobs.update(...).eq() / resumes.update(...).eq()
       update: (payload: Record<string, unknown>) => {
         if (table === "ingestion_jobs") h.jobUpdates.push(payload);
-        return { eq: async () => ({ error: null }) };
+        if (table === "resumes") h.resumeUpdates.push(payload);
+        return {
+          eq: async () => ({
+            error: table === "resumes" ? h.resumeUpdateError : null,
+          }),
+        };
       },
     }),
   }),
@@ -130,6 +139,8 @@ describe("POST /api/ai/ingest/[resumeId]", () => {
     h.order = [];
     h.rpcCalls = [];
     h.jobUpdates = [];
+    h.resumeUpdates = [];
+    h.resumeUpdateError = null;
     h.manualChunkOps = [];
     h.claimResult = true;
     h.claimError = null;
@@ -442,5 +453,73 @@ describe("POST /api/ai/ingest/[resumeId]", () => {
     const res = await POST(makeRequest(), ctx());
     expect(res.status).toBe(200);
     expect(h.indexResumeInSearch).toHaveBeenCalledWith("r1");
+  });
+
+  // --- Auto-completado de "Temas del apunte" con el índice/TOC (enfoque B) ---
+
+  it("auto-completa topics con los títulos de sección, sin pisar los del vendedor", async () => {
+    h.resumeSingle.mockResolvedValue({
+      data: {
+        id: "r1",
+        seller_id: "seller-1",
+        file_url: "path/r1.pdf",
+        topics: ["Tema vendedor"],
+      },
+      error: null,
+    });
+    h.chunkPdfPages.mockReturnValue([
+      {
+        ...SAMPLE_CHUNKS[0],
+        sectionTitle: "Equilibrio químico",
+        metadata: { ...SAMPLE_CHUNKS[0].metadata, sectionTitle: "Equilibrio químico" },
+      },
+    ]);
+
+    const res = await POST(makeRequest(), ctx());
+    expect(res.status).toBe(200);
+
+    const topicsUpdate = h.resumeUpdates.find((u) => "topics" in u);
+    // Vendedor primero, luego el tema derivado del índice.
+    expect(topicsUpdate?.topics).toEqual(["Tema vendedor", "Equilibrio químico"]);
+  });
+
+  it("no toca topics si los títulos de sección son genéricos (sin señal)", async () => {
+    // SAMPLE_CHUNKS trae sectionTitle "Unidad 1" (genérico) -> se descarta.
+    const res = await POST(makeRequest(), ctx());
+    expect(res.status).toBe(200);
+    expect(h.resumeUpdates.find((u) => "topics" in u)).toBeUndefined();
+  });
+
+  it("si el auto-completado de topics falla, la ingesta sigue respondiendo éxito", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    h.resumeSingle.mockResolvedValue({
+      data: {
+        id: "r1",
+        seller_id: "seller-1",
+        file_url: "path/r1.pdf",
+        topics: [],
+      },
+      error: null,
+    });
+    h.chunkPdfPages.mockReturnValue([
+      {
+        ...SAMPLE_CHUNKS[0],
+        sectionTitle: "Reacciones reversibles",
+        metadata: {
+          ...SAMPLE_CHUNKS[0].metadata,
+          sectionTitle: "Reacciones reversibles",
+        },
+      },
+    ]);
+    // El update de topics (sobre resumes) devuelve error; no debe romper nada.
+    h.resumeUpdateError = { message: "rls denied" };
+
+    const res = await POST(makeRequest(), ctx());
+    expect(res.status).toBe(200);
+    // Igual intentó escribir los topics y siguió a marcar el job done.
+    expect(h.resumeUpdates.find((u) => "topics" in u)).toBeDefined();
+    const lastJob = h.jobUpdates[h.jobUpdates.length - 1];
+    expect(lastJob).toMatchObject({ status: "done" });
+    warnSpy.mockRestore();
   });
 });

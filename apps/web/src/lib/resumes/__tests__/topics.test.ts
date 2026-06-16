@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   normalizeResumeTopic,
   normalizeResumeTopics,
+  mergeResumeTopics,
   resumeTopicKey,
   MAX_RESUME_TOPICS,
   MAX_RESUME_TOPIC_LENGTH,
@@ -113,5 +114,36 @@ describe("normalizeResumeTopics", () => {
       "sockets",
       "3FN",
     ]);
+  });
+});
+
+describe("mergeResumeTopics", () => {
+  it("pone los temas del vendedor primero y rellena con los derivados", () => {
+    expect(
+      mergeResumeTopics(["Tema vendedor"], ["Equilibrio químico"])
+    ).toEqual(["Tema vendedor", "Equilibrio químico"]);
+  });
+
+  it("no duplica un tema derivado que ya cargó el vendedor (gana el vendedor)", () => {
+    expect(
+      mergeResumeTopics(["Equilibrio Químico"], ["equilibrio quimico", "Cinética"])
+    ).toEqual(["Equilibrio Químico", "Cinética"]);
+  });
+
+  it("funciona sin temas del vendedor (solo derivados)", () => {
+    expect(mergeResumeTopics([], ["Termodinámica"])).toEqual(["Termodinámica"]);
+  });
+
+  it("acota el total a MAX_RESUME_TOPICS priorizando al vendedor", () => {
+    const vendor = Array.from({ length: MAX_RESUME_TOPICS }, (_, i) => `v-${i}`);
+    const derived = ["derivado-extra"];
+    const result = mergeResumeTopics(vendor, derived);
+    expect(result).toHaveLength(MAX_RESUME_TOPICS);
+    expect(result).not.toContain("derivado-extra");
+  });
+
+  it("es robusto ante entradas no-array", () => {
+    expect(mergeResumeTopics(null, undefined)).toEqual([]);
+    expect(mergeResumeTopics("x", ["Redes"])).toEqual(["Redes"]);
   });
 });
