@@ -66,11 +66,12 @@ export async function POST(request: NextRequest) {
 async function processPaymentNotification(paymentId: string) {
   const admin = createAdminClient();
 
-  // Idempotencia: si ya fue procesado en cualquiera de las tres tablas, salir.
+  // Idempotencia: si ya fue procesado en cualquiera de las tablas, salir.
   const [
     { data: existingPurchase },
     { data: existingEnrollment },
     { data: existingBooking },
+    { data: existingOrder },
   ] = await Promise.all([
     admin.from("purchases").select("id, status").eq("payment_id", paymentId).maybeSingle(),
     admin
@@ -83,12 +84,14 @@ async function processPaymentNotification(paymentId: string) {
       .select("id, status")
       .eq("payment_id", paymentId)
       .maybeSingle(),
+    admin.from("orders").select("id, status").eq("payment_id", paymentId).maybeSingle(),
   ]);
 
   if (
     existingPurchase?.status === "completed" ||
     existingEnrollment?.status === "completed" ||
-    existingBooking?.status === "confirmed"
+    existingBooking?.status === "confirmed" ||
+    existingOrder?.status === "completed"
   ) {
     return;
   }
@@ -99,6 +102,7 @@ async function processPaymentNotification(paymentId: string) {
     { data: pendingPurchases },
     { data: pendingEnrollments },
     { data: pendingBookings },
+    { data: pendingOrders },
   ] = await Promise.all([
     admin
       .from("purchases")
@@ -118,6 +122,12 @@ async function processPaymentNotification(paymentId: string) {
       .eq("status", "pending_payment")
       .order("created_at", { ascending: false })
       .limit(50),
+    admin
+      .from("orders")
+      .select("seller_id")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(50),
   ]);
 
   const sellerIdsFromPurchases = (pendingPurchases ?? []).map((p) => p.seller_id);
@@ -128,12 +138,14 @@ async function processPaymentNotification(paymentId: string) {
     return course?.author_id;
   }).filter((id): id is string => Boolean(id));
   const sellerIdsFromBookings = (pendingBookings ?? []).map((b) => b.tutor_id);
+  const sellerIdsFromOrders = (pendingOrders ?? []).map((o) => o.seller_id);
 
   const sellerIds = Array.from(
     new Set([
       ...sellerIdsFromPurchases,
       ...sellerIdsFromEnrollments,
       ...sellerIdsFromBookings,
+      ...sellerIdsFromOrders,
     ])
   );
 
@@ -210,10 +222,12 @@ async function processPaymentNotification(paymentId: string) {
     return;
   }
 
-  // purchases o course_enrollments
+  // purchases, course_enrollments u orders (bundle / grupo de carrito)
   await admin.rpc(action.rpc, rpcArgs);
 
-  if (action.shouldNotify) {
+  // Emails de venta solo para apunte suelto y curso. Para 'order' (bundle/carrito)
+  // todavía no hay notificación por email (queda como mejora); no rompe el flujo.
+  if (action.shouldNotify && kind !== "order") {
     try {
       if (kind === "course") {
         await sendCourseSaleNotification(admin, targetId, paymentId);

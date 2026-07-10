@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { BookOpen, CalendarDays, GraduationCap, Library, MessageCircle, PenLine } from "lucide-react";
+import { BookOpen, CalendarDays, GraduationCap, Library, MessageCircle, PenLine, ShoppingCart } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import type { Profile } from "@/lib/database.types";
@@ -17,6 +17,7 @@ export function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Pick<Profile, "display_name" | "avatar_url"> | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [cartCount, setCartCount] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -79,6 +80,28 @@ export function Navbar() {
       cancelled = true;
       window.removeEventListener("focus", fetchUnread);
       document.removeEventListener("visibilitychange", fetchUnread);
+    };
+  }, [user, pathname]);
+
+  useEffect(() => {
+    if (!user) {
+      setCartCount(0);
+      return;
+    }
+    let cancelled = false;
+    const supabase = createClient();
+    async function fetchCartCount() {
+      const { count } = await supabase
+        .from("cart_items")
+        .select("id", { count: "exact", head: true })
+        .eq("buyer_id", user!.id);
+      if (!cancelled) setCartCount(count ?? 0);
+    }
+    fetchCartCount();
+    window.addEventListener("cart-updated", fetchCartCount);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("cart-updated", fetchCartCount);
     };
   }, [user, pathname]);
 
@@ -175,6 +198,24 @@ export function Navbar() {
         <div className="flex items-center gap-2">
           {user ? (
             <>
+              <Link
+                href="/carrito"
+                aria-current={pathname === "/carrito" ? "page" : undefined}
+                aria-label={cartCount > 0 ? `Carrito (${cartCount})` : "Carrito"}
+                className={`relative inline-flex h-10 w-10 items-center justify-center rounded-xl border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 active:scale-[0.98] ${
+                  pathname === "/carrito"
+                    ? "border-accent-200 bg-accent-50 text-accent-700 dark:border-accent-300/30 dark:bg-accent-300/15 dark:text-accent-100"
+                    : "border-transparent text-gray-600 hover:border-gray-200 hover:bg-white dark:text-sand-200 dark:hover:border-white/10 dark:hover:bg-white/10"
+                }`}
+              >
+                <ShoppingCart className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
+                {cartCount > 0 && (
+                  <span className="absolute -right-1 -top-1 flex min-w-[18px] items-center justify-center rounded-full bg-accent-600 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white dark:ring-[#071713]">
+                    {cartCount > 99 ? "99+" : cartCount}
+                  </span>
+                )}
+              </Link>
+
               <Link
                 href="/mensajes"
                 aria-current={messagesActive ? "page" : undefined}

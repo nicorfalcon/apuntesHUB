@@ -33,4 +33,9 @@ describe("parseExternalReference", () => {
     // then: cae a compra (purchase) con el id completo
     expect(result).toEqual({ kind: "purchase", id: "tutoring_uuid" });
   });
+
+  it("reconoce una orden (bundle o grupo de carrito) por su prefijo", () => {
+    const result = parseExternalReference("order:uuid-abc");
+    expect(result).toEqual({ kind: "order", id: "uuid-abc" });
+  });
 });

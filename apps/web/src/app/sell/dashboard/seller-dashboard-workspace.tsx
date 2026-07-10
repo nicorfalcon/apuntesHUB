@@ -42,6 +42,8 @@ interface SellerDashboardWorkspaceProps {
   ingresosApuntes: number;
   ingresosCursos: number;
   ingresosTutorias: number;
+  ingresosPaquetes: number;
+  ventasPaquetes: number;
   apuntesContent: ReactNode;
   cursosContent: ReactNode;
   consultasContent: ReactNode;
@@ -151,6 +153,8 @@ export function SellerDashboardWorkspace({
   ingresosApuntes,
   ingresosCursos,
   ingresosTutorias,
+  ingresosPaquetes,
+  ventasPaquetes,
   apuntesContent,
   cursosContent,
   consultasContent,
@@ -184,8 +188,10 @@ export function SellerDashboardWorkspace({
 
 
   const totalPublicaciones = totalApuntes + totalCursos;
-  const totalOperaciones = totalVentasApuntes + totalVentasCursos + totalTutorias;
-  const ingresosTotales = ingresosApuntes + ingresosCursos + ingresosTutorias;
+  const totalOperaciones =
+    totalVentasApuntes + totalVentasCursos + totalTutorias + ventasPaquetes;
+  const ingresosTotales =
+    ingresosApuntes + ingresosCursos + ingresosTutorias + ingresosPaquetes;
   const activeContent =
     activeTab === "apuntes"
       ? apuntesContent
@@ -210,6 +216,12 @@ export function SellerDashboardWorkspace({
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Link
+            href="/sell/bundles"
+            className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-gray-50 dark:border-white/15 dark:hover:bg-white/[0.04]"
+          >
+            Paquetes
+          </Link>
           <Link
             href="/sell/coupons"
             className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-gray-50 dark:border-white/15 dark:hover:bg-white/[0.04]"

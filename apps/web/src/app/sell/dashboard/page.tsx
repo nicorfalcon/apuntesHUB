@@ -151,6 +151,7 @@ export default async function DashboardPage({
     { data: bookings },
     { data: profile },
     { data: ingestionJobs },
+    { data: orders },
   ] = await Promise.all([
     supabase
       .from("resumes")
@@ -162,7 +163,11 @@ export default async function DashboardPage({
       .from("purchases")
       .select("amount, seller_amount, resume_id")
       .eq("seller_id", user.id)
-      .eq("status", "completed"),
+      .eq("status", "completed")
+      // Excluir las filas hijas de una orden (bundle/carrito): son grants de acceso
+      // con seller_amount 0; el ingreso real de esas ventas vive en `orders`. Sin
+      // este filtro inflarían el conteo de ventas de apuntes sueltos.
+      .is("order_id", null),
     admin
       .from("seller_mp_credentials")
       .select("id")
@@ -195,9 +200,19 @@ export default async function DashboardPage({
     supabase
       .from("ingestion_jobs")
       .select("resume_id, status, chunks_generated, error_code, retryable"),
+    // Órdenes completadas (paquetes / carrito): el ingreso real de esas ventas.
+    supabase
+      .from("orders")
+      .select("seller_amount")
+      .eq("seller_id", user.id)
+      .eq("status", "completed"),
   ]);
 
   const hasMpConnected = !!mpCreds;
+
+  const ventasPaquetes = orders?.length ?? 0;
+  const ingresosPaquetes =
+    orders?.reduce((sum, o) => sum + Number(o.seller_amount), 0) ?? 0;
 
   // Stats: apuntes
   const totalApuntes = resumes?.length ?? 0;
@@ -510,6 +525,8 @@ export default async function DashboardPage({
       ingresosApuntes={ingresosApuntes}
       ingresosCursos={ingresosCursos}
       ingresosTutorias={ingresosTutorias}
+      ingresosPaquetes={ingresosPaquetes}
+      ventasPaquetes={ventasPaquetes}
       apuntesContent={
         <ResumesList
           resumes={resumes ?? []}

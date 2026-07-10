@@ -7,6 +7,7 @@ import { StarRating } from "@/components/ui/star-rating";
 import { ResumeTopicsSection } from "@/components/resume/resume-topics";
 import { PurchaseButton } from "./purchase-button";
 import { PreviewViewer } from "./preview-viewer";
+import { AddToCartButton } from "@/components/cart/add-to-cart-button";
 import type { ResumeWithSeller, Review, Profile } from "@/lib/database.types";
 
 export default async function ResumePage({
@@ -58,6 +59,30 @@ export default async function ResumePage({
     .eq("id", resumeWithSeller.seller_id)
     .single();
   const sellerHasMp = !!mpCreds;
+
+  // Paquetes publicados que incluyen este apunte (descubrimiento) + estado de carrito.
+  const { data: bundleLinks } = await supabase
+    .from("bundle_items")
+    .select("bundles!inner(id, title, price, is_published, deleted_at)")
+    .eq("resume_id", id);
+  type RelatedBundle = { id: string; title: string; price: number };
+  const relatedBundles = ((bundleLinks ?? []) as unknown as {
+    bundles: { id: string; title: string; price: number; is_published: boolean; deleted_at: string | null } | null;
+  }[])
+    .map((r) => r.bundles)
+    .filter((b): b is NonNullable<typeof b> => !!b && b.is_published && !b.deleted_at)
+    .map((b): RelatedBundle => ({ id: b.id, title: b.title, price: Number(b.price) }));
+
+  let resumeInCart = false;
+  if (user) {
+    const { data: cartRow } = await supabase
+      .from("cart_items")
+      .select("id")
+      .eq("buyer_id", user.id)
+      .eq("resume_id", id)
+      .maybeSingle();
+    resumeInCart = !!cartRow;
+  }
 
   // Reviews de este resumen
   const { data: reviews } = await supabase
@@ -253,14 +278,50 @@ export default async function ResumePage({
                   Ya comprado: ver mi biblioteca
                 </Link>
               ) : (
-                <PurchaseButton
-                  resumeId={resumeWithSeller.id}
-                  isLoggedIn={!!user}
-                  sellerHasMp={sellerHasMp}
-                  hasPendingPurchase={false}
-                />
+                <>
+                  <PurchaseButton
+                    resumeId={resumeWithSeller.id}
+                    isLoggedIn={!!user}
+                    sellerHasMp={sellerHasMp}
+                    hasPendingPurchase={false}
+                  />
+                  {sellerHasMp && !isOwnResume && (
+                    <div className="mt-2.5">
+                      <AddToCartButton
+                        itemType="resume"
+                        itemId={resumeWithSeller.id}
+                        isLoggedIn={!!user}
+                        initiallyInCart={resumeInCart}
+                        redirectPath={`/resume/${resumeWithSeller.id}`}
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </div>
+
+            {relatedBundles.length > 0 && !alreadyPurchased && (
+              <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50/60 p-4 dark:border-white/10 dark:bg-white/[0.03]">
+                <p className="text-xs font-semibold text-foreground">
+                  Parte de {relatedBundles.length === 1 ? "un paquete" : "estos paquetes"}
+                </p>
+                <ul className="mt-2 space-y-1.5">
+                  {relatedBundles.map((b) => (
+                    <li key={b.id}>
+                      <Link
+                        href={`/bundles/${b.id}`}
+                        className="flex items-center justify-between gap-2 text-xs text-accent-700 hover:underline dark:text-accent-100"
+                      >
+                        <span className="truncate">{b.title}</span>
+                        <span className="shrink-0 text-gray-400">
+                          ${b.price.toLocaleString("es-AR")}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </aside>
       </div>

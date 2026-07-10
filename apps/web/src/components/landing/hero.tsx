@@ -63,6 +63,10 @@ export function Hero() {
 
       {/* Hero content */}
       <div className="relative z-10 flex min-h-[calc(100svh-148px)] flex-col items-center justify-center px-4 pb-8 pt-10 text-center md:min-h-[calc(100svh-156px)] md:px-8 md:pb-10 md:pt-12">
+        <p className="animate-fade-rise mb-4 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/80 backdrop-blur-md">
+          Proyecto universitario en etapa beta
+        </p>
+
         <p className="animate-fade-rise text-xs font-medium uppercase tracking-[0.25em] text-[#a7c1b6]">
           La plataforma de apuntes universitarios
         </p>

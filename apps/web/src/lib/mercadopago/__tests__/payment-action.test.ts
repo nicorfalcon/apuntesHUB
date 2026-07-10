@@ -8,6 +8,7 @@ describe("resolvePaymentAction", () => {
       ["purchase", "complete_purchase", "p_purchase_id"],
       ["course", "complete_course_enrollment", "p_enrollment_id"],
       ["tutoring", "complete_tutoring_booking", "p_booking_id"],
+      ["order", "complete_order", "p_order_id"],
     ] as [PaymentKind, string, string][])(
       "para %s usa el RPC de completar y marca shouldNotify",
       (kind, rpc, idArg) => {
@@ -25,6 +26,7 @@ describe("resolvePaymentAction", () => {
       ["purchase", "fail_purchase", "p_purchase_id"],
       ["course", "fail_course_enrollment", "p_enrollment_id"],
       ["tutoring", "fail_tutoring_booking", "p_booking_id"],
+      ["order", "fail_order", "p_order_id"],
     ] as [PaymentKind, string, string][])(
       "para %s usa el RPC de fallar y no notifica",
       (kind, rpc, idArg) => {

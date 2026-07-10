@@ -861,6 +861,208 @@ export type Database = {
           },
         ]
       }
+      bundles: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          description: string | null
+          id: string
+          is_published: boolean
+          price: number
+          seller_id: string
+          subject: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          description?: string | null
+          id?: string
+          is_published?: boolean
+          price: number
+          seller_id: string
+          subject?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          description?: string | null
+          id?: string
+          is_published?: boolean
+          price?: number
+          seller_id?: string
+          subject?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundles_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bundle_items: {
+        Row: {
+          bundle_id: string
+          created_at: string
+          id: string
+          resume_id: string
+        }
+        Insert: {
+          bundle_id: string
+          created_at?: string
+          id?: string
+          resume_id: string
+        }
+        Update: {
+          bundle_id?: string
+          created_at?: string
+          id?: string
+          resume_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundle_items_bundle_id_fkey"
+            columns: ["bundle_id"]
+            isOneToOne: false
+            referencedRelation: "bundles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bundle_items_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          amount: number
+          buyer_id: string
+          created_at: string
+          id: string
+          mp_preference_id: string | null
+          payment_id: string | null
+          platform_fee: number
+          seller_amount: number
+          seller_id: string
+          status: string
+        }
+        Insert: {
+          amount: number
+          buyer_id: string
+          created_at?: string
+          id?: string
+          mp_preference_id?: string | null
+          payment_id?: string | null
+          platform_fee?: number
+          seller_amount?: number
+          seller_id: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          buyer_id?: string
+          created_at?: string
+          id?: string
+          mp_preference_id?: string | null
+          payment_id?: string | null
+          platform_fee?: number
+          seller_amount?: number
+          seller_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_items: {
+        Row: {
+          bundle_id: string | null
+          created_at: string
+          id: string
+          item_type: string
+          order_id: string
+          resume_id: string | null
+          unit_price: number
+        }
+        Insert: {
+          bundle_id?: string | null
+          created_at?: string
+          id?: string
+          item_type: string
+          order_id: string
+          resume_id?: string | null
+          unit_price: number
+        }
+        Update: {
+          bundle_id?: string | null
+          created_at?: string
+          id?: string
+          item_type?: string
+          order_id?: string
+          resume_id?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cart_items: {
+        Row: {
+          added_at: string
+          bundle_id: string | null
+          buyer_id: string
+          id: string
+          item_type: string
+          resume_id: string | null
+        }
+        Insert: {
+          added_at?: string
+          bundle_id?: string | null
+          buyer_id: string
+          id?: string
+          item_type: string
+          resume_id?: string | null
+        }
+        Update: {
+          added_at?: string
+          bundle_id?: string | null
+          buyer_id?: string
+          id?: string
+          item_type?: string
+          resume_id?: string | null
+        }
+        Relationships: []
+      }
       purchases: {
         Row: {
           amount: number
@@ -870,6 +1072,7 @@ export type Database = {
           discount_amount: number
           id: string
           mp_preference_id: string | null
+          order_id: string | null
           payment_id: string | null
           platform_fee: number
           resume_id: string
@@ -885,6 +1088,7 @@ export type Database = {
           discount_amount?: number
           id?: string
           mp_preference_id?: string | null
+          order_id?: string | null
           payment_id?: string | null
           platform_fee?: number
           resume_id: string
@@ -900,6 +1104,7 @@ export type Database = {
           discount_amount?: number
           id?: string
           mp_preference_id?: string | null
+          order_id?: string | null
           payment_id?: string | null
           platform_fee?: number
           resume_id?: string
@@ -1734,6 +1939,39 @@ export type Database = {
       purchase_resume: {
         Args: { p_resume_id: string; p_coupon_code?: string | null }
         Returns: Json
+      }
+      create_bundle: {
+        Args: {
+          p_title: string
+          p_description: string | null
+          p_subject: string | null
+          p_price: number
+          p_resume_ids: string[]
+        }
+        Returns: Json
+      }
+      update_bundle: {
+        Args: {
+          p_bundle_id: string
+          p_title: string
+          p_description: string | null
+          p_subject: string | null
+          p_price: number
+          p_resume_ids: string[]
+        }
+        Returns: Json
+      }
+      purchase_order: {
+        Args: { p_seller_id: string; p_items: Json }
+        Returns: Json
+      }
+      complete_order: {
+        Args: { p_order_id: string; p_payment_id: string }
+        Returns: undefined
+      }
+      fail_order: {
+        Args: { p_order_id: string; p_payment_id: string }
+        Returns: undefined
       }
       validate_coupon: {
         Args: { p_code: string; p_resume_id: string }

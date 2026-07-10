@@ -25,6 +25,11 @@ const RPC_BY_KIND: Record<
     fail: "fail_tutoring_booking",
     idArg: "p_booking_id",
   },
+  order: {
+    complete: "complete_order",
+    fail: "fail_order",
+    idArg: "p_order_id",
+  },
 };
 
 /**
