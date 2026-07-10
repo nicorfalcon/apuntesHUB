@@ -34,11 +34,12 @@ describe("AiChatPanel", () => {
     Element.prototype.scrollIntoView = vi.fn();
   });
 
-  it("muestra los tabs Chat y Estudiar, con Chat activo por defecto", async () => {
+  it("muestra los tabs Chat, Estudiar e Historial, con Chat activo por defecto", async () => {
     await openPanel();
 
     expect(screen.getByRole("tab", { name: /chat/i })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: /estudiar/i })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("tab", { name: /historial/i })).toHaveAttribute("aria-selected", "false");
   });
 
   it("expone la semántica ARIA completa de tabs/tabpanel", async () => {
@@ -46,13 +47,16 @@ describe("AiChatPanel", () => {
 
     const chatTab = screen.getByRole("tab", { name: /chat/i });
     const studyTab = screen.getByRole("tab", { name: /estudiar/i });
+    const historyTab = screen.getByRole("tab", { name: /historial/i });
     expect(chatTab).toHaveAttribute("id", "ai-chat-tab-chat");
     expect(chatTab).toHaveAttribute("aria-controls", "ai-chat-panel-chat");
     expect(studyTab).toHaveAttribute("aria-controls", "ai-chat-panel-study");
+    expect(historyTab).toHaveAttribute("aria-controls", "ai-chat-panel-history");
 
     // Roving tabindex: solo el tab activo es tabbable.
     expect(chatTab).toHaveAttribute("tabindex", "0");
     expect(studyTab).toHaveAttribute("tabindex", "-1");
+    expect(historyTab).toHaveAttribute("tabindex", "-1");
 
     // El panel activo es un tabpanel etiquetado por el tab activo.
     const panel = screen.getByRole("tabpanel");
@@ -76,6 +80,7 @@ describe("AiChatPanel", () => {
     await openPanel();
     const chatTab = screen.getByRole("tab", { name: /chat/i });
     const studyTab = screen.getByRole("tab", { name: /estudiar/i });
+    const historyTab = screen.getByRole("tab", { name: /historial/i });
 
     chatTab.focus();
     await userEvent.keyboard("{ArrowRight}");
@@ -87,7 +92,7 @@ describe("AiChatPanel", () => {
     expect(chatTab).toHaveFocus();
 
     await userEvent.keyboard("{End}");
-    expect(studyTab).toHaveAttribute("aria-selected", "true");
+    expect(historyTab).toHaveAttribute("aria-selected", "true");
 
     await userEvent.keyboard("{Home}");
     expect(chatTab).toHaveAttribute("aria-selected", "true");

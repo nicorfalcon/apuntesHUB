@@ -4,10 +4,9 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import { Clock3, GripVertical, Menu, MessageCircleQuestion, X } from "lucide-react";
+import { GripVertical, Menu, MessageCircleQuestion, X } from "lucide-react";
 import { StarRating } from "@/components/ui/star-rating";
 import { AiChatPanel } from "@/components/ui/ai-chat-panel";
-import { AiConversationList } from "@/components/ai/ai-conversation-list";
 import { MaterialQuestionsPanel } from "@/components/material-questions";
 import { ResumeTopicsSection } from "@/components/resume/resume-topics";
 import type { TocItem } from "@/components/ui/pdf-viewer";
@@ -218,10 +217,7 @@ export function ViewerLayout({
   // null = todavía cargando; [] = sin índice; [...] = índice disponible
   const [outline, setOutline] = useState<TocItem[] | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [toolsPanel, setToolsPanel] = useState<"consultas" | "ia" | null>(null);
-  const [activeAiConversationId, setActiveAiConversationId] = useState<string | null>(null);
-  const [aiPanelOpenSignal, setAiPanelOpenSignal] = useState(0);
-  const [aiHistoryRefreshSignal, setAiHistoryRefreshSignal] = useState(0);
+  const [toolsPanel, setToolsPanel] = useState<"consultas" | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
@@ -341,20 +337,6 @@ export function ViewerLayout({
 
   const hasOutline = outline !== null && outline.length > 0;
   const outlineLoading = outline === null;
-
-  const openNewAiConversation = useCallback(() => {
-    setActiveAiConversationId(null);
-    setAiPanelOpenSignal((value) => value + 1);
-  }, []);
-
-  const openExistingAiConversation = useCallback((conversationId: string) => {
-    setActiveAiConversationId(conversationId);
-    setAiPanelOpenSignal((value) => value + 1);
-  }, []);
-
-  const refreshAiHistory = useCallback(() => {
-    setAiHistoryRefreshSignal((value) => value + 1);
-  }, []);
 
   const closeToolsPanel = useCallback(() => {
     setToolsPanel(null);
@@ -693,33 +675,19 @@ export function ViewerLayout({
           <div className="h-8" />
         </main>
 
-        {/* ── Acciones de estudio ── */}
-        <div className="fixed right-4 top-20 z-30 flex flex-col gap-2 sm:right-5">
-          <button
-            type="button"
-            onClick={() => setToolsPanel("consultas")}
-            className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-3 text-xs font-bold shadow-lg backdrop-blur-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${
-              toolsPanel === "consultas"
-                ? "border-accent-300 bg-accent-600 text-white dark:bg-accent-300 dark:text-[#071713]"
-                : "border-white/15 bg-[#071713]/80 text-sand-50 hover:bg-[#0d261f] dark:bg-[#071713]/85"
-            }`}
-          >
-            <MessageCircleQuestion className="h-4 w-4" aria-hidden="true" />
-            <span className="hidden sm:inline">Consultas</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setToolsPanel("ia")}
-            className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-3 text-xs font-bold shadow-lg backdrop-blur-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${
-              toolsPanel === "ia"
-                ? "border-accent-300 bg-accent-600 text-white dark:bg-accent-300 dark:text-[#071713]"
-                : "border-white/15 bg-[#071713]/80 text-sand-50 hover:bg-[#0d261f] dark:bg-[#071713]/85"
-            }`}
-          >
-            <Clock3 className="h-4 w-4" aria-hidden="true" />
-            <span className="hidden sm:inline">Historial IA</span>
-          </button>
-        </div>
+        {/* ── Acción secundaria: consultas ── */}
+        <button
+          type="button"
+          onClick={() => setToolsPanel("consultas")}
+          className={`fixed bottom-20 right-4 z-30 inline-flex min-h-11 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold shadow-lg backdrop-blur-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 sm:bottom-6 sm:right-[10.75rem] ${
+            toolsPanel === "consultas"
+              ? "border-accent-300 bg-accent-600 text-white dark:bg-accent-300 dark:text-[#071713]"
+              : "border-white/15 bg-[#071713]/80 text-sand-50 hover:bg-[#0d261f] dark:bg-[#071713]/85"
+          }`}
+        >
+          <MessageCircleQuestion className="h-4 w-4" aria-hidden="true" />
+          <span className="hidden sm:inline">Consultas</span>
+        </button>
 
         {toolsPanel && (
           <>
@@ -732,9 +700,7 @@ export function ViewerLayout({
             <aside className="fixed bottom-0 right-0 top-14 z-50 flex w-[min(92vw,30rem)] flex-col border-l border-gray-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#101816]">
               <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-white/10">
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-foreground">
-                    {toolsPanel === "consultas" ? "Consultas del apunte" : "Historial IA"}
-                  </p>
+                  <p className="text-sm font-bold text-foreground">Consultas del apunte</p>
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     {resume.title}
                   </p>
@@ -749,28 +715,12 @@ export function ViewerLayout({
                 </button>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto p-4">
-                {toolsPanel === "consultas" ? (
-                  <MaterialQuestionsPanel
-                    targetType="resume"
-                    resumeId={resumeId}
-                    currentPage={currentPage}
-                    surface="embedded"
-                  />
-                ) : (
-                  <AiConversationList
-                    resumeId={resumeId}
-                    activeConversationId={activeAiConversationId}
-                    refreshSignal={aiHistoryRefreshSignal}
-                    onSelectConversation={(conversationId) => {
-                      closeToolsPanel();
-                      openExistingAiConversation(conversationId);
-                    }}
-                    onNewConversation={() => {
-                      closeToolsPanel();
-                      openNewAiConversation();
-                    }}
-                  />
-                )}
+                <MaterialQuestionsPanel
+                  targetType="resume"
+                  resumeId={resumeId}
+                  currentPage={currentPage}
+                  surface="embedded"
+                />
               </div>
             </aside>
           </>
@@ -783,13 +733,6 @@ export function ViewerLayout({
         resumeSubject={resume.subject}
         resumeTopics={resume.topics}
         aiReady={aiReady}
-        selectedConversationId={activeAiConversationId}
-        openSignal={aiPanelOpenSignal}
-        onConversationCreated={(conversationId) => {
-          setActiveAiConversationId(conversationId);
-          refreshAiHistory();
-        }}
-        onConversationUpdated={refreshAiHistory}
       />
     </div>
   );

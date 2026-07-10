@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { GraduationCap, MessageSquare, Send } from "lucide-react";
+import { Clock3, GraduationCap, MessageSquare, Send } from "lucide-react";
 import { useAIModels } from "@/hooks/use-ai-models";
+import { AiConversationList } from "@/components/ai/ai-conversation-list";
 import { ModelSelector } from "./model-selector";
 import { AnswerModeSelector } from "./answer-mode-selector";
 import type { StudyChatAnswerMode } from "./answer-mode-selector";
@@ -16,7 +17,7 @@ interface Message {
   sources?: Source[];
 }
 
-type PanelTab = "chat" | "study";
+type PanelTab = "chat" | "study" | "history";
 
 interface AiChatPanelProps {
   resumeId: string;
@@ -106,6 +107,7 @@ export function AiChatPanel({
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [historyRefreshSignal, setHistoryRefreshSignal] = useState(0);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,6 +116,7 @@ export function AiChatPanel({
   const tabRefs = useRef<Record<PanelTab, HTMLButtonElement | null>>({
     chat: null,
     study: null,
+    history: null,
   });
 
   function openStudyWithTopic(topic: string) {
@@ -121,16 +124,23 @@ export function AiChatPanel({
     setTab("study");
   }
 
-  // Navegación por teclado del tablist (roving focus): flechas alternan entre
-  // Chat y Estudiar, Home va a Chat y End a Estudiar.
+  function refreshHistory() {
+    setHistoryRefreshSignal((value) => value + 1);
+    onConversationUpdated?.();
+  }
+
+  // Navegación por teclado del tablist (roving focus).
   function handleTabKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     let next: PanelTab | null = null;
     if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-      next = tab === "chat" ? "study" : "chat";
+      const order: PanelTab[] = ["chat", "study", "history"];
+      const currentIndex = order.indexOf(tab);
+      const delta = e.key === "ArrowRight" ? 1 : -1;
+      next = order[(currentIndex + delta + order.length) % order.length];
     } else if (e.key === "Home") {
       next = "chat";
     } else if (e.key === "End") {
-      next = "study";
+      next = "history";
     }
     if (!next) return;
     e.preventDefault();
@@ -156,49 +166,42 @@ export function AiChatPanel({
       return;
     }
 
-    const requestedConversationId = selectedConversationId;
-    let cancelled = false;
-    async function loadConversation() {
-      setHistoryLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`/api/ai/conversations/${requestedConversationId}`, {
-          cache: "no-store",
-        });
-        const data = (await res.json().catch(() => null)) as
-          | {
-              messages?: Array<{
-                role: "user" | "assistant";
-                content: string;
-                sources?: unknown[];
-              }>;
-              error?: string;
-            }
-          | null;
-        if (!res.ok) throw new Error(data?.error ?? "No pudimos abrir la conversación.");
-        if (cancelled) return;
-        setConversationId(requestedConversationId);
-        setMessages(
-          (data?.messages ?? []).map((message) => ({
-            role: message.role,
-            content: message.content,
-            sources: Array.isArray(message.sources) ? (message.sources as Source[]) : [],
-          }))
-        );
-      } catch (loadError) {
-        if (!cancelled) {
-          setError(loadError instanceof Error ? loadError.message : "No pudimos abrir la conversación.");
-        }
-      } finally {
-        if (!cancelled) setHistoryLoading(false);
-      }
-    }
-
-    void loadConversation();
-    return () => {
-      cancelled = true;
-    };
+    void loadConversationById(selectedConversationId);
   }, [openSignal, selectedConversationId]);
+
+  async function loadConversationById(requestedConversationId: string) {
+    setHistoryLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/ai/conversations/${requestedConversationId}`, {
+        cache: "no-store",
+      });
+      const data = (await res.json().catch(() => null)) as
+        | {
+            messages?: Array<{
+              role: "user" | "assistant";
+              content: string;
+              sources?: unknown[];
+            }>;
+            error?: string;
+          }
+        | null;
+      if (!res.ok) throw new Error(data?.error ?? "No pudimos abrir la conversación.");
+      setConversationId(requestedConversationId);
+      setMessages(
+        (data?.messages ?? []).map((message) => ({
+          role: message.role,
+          content: message.content,
+          sources: Array.isArray(message.sources) ? (message.sources as Source[]) : [],
+        }))
+      );
+      setTab("chat");
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "No pudimos abrir la conversación.");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
 
   async function onSend() {
     const q = query.trim();
@@ -251,7 +254,7 @@ export function AiChatPanel({
             sources: data.sources,
           },
         ]);
-        onConversationUpdated?.();
+        refreshHistory();
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -314,7 +317,7 @@ export function AiChatPanel({
                 />
               )}
 
-              {/* Tabs Chat / Estudiar */}
+              {/* Tabs Chat / Estudiar / Historial */}
               <div
                 role="tablist"
                 aria-label="Modo del asistente"
@@ -324,6 +327,7 @@ export function AiChatPanel({
                 {([
                   { id: "chat" as const, label: "Chat", icon: MessageSquare },
                   { id: "study" as const, label: "Estudiar", icon: GraduationCap },
+                  { id: "history" as const, label: "Historial", icon: Clock3 },
                 ]).map((t) => {
                   const active = tab === t.id;
                   const Icon = t.icon;
@@ -360,7 +364,22 @@ export function AiChatPanel({
                 tabIndex={0}
                 className="flex min-h-0 flex-1 flex-col focus-visible:outline-none"
               >
-              {tab === "study" ? (
+              {tab === "history" ? (
+                <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+                  <AiConversationList
+                    resumeId={resumeId}
+                    activeConversationId={conversationId}
+                    refreshSignal={historyRefreshSignal}
+                    onSelectConversation={(id) => void loadConversationById(id)}
+                    onNewConversation={() => {
+                      setConversationId(null);
+                      setMessages([]);
+                      setError(null);
+                      setTab("chat");
+                    }}
+                  />
+                </div>
+              ) : tab === "study" ? (
                 <StudyPanel
                   key={studyTopic}
                   resumeId={resumeId}
@@ -374,8 +393,9 @@ export function AiChatPanel({
                   onConversationCreated={(id) => {
                     setConversationId(id);
                     onConversationCreated?.(id);
+                    setHistoryRefreshSignal((value) => value + 1);
                   }}
-                  onConversationUpdated={onConversationUpdated}
+                  onConversationUpdated={refreshHistory}
                 />
               ) : (
                 <>
