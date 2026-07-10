@@ -20,16 +20,23 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { resumeId } = body as { resumeId: string };
+  const { resumeId, couponCode } = body as {
+    resumeId: string;
+    couponCode?: string;
+  };
 
   if (!resumeId) {
     return NextResponse.json({ error: "resumeId es requerido" }, { status: 400 });
   }
 
-  // Crear/reutilizar compra pendiente via RPC (valida reglas de negocio en la DB)
+  // Crear/reutilizar compra pendiente via RPC (valida reglas de negocio en la DB,
+  // incluido el cupón: se re-valida server-side, no se confía en el cliente).
   const { data: purchaseData, error: purchaseError } = await supabase.rpc(
     "purchase_resume",
-    { p_resume_id: resumeId }
+    {
+      p_resume_id: resumeId,
+      ...(couponCode ? { p_coupon_code: couponCode } : {}),
+    }
   );
 
   if (purchaseError) {

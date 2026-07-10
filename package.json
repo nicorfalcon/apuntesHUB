@@ -17,7 +17,10 @@
     "test:e2e": "npm run test:e2e -w @apunteshub/web",
     "hls:convert": "node apps/web/scripts/convert-course-video-hls.mjs",
     "hls:process-pending": "node apps/web/scripts/process-pending-hls.mjs",
-    "search:reindex": "node apps/web/scripts/reindex-search.mjs"
+    "search:reindex": "node apps/web/scripts/reindex-search.mjs",
+    "preview:process-pending": "node apps/web/scripts/process-pending-previews.mjs",
+    "preview:backfill": "node apps/web/scripts/enqueue-preview-backfill.mjs",
+    "preview:cleanup": "node apps/web/scripts/cleanup-orphan-previews.mjs"
   },
   "devDependencies": {
     "supabase": "^2.98.0",

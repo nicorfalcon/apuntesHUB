@@ -772,11 +772,102 @@ export type Database = {
         }
         Relationships: []
       }
+      coupons: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          discount_type: string
+          expires_at: string | null
+          id: string
+          max_uses: number | null
+          seller_id: string
+          used_count: number
+          value: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          discount_type: string
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+          seller_id: string
+          used_count?: number
+          value: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          discount_type?: string
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+          seller_id?: string
+          used_count?: number
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupons_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupon_redemptions: {
+        Row: {
+          buyer_id: string
+          coupon_id: string
+          created_at: string
+          discount_amount: number
+          id: string
+          purchase_id: string
+        }
+        Insert: {
+          buyer_id: string
+          coupon_id: string
+          created_at?: string
+          discount_amount: number
+          id?: string
+          purchase_id: string
+        }
+        Update: {
+          buyer_id?: string
+          coupon_id?: string
+          created_at?: string
+          discount_amount?: number
+          id?: string
+          purchase_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_redemptions_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: true
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchases: {
         Row: {
           amount: number
           buyer_id: string
+          coupon_id: string | null
           created_at: string
+          discount_amount: number
           id: string
           mp_preference_id: string | null
           payment_id: string | null
@@ -789,7 +880,9 @@ export type Database = {
         Insert: {
           amount: number
           buyer_id: string
+          coupon_id?: string | null
           created_at?: string
+          discount_amount?: number
           id?: string
           mp_preference_id?: string | null
           payment_id?: string | null
@@ -802,7 +895,9 @@ export type Database = {
         Update: {
           amount?: number
           buyer_id?: string
+          coupon_id?: string | null
           created_at?: string
+          discount_amount?: number
           id?: string
           mp_preference_id?: string | null
           payment_id?: string | null
@@ -911,6 +1006,47 @@ export type Database = {
           },
         ]
       }
+      resume_preview_pages: {
+        Row: {
+          created_at: string
+          height: number | null
+          id: string
+          is_locked: boolean
+          page_number: number
+          resume_id: string
+          storage_path: string
+          width: number | null
+        }
+        Insert: {
+          created_at?: string
+          height?: number | null
+          id?: string
+          is_locked?: boolean
+          page_number: number
+          resume_id: string
+          storage_path: string
+          width?: number | null
+        }
+        Update: {
+          created_at?: string
+          height?: number | null
+          id?: string
+          is_locked?: boolean
+          page_number?: number
+          resume_id?: string
+          storage_path?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resume_preview_pages_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resumes: {
         Row: {
           career: string
@@ -919,6 +1055,11 @@ export type Database = {
           description: string | null
           file_url: string | null
           id: string
+          preview_error: string | null
+          preview_page_count: number | null
+          preview_processing_completed_at: string | null
+          preview_processing_started_at: string | null
+          preview_status: string
           preview_url: string | null
           price: number
           rating_avg: number
@@ -938,6 +1079,11 @@ export type Database = {
           description?: string | null
           file_url?: string | null
           id?: string
+          preview_error?: string | null
+          preview_page_count?: number | null
+          preview_processing_completed_at?: string | null
+          preview_processing_started_at?: string | null
+          preview_status?: string
           preview_url?: string | null
           price: number
           rating_avg?: number
@@ -957,6 +1103,11 @@ export type Database = {
           description?: string | null
           file_url?: string | null
           id?: string
+          preview_error?: string | null
+          preview_page_count?: number | null
+          preview_processing_completed_at?: string | null
+          preview_processing_started_at?: string | null
+          preview_status?: string
           preview_url?: string | null
           price?: number
           rating_avg?: number
@@ -1459,6 +1610,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_resume_preview_job: {
+        Args: { p_stale_after_minutes?: number }
+        Returns: string
+      }
       can_answer_material_question: {
         Args: { p_question_id: string; p_user_id: string }
         Returns: boolean
@@ -1576,7 +1731,18 @@ export type Database = {
         Args: { p_resume_id: string; p_user_id: string }
         Returns: boolean
       }
-      purchase_resume: { Args: { p_resume_id: string }; Returns: Json }
+      purchase_resume: {
+        Args: { p_resume_id: string; p_coupon_code?: string | null }
+        Returns: Json
+      }
+      validate_coupon: {
+        Args: { p_code: string; p_resume_id: string }
+        Returns: Json
+      }
+      compute_coupon_discount: {
+        Args: { p_price: number; p_discount_type: string; p_value: number }
+        Returns: number
+      }
       reingest_document_chunks: {
         Args: { p_resume_id: string; p_chunks: Json }
         Returns: number

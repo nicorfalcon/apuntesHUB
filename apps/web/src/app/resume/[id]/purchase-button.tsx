@@ -10,6 +10,15 @@ interface PurchaseButtonProps {
   hasPendingPurchase: boolean;
 }
 
+interface CouponResult {
+  valid: boolean;
+  error?: string;
+  code?: string;
+  discount_amount?: number;
+  original_amount?: number;
+  final_amount?: number;
+}
+
 export function PurchaseButton({
   resumeId,
   isLoggedIn,
@@ -19,6 +28,42 @@ export function PurchaseButton({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Cupón
+  const [couponCode, setCouponCode] = useState("");
+  const [couponOpen, setCouponOpen] = useState(false);
+  const [validating, setValidating] = useState(false);
+  const [coupon, setCoupon] = useState<CouponResult | null>(null);
+
+  async function handleApplyCoupon() {
+    const code = couponCode.trim();
+    if (!code) return;
+
+    if (!isLoggedIn) {
+      router.push(`/login?redirect=/resume/${resumeId}`);
+      return;
+    }
+
+    setValidating(true);
+    setCoupon(null);
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, resumeId }),
+      });
+      const data = (await res.json()) as CouponResult;
+      setCoupon(data);
+    } catch {
+      setCoupon({ valid: false, error: "No se pudo validar el código" });
+    }
+    setValidating(false);
+  }
+
+  function handleRemoveCoupon() {
+    setCoupon(null);
+    setCouponCode("");
+  }
 
   async function handlePurchase() {
     if (!isLoggedIn) {
@@ -33,7 +78,11 @@ export function PurchaseButton({
       const res = await fetch("/api/mercadopago/create-preference", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resumeId }),
+        body: JSON.stringify({
+          resumeId,
+          // Solo mandamos el código si validó OK; el server lo re-valida igual.
+          ...(coupon?.valid ? { couponCode: coupon.code } : {}),
+        }),
       });
 
       const data = await res.json();
@@ -44,13 +93,11 @@ export function PurchaseButton({
         return;
       }
 
-      // Redirigir directo al Checkout Pro de Mercado Pago
       if (data.initPoint) {
         window.location.href = data.initPoint;
         return; // Mantener loading=true mientras redirige
       }
 
-      // Fallback por si no viene initPoint
       setError("Error al obtener el enlace de pago.");
     } catch {
       setError("Error de conexión. Intentá de nuevo.");
@@ -73,6 +120,73 @@ export function PurchaseButton({
 
   return (
     <div className="mt-4 space-y-2.5">
+      {/* Cupón de descuento */}
+      {isLoggedIn && (
+        <div className="text-sm">
+          {!couponOpen && !coupon?.valid ? (
+            <button
+              type="button"
+              onClick={() => setCouponOpen(true)}
+              className="text-xs font-medium text-accent-700 underline-offset-2 hover:underline dark:text-accent-100"
+            >
+              ¿Tenés un código de descuento?
+            </button>
+          ) : coupon?.valid ? (
+            <div className="flex items-center justify-between rounded-xl border border-green-200/70 bg-green-50/60 px-3 py-2 dark:border-green-400/25 dark:bg-green-400/10">
+              <div className="text-xs">
+                <span className="font-semibold text-green-700 dark:text-green-300">
+                  {coupon.code}
+                </span>{" "}
+                <span className="text-green-700/80 dark:text-green-300/80">
+                  aplicado (−$
+                  {Number(coupon.discount_amount ?? 0).toLocaleString("es-AR")})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleRemoveCoupon}
+                className="text-xs text-gray-400 hover:text-gray-600"
+              >
+                Quitar
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <div className="flex gap-2">
+                <input
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
+                  placeholder="CÓDIGO"
+                  maxLength={20}
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs uppercase tracking-wide outline-none focus:border-accent-400 dark:border-white/15 dark:bg-white/[0.03]"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyCoupon}
+                  disabled={validating || !couponCode.trim()}
+                  className="shrink-0 rounded-lg border border-accent-600 px-3 py-2 text-xs font-semibold text-accent-700 hover:bg-accent-50 disabled:opacity-50 dark:border-accent-300/35 dark:text-accent-100 dark:hover:bg-accent-300/10"
+                >
+                  {validating ? "…" : "Aplicar"}
+                </button>
+              </div>
+              {coupon && !coupon.valid && (
+                <p className="text-xs text-red-600">{coupon.error}</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {coupon?.valid && (
+        <p className="text-right text-sm font-semibold text-foreground">
+          Total: ${Number(coupon.final_amount ?? 0).toLocaleString("es-AR")}{" "}
+          <span className="text-xs font-normal text-gray-400 line-through">
+            ${Number(coupon.original_amount ?? 0).toLocaleString("es-AR")}
+          </span>
+        </p>
+      )}
+
       <button
         onClick={handlePurchase}
         disabled={loading}

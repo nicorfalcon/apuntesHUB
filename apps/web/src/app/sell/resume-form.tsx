@@ -222,6 +222,17 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
       ...topicInput.split(","),
     ]);
 
+    // Encolar la generación de vista previa protegida (estilo Scribd) cuando el
+    // apunte se publica con un PDF: si se subió un PDF nuevo (hay que regenerar) o
+    // si es la primera vez que se publica y todavía no tiene preview. El worker
+    // `preview:process-pending` toma los 'pending' en FIFO. Fuera de este caso no
+    // tocamos preview_status para no pisar un 'ready' existente.
+    const willBePublished = form.status === "published";
+    const pdfChanged = pdfFile !== null;
+    const hadNoPreview = (initial?.preview_status ?? "none") === "none";
+    const shouldEnqueuePreview =
+      willBePublished && Boolean(fileUrl) && (pdfChanged || hadNoPreview);
+
     const payload = {
       id: resumeId,
       seller_id: userId,
@@ -235,6 +246,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
       preview_url: previewUrl,
       status: form.status as Resume["status"],
       topics: finalTopics,
+      ...(shouldEnqueuePreview ? { preview_status: "pending" } : {}),
     };
 
     let dbError;

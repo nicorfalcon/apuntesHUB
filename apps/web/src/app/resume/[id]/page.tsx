@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { StarRating } from "@/components/ui/star-rating";
 import { ResumeTopicsSection } from "@/components/resume/resume-topics";
 import { PurchaseButton } from "./purchase-button";
+import { PreviewViewer } from "./preview-viewer";
 import type { ResumeWithSeller, Review, Profile } from "@/lib/database.types";
 
 export default async function ResumePage({
@@ -114,6 +115,13 @@ export default async function ResumePage({
             </div>
           )}
 
+          {/* Vista previa protegida (estilo Scribd): páginas libres nítidas +
+              bloqueadas con blur. El dueño y quien ya compró la ven sin candados. */}
+          <PreviewViewer
+            resumeId={resumeWithSeller.id}
+            unlocked={isOwnResume || alreadyPurchased}
+          />
+
           <ResumeTopicsSection
             topics={resumeWithSeller.topics}
             className="rounded-xl border border-gray-100 bg-gray-50/70 p-5 dark:border-white/10 dark:bg-white/[0.03]"
@@ -151,7 +159,7 @@ export default async function ResumePage({
         </div>
 
         {/* Sidebar */}
-        <aside className="w-full shrink-0 lg:w-80">
+        <aside id="comprar" className="w-full shrink-0 scroll-mt-24 lg:w-80">
           <div className="sticky top-20 space-y-5 rounded-xl border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-[#0f1e1a]">
             <div>
               <h1 className="text-xl font-bold text-foreground leading-tight">

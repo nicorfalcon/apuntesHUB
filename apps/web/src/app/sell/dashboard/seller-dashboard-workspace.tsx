@@ -209,13 +209,21 @@ export function SellerDashboardWorkspace({
             Ingresos, publicaciones y entregables organizados por inventario.
           </p>
         </div>
-        <Link
-          href="/sell/new"
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-accent-700 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
-        >
-          <Plus className="h-4 w-4" />
-          Nueva publicación
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/sell/coupons"
+            className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-gray-50 dark:border-white/15 dark:hover:bg-white/[0.04]"
+          >
+            Códigos de descuento
+          </Link>
+          <Link
+            href="/sell/new"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-accent-700 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
+          >
+            <Plus className="h-4 w-4" />
+            Nueva publicación
+          </Link>
+        </div>
       </header>
 
       {!hasMpConnected && (
