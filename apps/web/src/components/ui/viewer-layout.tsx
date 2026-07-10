@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import { GripVertical, Menu, X } from "lucide-react";
+import { Clock3, GripVertical, Menu, MessageCircleQuestion, X } from "lucide-react";
 import { StarRating } from "@/components/ui/star-rating";
 import { AiChatPanel } from "@/components/ui/ai-chat-panel";
 import { AiConversationList } from "@/components/ai/ai-conversation-list";
@@ -218,7 +218,7 @@ export function ViewerLayout({
   // null = todavía cargando; [] = sin índice; [...] = índice disponible
   const [outline, setOutline] = useState<TocItem[] | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<"contenido" | "consultas" | "ia">("contenido");
+  const [toolsPanel, setToolsPanel] = useState<"consultas" | "ia" | null>(null);
   const [activeAiConversationId, setActiveAiConversationId] = useState<string | null>(null);
   const [aiPanelOpenSignal, setAiPanelOpenSignal] = useState(0);
   const [aiHistoryRefreshSignal, setAiHistoryRefreshSignal] = useState(0);
@@ -354,6 +354,10 @@ export function ViewerLayout({
 
   const refreshAiHistory = useCallback(() => {
     setAiHistoryRefreshSignal((value) => value + 1);
+  }, []);
+
+  const closeToolsPanel = useCallback(() => {
+    setToolsPanel(null);
   }, []);
 
   return (
@@ -507,104 +511,50 @@ export function ViewerLayout({
 
           <div className="mx-5 h-px shrink-0 bg-gray-100 dark:bg-white/10" />
 
-          {/* ── Sección de contenido / consultas ── */}
+          {/* ── Sección de contenido ── */}
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="shrink-0 px-5 pb-3 pt-4">
-              <div>
-                <div className="grid grid-cols-3 rounded-xl bg-gray-100 p-1 dark:bg-white/[0.06]">
-                  <button
-                    type="button"
-                    onClick={() => setSidebarTab("contenido")}
-                    className={`rounded-lg px-2 py-2 text-xs font-bold transition-colors ${
-                      sidebarTab === "contenido"
-                        ? "bg-white text-foreground shadow-sm dark:bg-white/[0.08]"
-                        : "text-gray-500 hover:text-foreground dark:text-sand-300/70 dark:hover:text-sand-50"
-                    }`}
-                  >
-                    Contenido
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSidebarTab("consultas")}
-                    className={`rounded-lg px-2 py-2 text-xs font-bold transition-colors ${
-                      sidebarTab === "consultas"
-                        ? "bg-white text-foreground shadow-sm dark:bg-white/[0.08]"
-                        : "text-gray-500 hover:text-foreground dark:text-sand-300/70 dark:hover:text-sand-50"
-                    }`}
-                  >
-                    Consultas
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSidebarTab("ia")}
-                    className={`rounded-lg px-2 py-2 text-xs font-bold transition-colors ${
-                      sidebarTab === "ia"
-                        ? "bg-white text-foreground shadow-sm dark:bg-white/[0.08]"
-                        : "text-gray-500 hover:text-foreground dark:text-sand-300/70 dark:hover:text-sand-50"
-                    }`}
-                  >
-                    IA
-                  </button>
-                </div>
-              </div>
+              <p className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-sand-300/65">
+                Contenido
+              </p>
             </div>
 
             <div className="flex-1 overflow-y-auto px-3 pb-3">
-              {sidebarTab === "contenido" ? (
-                <>
-                  {/* TOC cargando */}
-                  {outlineLoading && (
-                    <div className="space-y-1.5 px-2 pt-1">
-                      {[80, 60, 70, 55, 65].map((w, i) => (
-                        <div
-                          key={i}
-                          className="h-3 animate-pulse rounded bg-gray-100"
-                          style={{ width: `${w}%` }}
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  {/* TOC con entradas */}
-                  {hasOutline && (
-                    <TocList
-                      items={outline!}
-                      currentPage={currentPage}
-                      onNavigate={goTo}
+              {/* TOC cargando */}
+              {outlineLoading && (
+                <div className="space-y-1.5 px-2 pt-1">
+                  {[80, 60, 70, 55, 65].map((w, i) => (
+                    <div
+                      key={i}
+                      className="h-3 animate-pulse rounded bg-gray-100"
+                      style={{ width: `${w}%` }}
                     />
-                  )}
+                  ))}
+                </div>
+              )}
 
-                  {/* Sin TOC: mostrar descripción o mensaje */}
-                  {!outlineLoading && !hasOutline && (
-                    <>
-                      {resume.description ? (
-                        <p className="px-2 text-sm leading-relaxed text-gray-500 dark:text-sand-300/75">
-                          {resume.description}
-                        </p>
-                      ) : (
-                        <p className="px-2 text-xs text-gray-400 dark:text-sand-300/60">
-                          Este apunte no tiene índice disponible.
-                        </p>
-                      )}
-                    </>
+              {/* TOC con entradas */}
+              {hasOutline && (
+                <TocList
+                  items={outline!}
+                  currentPage={currentPage}
+                  onNavigate={goTo}
+                />
+              )}
+
+              {/* Sin TOC: mostrar descripción o mensaje */}
+              {!outlineLoading && !hasOutline && (
+                <>
+                  {resume.description ? (
+                    <p className="px-2 text-sm leading-relaxed text-gray-500 dark:text-sand-300/75">
+                      {resume.description}
+                    </p>
+                  ) : (
+                    <p className="px-2 text-xs text-gray-400 dark:text-sand-300/60">
+                      Este apunte no tiene índice disponible.
+                    </p>
                   )}
                 </>
-              ) : sidebarTab === "consultas" ? (
-                <MaterialQuestionsPanel
-                  targetType="resume"
-                  resumeId={resumeId}
-                  currentPage={currentPage}
-                  surface="sidebar"
-                  className="px-2 pb-2"
-                />
-              ) : (
-                <AiConversationList
-                  resumeId={resumeId}
-                  activeConversationId={activeAiConversationId}
-                  refreshSignal={aiHistoryRefreshSignal}
-                  onSelectConversation={openExistingAiConversation}
-                  onNewConversation={openNewAiConversation}
-                />
               )}
             </div>
           </div>
@@ -742,6 +692,89 @@ export function ViewerLayout({
 
           <div className="h-8" />
         </main>
+
+        {/* ── Acciones de estudio ── */}
+        <div className="fixed right-4 top-20 z-30 flex flex-col gap-2 sm:right-5">
+          <button
+            type="button"
+            onClick={() => setToolsPanel("consultas")}
+            className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-3 text-xs font-bold shadow-lg backdrop-blur-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${
+              toolsPanel === "consultas"
+                ? "border-accent-300 bg-accent-600 text-white dark:bg-accent-300 dark:text-[#071713]"
+                : "border-white/15 bg-[#071713]/80 text-sand-50 hover:bg-[#0d261f] dark:bg-[#071713]/85"
+            }`}
+          >
+            <MessageCircleQuestion className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Consultas</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setToolsPanel("ia")}
+            className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-3 text-xs font-bold shadow-lg backdrop-blur-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${
+              toolsPanel === "ia"
+                ? "border-accent-300 bg-accent-600 text-white dark:bg-accent-300 dark:text-[#071713]"
+                : "border-white/15 bg-[#071713]/80 text-sand-50 hover:bg-[#0d261f] dark:bg-[#071713]/85"
+            }`}
+          >
+            <Clock3 className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Historial IA</span>
+          </button>
+        </div>
+
+        {toolsPanel && (
+          <>
+            <button
+              type="button"
+              aria-label="Cerrar panel de herramientas"
+              onClick={closeToolsPanel}
+              className="fixed inset-0 top-14 z-40 bg-[#06110e]/35 backdrop-blur-[1px]"
+            />
+            <aside className="fixed bottom-0 right-0 top-14 z-50 flex w-[min(92vw,30rem)] flex-col border-l border-gray-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#101816]">
+              <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-white/10">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-foreground">
+                    {toolsPanel === "consultas" ? "Consultas del apunte" : "Historial IA"}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {resume.title}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeToolsPanel}
+                  aria-label="Cerrar panel"
+                  className="ml-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-gray-100 hover:text-foreground dark:hover:bg-white/[0.06]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                {toolsPanel === "consultas" ? (
+                  <MaterialQuestionsPanel
+                    targetType="resume"
+                    resumeId={resumeId}
+                    currentPage={currentPage}
+                    surface="embedded"
+                  />
+                ) : (
+                  <AiConversationList
+                    resumeId={resumeId}
+                    activeConversationId={activeAiConversationId}
+                    refreshSignal={aiHistoryRefreshSignal}
+                    onSelectConversation={(conversationId) => {
+                      closeToolsPanel();
+                      openExistingAiConversation(conversationId);
+                    }}
+                    onNewConversation={() => {
+                      closeToolsPanel();
+                      openNewAiConversation();
+                    }}
+                  />
+                )}
+              </div>
+            </aside>
+          </>
+        )}
       </div>
 
       <AiChatPanel
