@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { CourseCoverUpload } from "./course-cover-upload";
 import { CourseVideoUpload } from "./course-video-upload";
+import { CourseDiscountControl } from "./course-discount-control";
 
 type CourseRow = {
   id: string;
   title: string;
   price_ars: number;
+  discount_percent: number;
   is_published: boolean;
   cover_color: string | null;
   cover_image_url: string | null;
@@ -129,6 +131,13 @@ export function CoursesList({
                       <p className="mt-1 text-sm font-bold text-foreground">
                         ${ingresos.toLocaleString("es-AR")}
                       </p>
+                    </div>
+                    <div className="col-span-2">
+                      <CourseDiscountControl
+                        courseId={course.id}
+                        priceArs={Number(course.price_ars)}
+                        initialDiscount={Number(course.discount_percent ?? 0)}
+                      />
                     </div>
                   </div>
                 </div>

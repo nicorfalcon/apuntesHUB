@@ -57,6 +57,7 @@ function makeInitialResume(overrides: Partial<Resume> = {}): Resume {
     university: "UBA",
     career: "Ingeniería",
     price: 1000,
+    discount_percent: 0,
     status: "published",
     seller_id: "u1",
     file_url: "u1/r-edit/original.pdf",

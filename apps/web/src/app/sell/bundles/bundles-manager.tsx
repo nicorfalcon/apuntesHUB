@@ -323,60 +323,91 @@ export function BundlesManager({
         <button
           type="button"
           onClick={startCreate}
-          className="rounded-lg border border-accent-600 px-4 py-2 text-sm font-semibold text-accent-700 hover:bg-accent-50 dark:border-accent-300/35 dark:text-accent-100 dark:hover:bg-accent-300/10"
+          className="inline-flex items-center gap-2 rounded-full border border-accent-600 px-4 py-2.5 text-sm font-semibold text-accent-700 transition-colors hover:bg-accent-50 dark:border-accent-300/35 dark:text-accent-100 dark:hover:bg-accent-300/10"
         >
           + Nuevo paquete
         </button>
       )}
 
       {bundles.length === 0 ? (
-        <p className="text-sm text-gray-400">Todavía no armaste ningún paquete.</p>
+        <div className="rounded-2xl border border-dashed border-gray-200 py-14 text-center dark:border-white/10">
+          <p className="font-serif text-2xl text-foreground">
+            Todavía no armaste ningún paquete
+          </p>
+          <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
+            Combiná dos o más apuntes en un solo precio para que se vendan juntos.
+          </p>
+        </div>
       ) : (
-        <ul className="divide-y divide-gray-100 dark:divide-white/10">
-          {bundles.map((b) => (
-            <li key={b.id} className="flex items-center justify-between gap-4 py-4">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="truncate text-sm font-semibold text-foreground">
-                    {b.title}
-                  </span>
-                  <span
-                    className={`text-[11px] font-medium ${b.is_published ? "text-green-600" : "text-gray-400"}`}
-                  >
-                    {b.is_published ? "Publicado" : "Borrador"}
-                  </span>
+        <div className="grid gap-3">
+          {bundles.map((b) => {
+            const individualTotalForBundle = b.bundle_items.reduce(
+              (acc, item) => acc + (priceByResume.get(item.resume_id) ?? 0),
+              0
+            );
+            const bundleSaving = bundleSavings(
+              Number(b.price),
+              individualTotalForBundle
+            );
+            return (
+              <div
+                key={b.id}
+                className="flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white p-4 transition-colors hover:border-accent-300 dark:border-white/10 dark:bg-[#0f1e1a] dark:hover:border-accent-300/30"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="truncate text-sm font-semibold text-foreground">
+                      {b.title}
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                        b.is_published
+                          ? "bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-300"
+                          : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-sand-300/70"
+                      }`}
+                    >
+                      {b.is_published ? "Publicado" : "Borrador"}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {b.bundle_items.length} apuntes ·{" "}
+                    <span className="font-semibold text-foreground">
+                      ${Number(b.price).toLocaleString("es-AR")}
+                    </span>
+                    {bundleSaving > 0 && (
+                      <span className="ml-1.5 font-semibold text-rose-600 dark:text-rose-400">
+                        ahorro ${bundleSaving.toLocaleString("es-AR")}
+                      </span>
+                    )}
+                  </p>
                 </div>
-                <p className="mt-0.5 text-xs text-gray-400">
-                  {b.bundle_items.length} apuntes · $
-                  {Number(b.price).toLocaleString("es-AR")}
-                </p>
+                <div className="flex shrink-0 items-center gap-3 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => startEdit(b)}
+                    className="font-semibold text-gray-500 transition-colors hover:text-foreground"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => togglePublish(b)}
+                    className="font-semibold text-accent-700 hover:underline dark:text-accent-100"
+                  >
+                    {b.is_published ? "Despublicar" : "Publicar"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(b)}
+                    className="font-medium text-gray-400 transition-colors hover:text-rose-600"
+                  >
+                    Eliminar
+                  </button>
+                </div>
               </div>
-              <div className="flex shrink-0 items-center gap-3 text-xs">
-                <button
-                  type="button"
-                  onClick={() => startEdit(b)}
-                  className="font-medium text-gray-500 hover:text-foreground"
-                >
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => togglePublish(b)}
-                  className="font-medium text-accent-700 hover:underline dark:text-accent-100"
-                >
-                  {b.is_published ? "Despublicar" : "Publicar"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(b)}
-                  className="text-gray-400 hover:text-red-600"
-                >
-                  Eliminar
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+            );
+          })}
+        </div>
       )}
     </div>
   );

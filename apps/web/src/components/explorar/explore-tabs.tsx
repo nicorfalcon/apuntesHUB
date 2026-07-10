@@ -273,6 +273,7 @@ export function ExploreTabs({
   const [selectedCareers, setSelectedCareers] = useState<Set<string>>(new Set());
   const [selectedSubjects, setSelectedSubjects] = useState<Set<string>>(new Set());
   const [priceRange, setPriceRange] = useState<PriceRange>("all");
+  const [onlyDiscounted, setOnlyDiscounted] = useState(false);
   const [sort, setSort] = useState<SortKey>("recent");
   const [tutorQuery, setTutorQuery] = useState("");
   const [selectedTutorModalities, setSelectedTutorModalities] = useState<
@@ -301,6 +302,7 @@ export function ExploreTabs({
   >(new Set());
   const [courseDuration, setCourseDuration] =
     useState<CourseDurationFilter>("all");
+  const [courseOnlyDiscounted, setCourseOnlyDiscounted] = useState(false);
 
   const [apuntesPage, setApuntesPage] = useState(1);
   const [tutorsPage, setTutorsPage] = useState(1);
@@ -427,6 +429,7 @@ export function ExploreTabs({
         ) return false;
         if (selectedCareers.size > 0 && !selectedCareers.has(resume.career)) return false;
         if (selectedSubjects.size > 0 && !selectedSubjects.has(resume.subject)) return false;
+        if (onlyDiscounted && !(resume.discount_percent > 0)) return false;
         if (!matchesPriceRange(Number(resume.price), priceRange)) return false;
 
         if (normalizedQuery) {
@@ -460,6 +463,7 @@ export function ExploreTabs({
     selectedCareers,
     selectedSubjects,
     priceRange,
+    onlyDiscounted,
     sort,
     aiSearch,
     aiResultIds,
@@ -470,7 +474,8 @@ export function ExploreTabs({
     selectedUniversities.size +
     selectedCareers.size +
     selectedSubjects.size +
-    (priceRange === "all" ? 0 : 1);
+    (priceRange === "all" ? 0 : 1) +
+    (onlyDiscounted ? 1 : 0);
   const filteredTutors = useMemo(() => {
     const normalizedQuery = tutorQuery.trim().toLowerCase();
 
@@ -542,6 +547,9 @@ export function ExploreTabs({
       if (!matchesCourseDuration(course.total_duration_seconds, courseDuration)) {
         return false;
       }
+      if (courseOnlyDiscounted && !(course.discount_percent > 0)) {
+        return false;
+      }
 
       if (normalizedQuery) {
         const haystack = [
@@ -568,13 +576,15 @@ export function ExploreTabs({
     selectedCourseSubjects,
     selectedCourseUniversities,
     courseDuration,
+    courseOnlyDiscounted,
   ]);
 
   const activeCourseFilterCount =
     selectedCourseTypes.size +
     selectedCourseSubjects.size +
     selectedCourseUniversities.size +
-    (courseDuration === "all" ? 0 : 1);
+    (courseDuration === "all" ? 0 : 1) +
+    (courseOnlyDiscounted ? 1 : 0);
 
   // Reset a la primera página cuando cambian los filtros de cada vertical.
   useEffect(() => {
@@ -585,6 +595,7 @@ export function ExploreTabs({
     selectedCareers,
     selectedSubjects,
     priceRange,
+    onlyDiscounted,
     sort,
     aiSearch,
     aiResultIds,
@@ -608,6 +619,7 @@ export function ExploreTabs({
     selectedCourseSubjects,
     selectedCourseUniversities,
     courseDuration,
+    courseOnlyDiscounted,
   ]);
 
   const resumesTotalPages = Math.max(
@@ -647,6 +659,7 @@ export function ExploreTabs({
     setSelectedCareers(new Set());
     setSelectedSubjects(new Set());
     setPriceRange("all");
+    setOnlyDiscounted(false);
     setAiSearch(false);
     setAiResultIds(null);
     setAiScores({});
@@ -666,6 +679,7 @@ export function ExploreTabs({
     setSelectedCourseSubjects(new Set());
     setSelectedCourseUniversities(new Set());
     setCourseDuration("all");
+    setCourseOnlyDiscounted(false);
   }
 
   function switchTab(nextTab: ExploreTab) {
@@ -752,6 +766,7 @@ export function ExploreTabs({
               selectedCareers={selectedCareers}
               selectedSubjects={selectedSubjects}
               priceRange={priceRange}
+              onlyDiscounted={onlyDiscounted}
               activeFilterCount={activeFilterCount}
               onToggleUniversity={(value) =>
                 toggleSetValue(setSelectedUniversities, value)
@@ -759,6 +774,7 @@ export function ExploreTabs({
               onToggleCareer={(value) => toggleSetValue(setSelectedCareers, value)}
               onToggleSubject={(value) => toggleSetValue(setSelectedSubjects, value)}
               onPriceRangeChange={setPriceRange}
+              onOnlyDiscountedChange={setOnlyDiscounted}
               onClear={clearFilters}
               aiSearch={aiSearch}
               onAiSearchChange={handleAiSearchChange}
@@ -795,6 +811,7 @@ export function ExploreTabs({
               selectedSubjects={selectedCourseSubjects}
               selectedUniversities={selectedCourseUniversities}
               duration={courseDuration}
+              onlyDiscounted={courseOnlyDiscounted}
               activeFilterCount={activeCourseFilterCount}
               onToggleType={(value) => toggleSetValue(setSelectedCourseTypes, value)}
               onToggleSubject={(value) =>
@@ -804,6 +821,7 @@ export function ExploreTabs({
                 toggleSetValue(setSelectedCourseUniversities, value)
               }
               onDurationChange={setCourseDuration}
+              onOnlyDiscountedChange={setCourseOnlyDiscounted}
               onClear={clearCourseFilters}
             />
           )}

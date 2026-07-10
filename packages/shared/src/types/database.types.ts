@@ -1145,6 +1145,7 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           description: string | null
+          discount_percent: number
           id: string
           is_published: boolean
           price_ars: number
@@ -1164,6 +1165,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           description?: string | null
+          discount_percent?: number
           id?: string
           is_published?: boolean
           price_ars: number
@@ -1183,6 +1185,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           description?: string | null
+          discount_percent?: number
           id?: string
           is_published?: boolean
           price_ars?: number
@@ -1258,6 +1261,7 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           description: string | null
+          discount_percent: number
           file_url: string | null
           id: string
           preview_error: string | null
@@ -1282,6 +1286,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           description?: string | null
+          discount_percent?: number
           file_url?: string | null
           id?: string
           preview_error?: string | null
@@ -1306,6 +1311,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           description?: string | null
+          discount_percent?: number
           file_url?: string | null
           id?: string
           preview_error?: string | null

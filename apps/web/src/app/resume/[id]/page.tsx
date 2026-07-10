@@ -8,6 +8,7 @@ import { ResumeTopicsSection } from "@/components/resume/resume-topics";
 import { PurchaseButton } from "./purchase-button";
 import { PreviewViewer } from "./preview-viewer";
 import { AddToCartButton } from "@/components/cart/add-to-cart-button";
+import { discountedPrice, hasDiscount } from "@/lib/discounts/direct";
 import type { ResumeWithSeller, Review, Profile } from "@/lib/database.types";
 
 export default async function ResumePage({
@@ -248,10 +249,31 @@ export default async function ResumePage({
             )}
 
             <div className="border-t border-gray-100 pt-4 dark:border-white/10">
-              <div className="text-2xl font-bold text-accent-700 dark:text-accent-100">
-                ${resumeWithSeller.price.toLocaleString("es-AR")}{" "}
-                <span className="text-sm font-normal text-gray-400 dark:text-sand-300/60">ARS</span>
-              </div>
+              {hasDiscount(resumeWithSeller.discount_percent) ? (
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <span className="rounded-full bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">
+                    -{resumeWithSeller.discount_percent}%
+                  </span>
+                  <div className="text-2xl font-bold text-rose-600 dark:text-rose-400">
+                    $
+                    {discountedPrice(
+                      resumeWithSeller.price,
+                      resumeWithSeller.discount_percent
+                    ).toLocaleString("es-AR")}{" "}
+                    <span className="text-sm font-normal text-gray-400 dark:text-sand-300/60">
+                      ARS
+                    </span>
+                  </div>
+                  <span className="text-base font-medium text-gray-400 line-through">
+                    ${resumeWithSeller.price.toLocaleString("es-AR")}
+                  </span>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold text-accent-700 dark:text-accent-100">
+                  ${resumeWithSeller.price.toLocaleString("es-AR")}{" "}
+                  <span className="text-sm font-normal text-gray-400 dark:text-sand-300/60">ARS</span>
+                </div>
+              )}
 
               {isOwnResume ? (
                 <Link

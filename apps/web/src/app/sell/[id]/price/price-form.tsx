@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { clampDiscountPercent, discountedPrice } from "@/lib/discounts/direct";
 
 interface PriceFormProps {
   resumeId: string;
@@ -12,6 +13,7 @@ interface PriceFormProps {
   resumeUniversity: string;
   currentPrice: number;
   currentStatus: string;
+  currentDiscount: number;
 }
 
 const inputClass =
@@ -24,12 +26,21 @@ export function PriceForm({
   resumeUniversity,
   currentPrice,
   currentStatus,
+  currentDiscount,
 }: PriceFormProps) {
   const router = useRouter();
   const [price, setPrice] = useState(currentPrice.toString());
   const [status, setStatus] = useState(currentStatus);
+  const [discount, setDiscount] = useState(String(currentDiscount || ""));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const parsedPrice = parseFloat(price);
+  const parsedDiscount = clampDiscountPercent(parseInt(discount, 10) || 0);
+  const hasValidPrice = !isNaN(parsedPrice) && parsedPrice >= 0;
+  const finalPrice = hasValidPrice
+    ? discountedPrice(parsedPrice, parsedDiscount)
+    : 0;
 
   function formatDisplay(value: string) {
     const num = parseFloat(value);
@@ -47,11 +58,17 @@ export function PriceForm({
       return;
     }
 
+    const discountValue = parseInt(discount, 10) || 0;
+    if (discountValue < 0 || discountValue > 90) {
+      setError("El descuento debe estar entre 0 y 90%.");
+      return;
+    }
+
     setLoading(true);
     const supabase = createClient();
     const { error: dbError } = await supabase
       .from("resumes")
-      .update({ price: parsed, status })
+      .update({ price: parsed, status, discount_percent: discountValue })
       .eq("id", resumeId);
 
     if (dbError) {
@@ -105,6 +122,48 @@ export function PriceForm({
           Recibís el <span className="font-medium text-accent-700 dark:text-accent-100">90%</span> de cada venta. La plataforma retiene un 10% de comisión.
           Precio mínimo recomendado: $500 ARS. Podés publicar gratis ingresando 0.
         </p>
+
+        {/* Descuento directo */}
+        <div className="mt-4 border-t border-gray-100 pt-4 dark:border-white/10">
+          <label htmlFor="discount" className="block text-sm font-medium text-gray-700 dark:text-sand-100">
+            Descuento directo (opcional)
+          </label>
+          <div className="relative mt-1">
+            <input
+              id="discount"
+              type="number"
+              min="0"
+              max="90"
+              step="1"
+              value={discount}
+              onChange={(e) => setDiscount(e.target.value)}
+              className={`${inputClass} pr-8`}
+              placeholder="0"
+            />
+            <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-sm font-medium text-gray-500 dark:text-sand-300/70">
+              %
+            </span>
+          </div>
+          {parsedDiscount > 0 && hasValidPrice ? (
+            <p className="mt-2 flex flex-wrap items-baseline gap-2 text-sm">
+              <span className="rounded-full bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">
+                -{parsedDiscount}%
+              </span>
+              <span className="font-semibold text-rose-600 dark:text-rose-400">
+                ${finalPrice.toLocaleString("es-AR")}
+              </span>
+              <span className="text-gray-400 line-through">
+                ${parsedPrice.toLocaleString("es-AR")}
+              </span>
+              <span className="text-xs text-gray-400">precio final para el comprador</span>
+            </p>
+          ) : (
+            <p className="mt-2 text-xs text-gray-400 dark:text-sand-300/65">
+              Aplicá un descuento visible (sin código) que aparece destacado en Explorar.
+              El descuento sale de tu parte; la comisión se calcula sobre el monto ya descontado.
+            </p>
+          )}
+        </div>
 
         <div className="mt-4 border-t border-gray-100 pt-4 dark:border-white/10">
           <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-sand-100">

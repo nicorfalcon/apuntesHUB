@@ -223,7 +223,7 @@ export function CouponsManager({ userId, initialCoupons }: CouponsManagerProps) 
         <button
           type="button"
           onClick={() => setShowForm(true)}
-          className="rounded-lg border border-accent-600 px-4 py-2 text-sm font-semibold text-accent-700 hover:bg-accent-50 dark:border-accent-300/35 dark:text-accent-100 dark:hover:bg-accent-300/10"
+          className="inline-flex items-center gap-2 rounded-full border border-accent-600 px-4 py-2.5 text-sm font-semibold text-accent-700 transition-colors hover:bg-accent-50 dark:border-accent-300/35 dark:text-accent-100 dark:hover:bg-accent-300/10"
         >
           + Nuevo código
         </button>
@@ -231,34 +231,47 @@ export function CouponsManager({ userId, initialCoupons }: CouponsManagerProps) 
 
       {/* Lista */}
       {coupons.length === 0 ? (
-        <p className="text-sm text-gray-400">Todavía no creaste ningún código.</p>
+        <div className="rounded-2xl border border-dashed border-gray-200 py-14 text-center dark:border-white/10">
+          <p className="font-serif text-2xl text-foreground">
+            Todavía no creaste ningún código
+          </p>
+          <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
+            Un código como <span className="font-mono font-semibold">PARCIAL20</span> le
+            da un descuento a quien lo ingresa al comprar.
+          </p>
+        </div>
       ) : (
-        <ul className="divide-y divide-gray-100 dark:divide-white/10">
+        <div className="grid gap-3">
           {coupons.map((c) => {
             const state = couponState(c);
+            const usagePct =
+              c.max_uses !== null && c.max_uses > 0
+                ? Math.min(100, Math.round((c.used_count / c.max_uses) * 100))
+                : null;
             return (
-              <li
+              <div
                 key={c.id}
-                className="flex items-center justify-between gap-4 py-4"
+                className="flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white p-4 transition-colors hover:border-accent-300 dark:border-white/10 dark:bg-[#0f1e1a] dark:hover:border-accent-300/30"
               >
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-semibold tracking-wide text-foreground">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-2.5 py-1 font-mono text-sm font-bold tracking-wider text-foreground dark:border-white/15 dark:bg-white/5">
                       {c.code}
                     </span>
-                    <span className="rounded-full bg-accent-50 px-2 py-0.5 text-[11px] font-medium text-accent-700 dark:bg-accent-300/10 dark:text-accent-100">
+                    <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-bold text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">
                       {formatDiscountLabel({
                         discountType: c.discount_type,
                         value: c.value,
                       })}
                     </span>
-                    <span className={`text-[11px] font-medium ${state.tone}`}>
+                    <span className={`text-[11px] font-semibold ${state.tone}`}>
                       {state.label}
                     </span>
                   </div>
-                  <p className="mt-0.5 text-xs text-gray-400">
+                  <p className="mt-1.5 text-xs text-muted-foreground">
                     {c.used_count}
                     {c.max_uses !== null ? ` / ${c.max_uses}` : ""} usos
+                    {usagePct !== null ? ` · ${usagePct}% usado` : ""}
                     {c.expires_at
                       ? ` · vence ${new Date(c.expires_at).toLocaleDateString("es-AR")}`
                       : ""}
@@ -269,22 +282,22 @@ export function CouponsManager({ userId, initialCoupons }: CouponsManagerProps) 
                   <button
                     type="button"
                     onClick={() => handleToggle(c)}
-                    className="font-medium text-accent-700 hover:underline dark:text-accent-100"
+                    className="font-semibold text-accent-700 hover:underline dark:text-accent-100"
                   >
                     {c.active ? "Desactivar" : "Activar"}
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDelete(c)}
-                    className="text-gray-400 hover:text-red-600"
+                    className="font-medium text-gray-400 transition-colors hover:text-rose-600"
                   >
                     Eliminar
                   </button>
                 </div>
-              </li>
+              </div>
             );
           })}
-        </ul>
+        </div>
       )}
     </div>
   );

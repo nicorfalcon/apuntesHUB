@@ -18,7 +18,7 @@ export default async function GestionarPrecioPage({
 
   const { data: resume } = await supabase
     .from("resumes")
-    .select("id, title, subject, university, price, status")
+    .select("id, title, subject, university, price, status, discount_percent")
     .eq("id", id)
     .eq("seller_id", user.id)
     .single();
@@ -46,6 +46,7 @@ export default async function GestionarPrecioPage({
           resumeUniversity={resume.university}
           currentPrice={Number(resume.price)}
           currentStatus={resume.status}
+          currentDiscount={Number(resume.discount_percent ?? 0)}
         />
       </div>
     </div>

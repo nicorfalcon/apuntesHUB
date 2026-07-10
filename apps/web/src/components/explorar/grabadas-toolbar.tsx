@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Search, X } from "lucide-react";
+import { ChevronDown, Search, Tag, X } from "lucide-react";
 import type { FilterOption } from "./apuntes-toolbar";
 import { closeOtherExploreDropdowns } from "./dropdown-utils";
 
@@ -25,11 +25,13 @@ interface GrabadasToolbarProps {
   selectedSubjects: Set<string>;
   selectedUniversities: Set<string>;
   duration: CourseDurationFilter;
+  onlyDiscounted: boolean;
   activeFilterCount: number;
   onToggleType: (value: CourseTypeFilter) => void;
   onToggleSubject: (value: string) => void;
   onToggleUniversity: (value: string) => void;
   onDurationChange: (value: CourseDurationFilter) => void;
+  onOnlyDiscountedChange: (value: boolean) => void;
   onClear: () => void;
 }
 
@@ -162,11 +164,13 @@ export function GrabadasToolbar({
   selectedSubjects,
   selectedUniversities,
   duration,
+  onlyDiscounted,
   activeFilterCount,
   onToggleType,
   onToggleSubject,
   onToggleUniversity,
   onDurationChange,
+  onOnlyDiscountedChange,
   onClear,
 }: GrabadasToolbarProps) {
   return (
@@ -208,6 +212,20 @@ export function GrabadasToolbar({
             selected={selectedUniversities}
             onToggle={onToggleUniversity}
           />
+          <button
+            type="button"
+            role="switch"
+            aria-checked={onlyDiscounted}
+            onClick={() => onOnlyDiscountedChange(!onlyDiscounted)}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2.5 text-sm font-medium transition-colors ${
+              onlyDiscounted
+                ? "border-rose-500 bg-rose-50 text-rose-700 dark:border-rose-400/40 dark:bg-rose-500/15 dark:text-rose-200"
+                : "border-gray-200 bg-white text-foreground hover:border-rose-300 hover:bg-rose-50/60 dark:border-white/10 dark:bg-white/5 dark:hover:border-rose-400/30 dark:hover:bg-rose-500/10"
+            }`}
+          >
+            <Tag className="h-4 w-4" strokeWidth={1.9} />
+            Con descuento
+          </button>
           {(activeFilterCount > 0 || query.trim()) && (
             <button
               type="button"

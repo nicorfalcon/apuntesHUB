@@ -3,6 +3,11 @@ import { Clock, PlayCircle } from "lucide-react";
 import { StarRating } from "@/components/ui/star-rating";
 import { formatArs, formatCourseType, formatDuration } from "./format";
 import type { RecordedCourseItem } from "./types";
+import {
+  discountedPrice,
+  formatDiscountBadge,
+  hasDiscount,
+} from "@/lib/discounts/direct";
 
 interface CourseCardProps {
   course: RecordedCourseItem;
@@ -42,11 +47,17 @@ function CourseCover({ course }: { course: RecordedCourseItem }) {
         {formatCourseType(course.course_type)}
       </span>
 
-      {/* Duración */}
-      <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/35 px-2.5 py-1 text-[11px] font-semibold backdrop-blur">
-        <Clock className="h-3 w-3" strokeWidth={2} />
-        {formatDuration(course.total_duration_seconds)}
-      </span>
+      {/* Descuento / Duración */}
+      {hasDiscount(course.discount_percent) ? (
+        <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-rose-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-sm shadow-rose-900/40">
+          {formatDiscountBadge(course.discount_percent)}
+        </span>
+      ) : (
+        <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/35 px-2.5 py-1 text-[11px] font-semibold backdrop-blur">
+          <Clock className="h-3 w-3" strokeWidth={2} />
+          {formatDuration(course.total_duration_seconds)}
+        </span>
+      )}
 
       {/* Botón de play */}
       <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -88,12 +99,26 @@ export function CourseCard({ course }: CourseCardProps) {
           <StarRating rating={course.rating_avg ?? 0} count={course.rating_count ?? 0} />
         </div>
         <div className="mt-3 flex items-center justify-between gap-3 border-t border-gray-100 pt-3 dark:border-white/10">
-          <p className="text-lg font-bold text-foreground">
-            ${formatArs(course.price_ars)}
-            <span className="ml-1 text-xs font-medium text-muted-foreground">
-              ARS
-            </span>
-          </p>
+          {hasDiscount(course.discount_percent) ? (
+            <div className="flex items-baseline gap-2">
+              <p className="text-lg font-bold text-rose-600 dark:text-rose-400">
+                ${formatArs(discountedPrice(course.price_ars, course.discount_percent))}
+                <span className="ml-1 text-xs font-medium text-muted-foreground">
+                  ARS
+                </span>
+              </p>
+              <p className="text-sm font-medium text-muted-foreground line-through">
+                ${formatArs(course.price_ars)}
+              </p>
+            </div>
+          ) : (
+            <p className="text-lg font-bold text-foreground">
+              ${formatArs(course.price_ars)}
+              <span className="ml-1 text-xs font-medium text-muted-foreground">
+                ARS
+              </span>
+            </p>
+          )}
           <Link
             href={`/cursos/${course.id}`}
             className="rounded-full border border-accent-200 px-3 py-2 text-sm font-semibold text-accent-700 transition-colors hover:bg-accent-50 dark:border-accent-300/25 dark:text-accent-100 dark:hover:bg-accent-300/10"

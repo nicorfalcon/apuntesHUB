@@ -175,7 +175,7 @@ export default async function DashboardPage({
       .single(),
     admin
       .from("recorded_courses")
-      .select("id, title, price_ars, is_published, deleted_at, rating_avg, rating_count, created_at, cover_color, cover_image_url, course_modules(id, position, title, video_storage_key)")
+      .select("id, title, price_ars, discount_percent, is_published, deleted_at, rating_avg, rating_count, created_at, cover_color, cover_image_url, course_modules(id, position, title, video_storage_key)")
       .eq("author_id", user.id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),

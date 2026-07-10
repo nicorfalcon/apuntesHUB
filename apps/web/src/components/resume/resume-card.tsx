@@ -6,6 +6,11 @@ import { CheckCircle } from "lucide-react";
 import { StarRating } from "@/components/ui/star-rating";
 import { ResumeTopicChips } from "./resume-topics";
 import type { ResumeWithSeller } from "@/lib/database.types";
+import {
+  discountedPrice,
+  formatDiscountBadge,
+  hasDiscount,
+} from "@/lib/discounts/direct";
 
 interface ResumeCardProps {
   resume: ResumeWithSeller;
@@ -14,6 +19,8 @@ interface ResumeCardProps {
 
 export function ResumeCard({ resume, purchased = false }: ResumeCardProps) {
   const { profiles: seller } = resume;
+  const discounted = hasDiscount(resume.discount_percent);
+  const finalPrice = discountedPrice(resume.price, resume.discount_percent);
 
   return (
     <Link
@@ -53,6 +60,12 @@ export function ResumeCard({ resume, purchased = false }: ResumeCardProps) {
             Comprado
           </div>
         )}
+
+        {discounted && !purchased && (
+          <div className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-rose-600 px-2.5 py-1 text-xs font-bold text-white shadow-sm shadow-rose-900/30">
+            {formatDiscountBadge(resume.discount_percent)}
+          </div>
+        )}
       </div>
 
       {/* Body */}
@@ -81,9 +94,21 @@ export function ResumeCard({ resume, purchased = false }: ResumeCardProps) {
           />
         </div>
 
-        <p className="mt-2 text-xl font-bold text-gray-900">
-          ${resume.price.toLocaleString("es-AR")} ARS
-        </p>
+        {discounted ? (
+          <div className="mt-2 flex items-baseline gap-2">
+            <p className="text-xl font-bold text-rose-600">
+              ${finalPrice.toLocaleString("es-AR")}{" "}
+              <span className="text-xs font-semibold text-gray-400">ARS</span>
+            </p>
+            <p className="text-sm font-medium text-gray-400 line-through">
+              ${resume.price.toLocaleString("es-AR")}
+            </p>
+          </div>
+        ) : (
+          <p className="mt-2 text-xl font-bold text-gray-900">
+            ${resume.price.toLocaleString("es-AR")} ARS
+          </p>
+        )}
       </div>
     </Link>
   );

@@ -19,6 +19,7 @@ import {
   formatDuration,
   shortCourseType,
 } from "@/components/courses/format";
+import { discountedPrice, hasDiscount } from "@/lib/discounts/direct";
 import type { RecordedCourseItem } from "@/components/courses/types";
 
 function ModuleRow({
@@ -363,10 +364,28 @@ export default async function CoursePage({
                   <p className="text-xs font-bold uppercase text-muted-foreground">
                     Precio
                   </p>
-                  <p className="mt-1 text-3xl font-bold text-foreground">
-                    ${formatArs(course.price_ars)}
-                  </p>
-                  <p className="text-sm text-muted-foreground">ARS</p>
+                  {hasDiscount(course.discount_percent) ? (
+                    <>
+                      <div className="mt-1 flex items-center gap-2">
+                        <span className="rounded-full bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">
+                          -{course.discount_percent}%
+                        </span>
+                        <p className="text-3xl font-bold text-rose-600 dark:text-rose-400">
+                          ${formatArs(discountedPrice(course.price_ars, course.discount_percent))}
+                        </p>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        <span className="line-through">${formatArs(course.price_ars)}</span> ARS
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="mt-1 text-3xl font-bold text-foreground">
+                        ${formatArs(course.price_ars)}
+                      </p>
+                      <p className="text-sm text-muted-foreground">ARS</p>
+                    </>
+                  )}
                 </div>
                 <StarRating
                   rating={course.rating_avg ?? 0}
