@@ -12,7 +12,11 @@ import {
   MAX_RESUME_TOPICS,
   MAX_RESUME_TOPIC_LENGTH,
 } from "@/lib/resumes/topics";
-import { Upload, FileText, ImageIcon, Check, X } from "lucide-react";
+import {
+  extractTopicsFromArrayBuffer,
+  extractTopicsFromPdfFile,
+} from "@/lib/resumes/extract-pdf-topics-client";
+import { Upload, FileText, ImageIcon, Check, Sparkles, X } from "lucide-react";
 
 interface ResumeFormProps {
   userId: string;
@@ -63,6 +67,8 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
   );
   const [topicInput, setTopicInput] = useState("");
   const [topicError, setTopicError] = useState<string | null>(null);
+  const [suggestingTopics, setSuggestingTopics] = useState(false);
+  const [topicsSuggested, setTopicsSuggested] = useState(false);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -131,6 +137,62 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
   function removeTopic(index: number) {
     setTopics((prev) => prev.filter((_, i) => i !== index));
     setTopicError(null);
+  }
+
+  /** Descarga el PDF ya subido (bucket privado; el dueño puede por RLS). */
+  async function fetchStoredPdfBuffer(path: string): Promise<ArrayBuffer | null> {
+    const supabase = createClient();
+    const { data, error } = await supabase.storage.from("resumes").download(path);
+    if (error || !data) return null;
+    return data.arrayBuffer();
+  }
+
+  /**
+   * Sugiere "Temas del apunte" a partir del índice del PDF (outline o texto).
+   * Fuente: el PDF recién seleccionado (`file`) o, si no hay, el que ya está
+   * subido (`initial.file_url`) — así también funciona al editar un apunte ya
+   * publicado. En `force: false` solo pre-carga si todavía no hay temas (no pisa
+   * el trabajo del vendedor); en `force: true` (botón) fusiona con lo existente.
+   */
+  async function runTopicSuggestion({
+    force,
+    file,
+  }: {
+    force: boolean;
+    file?: File | null;
+  }) {
+    if (!force && topics.length > 0) return;
+    const useFile = file ?? pdfFile;
+    setSuggestingTopics(true);
+    setTopicError(null);
+    try {
+      let suggested: string[] = [];
+      if (useFile) {
+        suggested = await extractTopicsFromPdfFile(useFile);
+      } else if (initial?.file_url) {
+        const buffer = await fetchStoredPdfBuffer(initial.file_url);
+        if (buffer) suggested = await extractTopicsFromArrayBuffer(buffer);
+      }
+
+      if (suggested.length > 0) {
+        setTopics((prev) =>
+          normalizeResumeTopics(
+            force ? [...prev, ...suggested] : prev.length > 0 ? prev : suggested
+          )
+        );
+        setTopicsSuggested(true);
+      } else if (force) {
+        toast("No encontramos un índice legible para sugerir temas.");
+      }
+    } finally {
+      setSuggestingTopics(false);
+    }
+  }
+
+  function handlePdfSelected(file: File | null) {
+    setPdfFile(file);
+    setTopicsSuggested(false);
+    if (file) void runTopicSuggestion({ force: false, file });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -322,7 +384,7 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
     e.stopPropagation();
     setPdfDragActive(false);
     const file = e.dataTransfer.files?.[0];
-    if (file?.type === "application/pdf") setPdfFile(file);
+    if (file?.type === "application/pdf") handlePdfSelected(file);
   }
 
   function handlePreviewDrop(e: DragEvent) {
@@ -481,6 +543,38 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                 Agregá conceptos importantes que cubre el apunte. Esto ayuda a que
                 otros estudiantes lo encuentren aunque busquen con otras palabras.
               </p>
+
+              {/* Sugerencia automática desde el índice del PDF */}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => runTopicSuggestion({ force: true })}
+                  disabled={
+                    (!pdfFile && !initial?.file_url) ||
+                    suggestingTopics ||
+                    topics.length >= MAX_RESUME_TOPICS
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-accent-300 px-2.5 py-1.5 text-xs font-semibold text-accent-700 transition-colors hover:bg-accent-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-accent-300/35 dark:text-accent-100 dark:hover:bg-accent-300/10"
+                >
+                  <Sparkles size={13} strokeWidth={2} className={suggestingTopics ? "animate-pulse" : ""} />
+                  {suggestingTopics
+                    ? "Analizando el índice…"
+                    : initial?.file_url && !pdfFile
+                      ? "Sugerir del índice del PDF subido"
+                      : "Sugerir del índice del PDF"}
+                </button>
+                {topicsSuggested && !suggestingTopics && (
+                  <span className="text-xs font-medium text-accent-700 dark:text-accent-200">
+                    Temas tomados del índice — revisalos y editá lo que quieras.
+                  </span>
+                )}
+                {!pdfFile && !initial?.file_url && !suggestingTopics && (
+                  <span className="text-xs text-gray-400 dark:text-sand-300/65">
+                    Subí el PDF y sugerimos los temas automáticamente.
+                  </span>
+                )}
+              </div>
+
               <div
                 className={`mt-1.5 flex flex-wrap items-center gap-1.5 rounded-xl border border-gray-200 bg-[var(--surface-warm)] px-2.5 py-2 transition-[background-color,border-color,box-shadow] focus-within:border-accent-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-accent-200/45 dark:border-white/15 dark:bg-white/[0.04] dark:focus-within:border-accent-300 dark:focus-within:bg-white/[0.07] dark:focus-within:ring-accent-300/15`}
               >
@@ -595,12 +689,24 @@ export function ResumeForm({ userId, initial }: ResumeFormProps) {
                   type="file"
                   accept="application/pdf"
                   className="sr-only"
-                  onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
+                  onChange={(e) => handlePdfSelected(e.target.files?.[0] ?? null)}
                 />
               </label>
               {isEdit && !pdfFile && (
                 <p className="mt-1.5 text-xs text-gray-400 dark:text-sand-300/65">
                   Dejá vacío para mantener el archivo actual.
+                </p>
+              )}
+              {pdfFile && suggestingTopics && (
+                <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-accent-700 dark:text-accent-200">
+                  <Sparkles size={13} strokeWidth={2} className="animate-pulse" />
+                  Analizando el índice para sugerir los temas del apunte…
+                </p>
+              )}
+              {pdfFile && !suggestingTopics && topicsSuggested && (
+                <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-accent-700 dark:text-accent-200">
+                  <Check size={13} strokeWidth={2.5} />
+                  Sugerimos temas desde el índice. Revisalos en el paso “Detalles”.
                 </p>
               )}
             </div>
