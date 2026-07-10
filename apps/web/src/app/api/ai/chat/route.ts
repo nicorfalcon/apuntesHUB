@@ -12,6 +12,14 @@ import { searchWeb } from "@/lib/search/web-search";
 import { buildEnrichedPrompt, parseSourcesFromResponse } from "@/lib/ai/prompt-builder";
 import { callUserModel } from "@/lib/ai/model-router";
 import {
+  appendConversationMessage,
+  buildConversationTitle,
+  conversationBelongsToUser,
+  createConversation,
+  getConversationWithMessages,
+} from "@/lib/ai/conversations";
+import { getPrimaryResumeId, recordAiUsageEvent } from "@/lib/ai/usage-events";
+import {
   STRUCTURED_ACTIVITY_FALLBACK_TEXT,
   isStructuredActivityMode,
   looksLikeJsonResponse,
@@ -574,6 +582,7 @@ function formatChunkLabel(chunk: {
 }
 
 export async function POST(request: NextRequest) {
+  const requestStartedAt = Date.now();
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -603,7 +612,79 @@ export async function POST(request: NextRequest) {
   if ("error" in validation) {
     return NextResponse.json({ error: validation.error }, { status: validation.status });
   }
-  const { query, resumeIds, apiKeyId, messages, resumeTitle, subject, answerMode, count } = validation;
+  const {
+    query,
+    resumeIds,
+    apiKeyId,
+    messages,
+    resumeTitle,
+    subject,
+    answerMode,
+    count,
+    conversationId,
+    persist,
+  } = validation;
+  const primaryResumeId = getPrimaryResumeId(resumeIds);
+
+  let activeConversationId = conversationId;
+  let userMessageId: string | null = null;
+  let recentConversationMessages = messages;
+
+  if (persist) {
+    if (activeConversationId) {
+      const ownership = await conversationBelongsToUser(supabase, activeConversationId, user.id);
+      if (ownership.error) {
+        return NextResponse.json({ error: ownership.error }, { status: 500 });
+      }
+      if (!ownership.ok) {
+        return NextResponse.json({ error: "Conversación no encontrada" }, { status: 404 });
+      }
+      if (
+        ownership.resumeId &&
+        resumeIds &&
+        resumeIds.length > 0 &&
+        !resumeIds.includes(ownership.resumeId)
+      ) {
+        return NextResponse.json(
+          { error: "La conversación no pertenece a este apunte." },
+          { status: 409 }
+        );
+      }
+
+      const existing = await getConversationWithMessages(supabase, activeConversationId);
+      if (existing.error) {
+        return NextResponse.json({ error: existing.error }, { status: 500 });
+      }
+      recentConversationMessages = existing.messages
+        .map((message) => ({ role: message.role, content: message.content }))
+        .slice(-6);
+    } else {
+      const created = await createConversation(supabase, {
+        userId: user.id,
+        resumeId: primaryResumeId,
+        title: buildConversationTitle(query),
+      });
+      if (created.error || !created.conversationId) {
+        return NextResponse.json(
+          { error: created.error ?? "No se pudo crear la conversación" },
+          { status: 500 }
+        );
+      }
+      activeConversationId = created.conversationId;
+    }
+
+    const appended = await appendConversationMessage(supabase, {
+      conversationId: activeConversationId,
+      role: "user",
+      content: query,
+      answerMode,
+      modelProvider: apiKeyId && apiKeyId !== "platform" ? "user_key" : "platform",
+    });
+    if (appended.error) {
+      return NextResponse.json({ error: appended.error }, { status: 500 });
+    }
+    userMessageId = appended.messageId;
+  }
 
   const studyMetadata = await getStudyMetadataForChat({
     supabase,
@@ -625,6 +706,19 @@ export async function POST(request: NextRequest) {
     queryEmbedding = await generateQueryEmbedding(retrievalQuery);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    await recordAiUsageEvent(supabase, {
+      userId: user.id,
+      resumeId: primaryResumeId,
+      conversationId: activeConversationId,
+      messageId: userMessageId,
+      eventType: "chat_error",
+      answerMode,
+      modelProvider: apiKeyId && apiKeyId !== "platform" ? "user_key" : "platform",
+      status: "error",
+      errorCode: "embedding_error",
+      latencyMs: Date.now() - requestStartedAt,
+      retrievalQueryLength: retrievalQuery.length,
+    });
     return NextResponse.json(
       { error: "Error generando embedding", detail: message },
       { status: 500 }
@@ -640,6 +734,19 @@ export async function POST(request: NextRequest) {
   );
 
   if (searchError) {
+    await recordAiUsageEvent(supabase, {
+      userId: user.id,
+      resumeId: primaryResumeId,
+      conversationId: activeConversationId,
+      messageId: userMessageId,
+      eventType: "chat_error",
+      answerMode,
+      modelProvider: apiKeyId && apiKeyId !== "platform" ? "user_key" : "platform",
+      status: "error",
+      errorCode: "search_error",
+      latencyMs: Date.now() - requestStartedAt,
+      retrievalQueryLength: retrievalQuery.length,
+    });
     return NextResponse.json(
       { error: "Error en la búsqueda", detail: searchError.message },
       { status: 500 }
@@ -648,20 +755,54 @@ export async function POST(request: NextRequest) {
 
   const expandedChunks = await expandChunksWithNeighbors(supabase, chunks);
   const contextChunks = await enrichWithPageMetadata(supabase, expandedChunks);
+  const contextCharCount = contextChunks.reduce((sum, chunk) => sum + chunk.content.length, 0);
 
   // --- MODELO PLATAFORMA (comportamiento original) ---
   if (!apiKeyId || apiKeyId === "platform") {
     if (contextChunks.length === 0) {
+      const answer = "No encontré información relevante en tus apuntes para responder esa pregunta.";
+      let assistantMessageId: string | null = null;
+      if (activeConversationId) {
+        const appended = await appendConversationMessage(supabase, {
+          conversationId: activeConversationId,
+          role: "assistant",
+          content: answer,
+          sources: [],
+          rawSources: [],
+          answerMode,
+          modelProvider: "platform",
+          latencyMs: Date.now() - requestStartedAt,
+        });
+        assistantMessageId = appended.messageId;
+      }
+      await recordAiUsageEvent(supabase, {
+        userId: user.id,
+        resumeId: primaryResumeId,
+        conversationId: activeConversationId,
+        messageId: assistantMessageId ?? userMessageId,
+        eventType: "chat_message",
+        answerMode,
+        modelProvider: "platform",
+        status: "success",
+        latencyMs: Date.now() - requestStartedAt,
+        retrievalQueryLength: retrievalQuery.length,
+        contextChunkCount: 0,
+        contextCharCount: 0,
+        sourceCount: 0,
+      });
       return NextResponse.json({
         query,
-        answer: "No encontré información relevante en tus apuntes para responder esa pregunta.",
+        answer,
         sources: [],
         model: "platform",
+        conversationId: activeConversationId,
+        userMessageId,
+        assistantMessageId,
       });
     }
 
     const llmChunks = toLlmChunks(contextChunks);
-    const llmMessages = toLlmMessages(messages);
+    const llmMessages = toLlmMessages(recentConversationMessages);
     const structuredMode = isStructuredActivityMode(answerMode);
 
     let answer: string;
@@ -674,6 +815,21 @@ export async function POST(request: NextRequest) {
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      await recordAiUsageEvent(supabase, {
+        userId: user.id,
+        resumeId: primaryResumeId,
+        conversationId: activeConversationId,
+        messageId: userMessageId,
+        eventType: "chat_error",
+        answerMode,
+        modelProvider: "platform",
+        status: "error",
+        errorCode: "generation_error",
+        latencyMs: Date.now() - requestStartedAt,
+        retrievalQueryLength: retrievalQuery.length,
+        contextChunkCount: contextChunks.length,
+        contextCharCount,
+      });
       return NextResponse.json(
         { error: "Error generando respuesta", detail: message },
         { status: 500 }
@@ -709,11 +865,50 @@ export async function POST(request: NextRequest) {
     const sources = [
       { type: "note" as const, label: "Tu apunte", ...(pages ? { pages } : {}) },
     ];
+    const rawSources = contextChunks.map((c) => ({
+      resumeId: c.resume_id,
+      chunkIndex: c.chunk_index,
+      similarity: chunkSimilarity(c),
+      pageStart: c.page_start ?? null,
+      pageEnd: c.page_end ?? null,
+      sectionTitle: c.section_title ?? null,
+    }));
     const safeAnswer = activity
       ? "Actividad lista para practicar."
       : structuredMode
         ? structuredFallbackText(answer, answer)
         : answer;
+    let assistantMessageId: string | null = null;
+    if (activeConversationId) {
+      const appended = await appendConversationMessage(supabase, {
+        conversationId: activeConversationId,
+        role: "assistant",
+        content: safeAnswer,
+        sources,
+        rawSources,
+        activity,
+        answerMode,
+        modelProvider: "platform",
+        latencyMs: Date.now() - requestStartedAt,
+      });
+      assistantMessageId = appended.messageId;
+    }
+
+    await recordAiUsageEvent(supabase, {
+      userId: user.id,
+      resumeId: primaryResumeId,
+      conversationId: activeConversationId,
+      messageId: assistantMessageId ?? userMessageId,
+      eventType: activity ? "study_activity_generated" : "chat_message",
+      answerMode,
+      modelProvider: "platform",
+      status: "success",
+      latencyMs: Date.now() - requestStartedAt,
+      retrievalQueryLength: retrievalQuery.length,
+      contextChunkCount: contextChunks.length,
+      contextCharCount,
+      sourceCount: sources.length,
+    });
 
     return NextResponse.json({
       query,
@@ -721,14 +916,10 @@ export async function POST(request: NextRequest) {
       sources,
       ...(activity ? { activity } : {}),
       model: "platform",
-      rawSources: contextChunks.map((c) => ({
-        resumeId: c.resume_id,
-        chunkIndex: c.chunk_index,
-        similarity: chunkSimilarity(c),
-        pageStart: c.page_start ?? null,
-        pageEnd: c.page_end ?? null,
-        sectionTitle: c.section_title ?? null,
-      })),
+      rawSources,
+      conversationId: activeConversationId,
+      userMessageId,
+      assistantMessageId,
     });
   }
 
@@ -743,6 +934,21 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (!userKey) {
+    await recordAiUsageEvent(supabase, {
+      userId: user.id,
+      resumeId: primaryResumeId,
+      conversationId: activeConversationId,
+      messageId: userMessageId,
+      eventType: "chat_error",
+      answerMode,
+      modelProvider: "user_key",
+      status: "error",
+      errorCode: "api_key_not_found",
+      latencyMs: Date.now() - requestStartedAt,
+      retrievalQueryLength: retrievalQuery.length,
+      contextChunkCount: contextChunks.length,
+      contextCharCount,
+    });
     return NextResponse.json({ error: "API key no encontrada" }, { status: 404 });
   }
 
@@ -750,6 +956,22 @@ export async function POST(request: NextRequest) {
   try {
     plainApiKey = decryptApiKey(userKey.key_encrypted, userKey.key_iv);
   } catch {
+    await recordAiUsageEvent(supabase, {
+      userId: user.id,
+      resumeId: primaryResumeId,
+      conversationId: activeConversationId,
+      messageId: userMessageId,
+      eventType: "chat_error",
+      answerMode,
+      modelProvider: userKey.provider,
+      modelId: userKey.model_id,
+      status: "error",
+      errorCode: "api_key_decrypt_error",
+      latencyMs: Date.now() - requestStartedAt,
+      retrievalQueryLength: retrievalQuery.length,
+      contextChunkCount: contextChunks.length,
+      contextCharCount,
+    });
     return NextResponse.json({ error: "Error al procesar la API key" }, { status: 500 });
   }
 
@@ -777,7 +999,7 @@ export async function POST(request: NextRequest) {
   // el toggle esté prendido: la actividad debe basarse solo en el apunte y
   // devolver JSON estricto. La web aumenta el riesgo de salida no estructurada.
   const webResults = structuredMode ? [] : await searchWeb(query);
-  const llmMessages = toLlmMessages(messages);
+  const llmMessages = toLlmMessages(recentConversationMessages);
 
   async function callOwnModel(repair: boolean): Promise<string> {
     const prompt = buildEnrichedPrompt(query, noteContext, webResults, {
@@ -801,6 +1023,24 @@ export async function POST(request: NextRequest) {
     rawText = await callOwnModel(false);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    await recordAiUsageEvent(supabase, {
+      userId: user.id,
+      resumeId: primaryResumeId,
+      conversationId: activeConversationId,
+      messageId: userMessageId,
+      eventType: "chat_error",
+      answerMode,
+      modelProvider: userKey.provider,
+      modelId: userKey.model_id,
+      status: "error",
+      errorCode: message.includes("timeout") || message.includes("AbortError")
+        ? "model_timeout"
+        : "model_provider_error",
+      latencyMs: Date.now() - requestStartedAt,
+      retrievalQueryLength: retrievalQuery.length,
+      contextChunkCount: contextChunks.length,
+      contextCharCount,
+    });
     if (message.includes("timeout") || message.includes("AbortError")) {
       return NextResponse.json(
         { error: "El modelo tardó demasiado en responder. Intentá de nuevo." },
@@ -847,6 +1087,47 @@ export async function POST(request: NextRequest) {
     : structuredMode
       ? structuredFallbackText(rawText, cleanText)
       : cleanText;
+  const rawSources = contextChunks.map((c) => ({
+    resumeId: c.resume_id,
+    chunkIndex: c.chunk_index,
+    similarity: chunkSimilarity(c),
+    pageStart: c.page_start ?? null,
+    pageEnd: c.page_end ?? null,
+    sectionTitle: c.section_title ?? null,
+  }));
+  let assistantMessageId: string | null = null;
+  if (activeConversationId) {
+    const appended = await appendConversationMessage(supabase, {
+      conversationId: activeConversationId,
+      role: "assistant",
+      content: answer,
+      sources: sourcesWithPages,
+      rawSources,
+      activity: parsedActivity,
+      answerMode,
+      modelProvider: userKey.provider,
+      modelId: userKey.model_id,
+      latencyMs: Date.now() - requestStartedAt,
+    });
+    assistantMessageId = appended.messageId;
+  }
+
+  await recordAiUsageEvent(supabase, {
+    userId: user.id,
+    resumeId: primaryResumeId,
+    conversationId: activeConversationId,
+    messageId: assistantMessageId ?? userMessageId,
+    eventType: parsedActivity ? "study_activity_generated" : "chat_message",
+    answerMode,
+    modelProvider: userKey.provider,
+    modelId: userKey.model_id,
+    status: "success",
+    latencyMs: Date.now() - requestStartedAt,
+    retrievalQueryLength: retrievalQuery.length,
+    contextChunkCount: contextChunks.length,
+    contextCharCount,
+    sourceCount: sourcesWithPages.length,
+  });
 
   return NextResponse.json({
     query,
@@ -855,5 +1136,9 @@ export async function POST(request: NextRequest) {
     ...(parsedActivity ? { activity: parsedActivity } : {}),
     model: userKey.provider,
     modelId: userKey.model_id,
+    rawSources,
+    conversationId: activeConversationId,
+    userMessageId,
+    assistantMessageId,
   });
 }

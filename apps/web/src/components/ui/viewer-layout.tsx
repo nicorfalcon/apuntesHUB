@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import { GripVertical, Menu, X } from "lucide-react";
 import { StarRating } from "@/components/ui/star-rating";
 import { AiChatPanel } from "@/components/ui/ai-chat-panel";
+import { AiConversationList } from "@/components/ai/ai-conversation-list";
 import { MaterialQuestionsPanel } from "@/components/material-questions";
 import { ResumeTopicsSection } from "@/components/resume/resume-topics";
 import type { TocItem } from "@/components/ui/pdf-viewer";
@@ -217,7 +218,10 @@ export function ViewerLayout({
   // null = todavía cargando; [] = sin índice; [...] = índice disponible
   const [outline, setOutline] = useState<TocItem[] | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<"contenido" | "consultas">("contenido");
+  const [sidebarTab, setSidebarTab] = useState<"contenido" | "consultas" | "ia">("contenido");
+  const [activeAiConversationId, setActiveAiConversationId] = useState<string | null>(null);
+  const [aiPanelOpenSignal, setAiPanelOpenSignal] = useState(0);
+  const [aiHistoryRefreshSignal, setAiHistoryRefreshSignal] = useState(0);
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
@@ -337,6 +341,20 @@ export function ViewerLayout({
 
   const hasOutline = outline !== null && outline.length > 0;
   const outlineLoading = outline === null;
+
+  const openNewAiConversation = useCallback(() => {
+    setActiveAiConversationId(null);
+    setAiPanelOpenSignal((value) => value + 1);
+  }, []);
+
+  const openExistingAiConversation = useCallback((conversationId: string) => {
+    setActiveAiConversationId(conversationId);
+    setAiPanelOpenSignal((value) => value + 1);
+  }, []);
+
+  const refreshAiHistory = useCallback(() => {
+    setAiHistoryRefreshSignal((value) => value + 1);
+  }, []);
 
   return (
     <div className="flex h-[100svh] flex-col overflow-hidden bg-background font-body">
@@ -493,7 +511,7 @@ export function ViewerLayout({
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="shrink-0 px-5 pb-3 pt-4">
               <div>
-                <div className="grid grid-cols-2 rounded-xl bg-gray-100 p-1 dark:bg-white/[0.06]">
+                <div className="grid grid-cols-3 rounded-xl bg-gray-100 p-1 dark:bg-white/[0.06]">
                   <button
                     type="button"
                     onClick={() => setSidebarTab("contenido")}
@@ -515,6 +533,17 @@ export function ViewerLayout({
                     }`}
                   >
                     Consultas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSidebarTab("ia")}
+                    className={`rounded-lg px-2 py-2 text-xs font-bold transition-colors ${
+                      sidebarTab === "ia"
+                        ? "bg-white text-foreground shadow-sm dark:bg-white/[0.08]"
+                        : "text-gray-500 hover:text-foreground dark:text-sand-300/70 dark:hover:text-sand-50"
+                    }`}
+                  >
+                    IA
                   </button>
                 </div>
               </div>
@@ -560,13 +589,21 @@ export function ViewerLayout({
                     </>
                   )}
                 </>
-              ) : (
+              ) : sidebarTab === "consultas" ? (
                 <MaterialQuestionsPanel
                   targetType="resume"
                   resumeId={resumeId}
                   currentPage={currentPage}
                   surface="sidebar"
                   className="px-2 pb-2"
+                />
+              ) : (
+                <AiConversationList
+                  resumeId={resumeId}
+                  activeConversationId={activeAiConversationId}
+                  refreshSignal={aiHistoryRefreshSignal}
+                  onSelectConversation={openExistingAiConversation}
+                  onNewConversation={openNewAiConversation}
                 />
               )}
             </div>
@@ -713,6 +750,13 @@ export function ViewerLayout({
         resumeSubject={resume.subject}
         resumeTopics={resume.topics}
         aiReady={aiReady}
+        selectedConversationId={activeAiConversationId}
+        openSignal={aiPanelOpenSignal}
+        onConversationCreated={(conversationId) => {
+          setActiveAiConversationId(conversationId);
+          refreshAiHistory();
+        }}
+        onConversationUpdated={refreshAiHistory}
       />
     </div>
   );

@@ -21,6 +21,8 @@ export interface ChatRequestBody {
   topics?: unknown;
   answerMode?: unknown;
   count?: unknown;
+  conversationId?: unknown;
+  persist?: unknown;
 }
 
 export type ChatRequestValidation =
@@ -35,6 +37,8 @@ export type ChatRequestValidation =
       topics: string[];
       answerMode: StudyChatAnswerMode;
       count: number;
+      conversationId: string | null;
+      persist: boolean;
     };
 
 /** Cantidades de preguntas permitidas para una práctica estructurada. */
@@ -59,6 +63,8 @@ const ANSWER_MODES = new Set<StudyChatAnswerMode>([
   "step_by_step",
   "beginner",
 ]);
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
 
 /**
  * Valida el body de una solicitud al chat de IA. Devuelve `{ error, status }`
@@ -127,6 +133,11 @@ export function validateChatRequest(
   const count = ALLOWED_ACTIVITY_COUNTS.includes(body.count as 3 | 5)
     ? (body.count as number)
     : DEFAULT_ACTIVITY_COUNT;
+  const conversationId = typeof body.conversationId === "string" &&
+    UUID_RE.test(body.conversationId)
+    ? body.conversationId
+    : null;
+  const persist = body.persist === true || conversationId !== null;
 
   return {
     query,
@@ -138,5 +149,7 @@ export function validateChatRequest(
     topics,
     answerMode,
     count,
+    conversationId,
+    persist,
   };
 }

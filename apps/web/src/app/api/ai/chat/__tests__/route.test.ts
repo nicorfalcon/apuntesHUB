@@ -35,6 +35,7 @@ const h = vi.hoisted(() => ({
   adminUserKeySingle: vi.fn(),
   documentChunks: [] as DocumentChunkRow[],
   purchaseRows: [] as PurchaseMetadataRow[],
+  usageEventInsert: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -42,6 +43,12 @@ vi.mock("@/lib/supabase/server", () => ({
     auth: { getUser: h.getUser },
     rpc: h.rpcSearchChunks,
     from: (table: string) => {
+      if (table === "ai_usage_events") {
+        return {
+          insert: h.usageEventInsert,
+        };
+      }
+
       if (table === "purchases") {
         const filters: Record<string, unknown> = {};
         const builder = {
@@ -176,6 +183,7 @@ describe("POST /api/ai/chat", () => {
     warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     h.documentChunks = [];
     h.purchaseRows = [];
+    h.usageEventInsert.mockResolvedValue({ error: null });
   });
 
   afterEach(() => {

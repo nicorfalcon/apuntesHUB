@@ -18,8 +18,11 @@ interface Props {
   resumeSubject?: string;
   resumeTopics?: string[] | null;
   apiKeyId: string;
+  conversationId?: string | null;
   initialTopic?: string;
   onBackToChat: () => void;
+  onConversationCreated?: (conversationId: string) => void;
+  onConversationUpdated?: () => void;
 }
 
 type Phase = "setup" | "loading" | "session" | "quiz" | "results";
@@ -49,8 +52,11 @@ export function StudyPanel({
   resumeSubject,
   resumeTopics,
   apiKeyId,
+  conversationId,
   initialTopic,
   onBackToChat,
+  onConversationCreated,
+  onConversationUpdated,
 }: Props) {
   const [phase, setPhase] = useState<Phase>("setup");
   const [type, setType] = useState<PracticeType>("multiple_choice");
@@ -75,6 +81,8 @@ export function StudyPanel({
           query: buildQuery(type, topic),
           resumeIds: [resumeId],
           apiKeyId,
+          conversationId,
+          persist: true,
           resumeTitle,
           subject: resumeSubject,
           topics: resumeTopics ?? [],
@@ -89,6 +97,11 @@ export function StudyPanel({
         setPhase("setup");
         return;
       }
+
+      if (typeof data.conversationId === "string" && data.conversationId !== conversationId) {
+        onConversationCreated?.(data.conversationId);
+      }
+      onConversationUpdated?.();
 
       if (type === "quiz") {
         setQuizText(typeof data.answer === "string" ? data.answer : "");

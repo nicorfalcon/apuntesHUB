@@ -24,6 +24,10 @@ interface AiChatPanelProps {
   resumeSubject?: string;
   resumeTopics?: string[] | null;
   aiReady: boolean;
+  selectedConversationId?: string | null;
+  openSignal?: number;
+  onConversationCreated?: (conversationId: string) => void;
+  onConversationUpdated?: () => void;
 }
 
 function SparkleIcon() {
@@ -91,12 +95,18 @@ export function AiChatPanel({
   resumeSubject,
   resumeTopics,
   aiReady,
+  selectedConversationId,
+  openSignal = 0,
+  onConversationCreated,
+  onConversationUpdated,
 }: AiChatPanelProps) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<PanelTab>("chat");
   const [studyTopic, setStudyTopic] = useState("");
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [answerMode, setAnswerMode] = useState<StudyChatAnswerMode>("auto");
@@ -134,6 +144,62 @@ export function AiChatPanel({
     if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading, open]);
 
+  useEffect(() => {
+    if (openSignal === 0) return;
+    setOpen(true);
+    setTab("chat");
+
+    if (!selectedConversationId) {
+      setConversationId(null);
+      setMessages([]);
+      setError(null);
+      return;
+    }
+
+    const requestedConversationId = selectedConversationId;
+    let cancelled = false;
+    async function loadConversation() {
+      setHistoryLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/ai/conversations/${requestedConversationId}`, {
+          cache: "no-store",
+        });
+        const data = (await res.json().catch(() => null)) as
+          | {
+              messages?: Array<{
+                role: "user" | "assistant";
+                content: string;
+                sources?: unknown[];
+              }>;
+              error?: string;
+            }
+          | null;
+        if (!res.ok) throw new Error(data?.error ?? "No pudimos abrir la conversación.");
+        if (cancelled) return;
+        setConversationId(requestedConversationId);
+        setMessages(
+          (data?.messages ?? []).map((message) => ({
+            role: message.role,
+            content: message.content,
+            sources: Array.isArray(message.sources) ? (message.sources as Source[]) : [],
+          }))
+        );
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(loadError instanceof Error ? loadError.message : "No pudimos abrir la conversación.");
+        }
+      } finally {
+        if (!cancelled) setHistoryLoading(false);
+      }
+    }
+
+    void loadConversation();
+    return () => {
+      cancelled = true;
+    };
+  }, [openSignal, selectedConversationId]);
+
   async function onSend() {
     const q = query.trim();
     if (!q || loading) return;
@@ -155,6 +221,8 @@ export function AiChatPanel({
           resumeIds: [resumeId],
           apiKeyId: selectedModel.id,
           messages: recentMessages,
+          conversationId,
+          persist: true,
           resumeTitle,
           subject: resumeSubject,
           topics: resumeTopics ?? [],
@@ -171,6 +239,10 @@ export function AiChatPanel({
           setError(data.error ?? "Error desconocido");
         }
       } else {
+        if (typeof data.conversationId === "string" && data.conversationId !== conversationId) {
+          setConversationId(data.conversationId);
+          onConversationCreated?.(data.conversationId);
+        }
         setMessages((prev) => [
           ...prev,
           {
@@ -179,6 +251,7 @@ export function AiChatPanel({
             sources: data.sources,
           },
         ]);
+        onConversationUpdated?.();
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -295,14 +368,25 @@ export function AiChatPanel({
                   resumeSubject={resumeSubject}
                   resumeTopics={resumeTopics}
                   apiKeyId={selectedModel.id}
+                  conversationId={conversationId}
                   initialTopic={studyTopic}
                   onBackToChat={() => setTab("chat")}
+                  onConversationCreated={(id) => {
+                    setConversationId(id);
+                    onConversationCreated?.(id);
+                  }}
+                  onConversationUpdated={onConversationUpdated}
                 />
               ) : (
                 <>
                   {/* Mensajes */}
                   <div className="flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">
-                    {messages.length === 0 && (
+                    {historyLoading && (
+                      <div className="mt-8 text-center text-xs text-gray-400 dark:text-sand-300/65">
+                        Cargando conversación…
+                      </div>
+                    )}
+                    {!historyLoading && messages.length === 0 && (
                       <p className="mt-8 text-center text-xs text-gray-400 dark:text-sand-300/65">
                         {selectedModel.hasWebSearch
                           ? "Preguntá sobre el apunte o cualquier tema relacionado. Voy a combinar el apunte con búsqueda en internet."
