@@ -12,10 +12,10 @@
 //     resuelve despues en Meilisearch y en el scoring del browse);
 //   - dedupe case-insensitive y accent-insensitive (gana la primera aparicion);
 //   - largo: minimo 2, maximo 60 caracteres por tema;
-//   - maximo 20 temas por apunte;
+//   - maximo 30 temas por apunte;
 //   - se preserva el orden en que el usuario los cargo.
 
-export const MAX_RESUME_TOPICS = 20;
+export const MAX_RESUME_TOPICS = 30;
 export const MAX_RESUME_TOPIC_LENGTH = 60;
 export const MIN_RESUME_TOPIC_LENGTH = 2;
 
