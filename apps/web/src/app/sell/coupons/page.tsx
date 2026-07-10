@@ -1,7 +1,7 @@
-import Link from "next/link";
-import { ArrowLeft, Ticket } from "lucide-react";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { SellNavbar } from "@/components/layout/sell-navbar";
 import { CouponsManager, type CouponRow } from "./coupons-manager";
 
 export const metadata = {
@@ -25,38 +25,30 @@ export default async function CouponsPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <div className="mx-auto max-w-3xl px-5 py-10">
-      <Link
-        href="/sell/dashboard"
-        className="inline-flex items-center gap-2 rounded-lg px-2 py-1 -ml-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-gray-50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 dark:hover:bg-white/10 dark:focus-visible:ring-accent-300/30"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Panel de vendedor
-      </Link>
-
-      <header className="mt-5 mb-8">
-        <div className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-50 text-accent-700 dark:bg-accent-300/12 dark:text-accent-100">
-            <Ticket className="h-5 w-5" strokeWidth={1.8} />
-          </span>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-700 dark:text-accent-200/90">
+    <div className="min-h-screen bg-background">
+      <Suspense fallback={<div className="h-14 border-b border-gray-200 bg-white dark:border-white/10 dark:bg-[#101816]" />}>
+        <SellNavbar backLabel="Panel de ventas" backHref="/sell/dashboard" />
+      </Suspense>
+      <div className="mx-auto max-w-3xl px-5 py-10">
+        <header className="mb-8">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent-700 dark:text-accent-100">
             Códigos
           </p>
-        </div>
-        <h1 className="mt-3 font-serif text-4xl text-foreground">
-          Códigos de descuento
-        </h1>
-        <p className="mt-2 max-w-prose text-sm text-gray-500 dark:text-sand-300/75">
-          Creá códigos que tus compradores pueden aplicar en cualquiera de tus
-          apuntes publicados. El descuento sale de tu parte; la comisión se calcula
-          sobre el monto ya descontado.
-        </p>
-      </header>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground">
+            Códigos de descuento
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Creá códigos que tus compradores pueden aplicar en cualquiera de tus
+            apuntes publicados. El descuento sale de tu parte; la comisión se calcula
+            sobre el monto ya descontado.
+          </p>
+        </header>
 
-      <CouponsManager
-        userId={user.id}
-        initialCoupons={(coupons ?? []) as CouponRow[]}
-      />
+        <CouponsManager
+          userId={user.id}
+          initialCoupons={(coupons ?? []) as CouponRow[]}
+        />
+      </div>
     </div>
   );
 }

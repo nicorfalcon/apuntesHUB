@@ -1,7 +1,7 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { SellNavbar } from "@/components/layout/sell-navbar";
 import { discountedPrice } from "@/lib/discounts/direct";
 import { CartWorkspace, type CartSellerGroup, type CartEntry } from "./cart-workspace";
 
@@ -101,28 +101,27 @@ export default async function CartPage() {
   const groups = [...groupsMap.values()];
 
   return (
-    <div className="mx-auto max-w-3xl px-5 py-10">
-      <Link
-        href="/explorar"
-        className="inline-flex items-center gap-2 rounded-lg px-2 py-1 -ml-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-gray-50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 dark:hover:bg-white/10 dark:focus-visible:ring-accent-300/30"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Seguir explorando
-      </Link>
+    <div className="min-h-screen bg-background">
+      <Suspense fallback={<div className="h-14 border-b border-gray-200 bg-white dark:border-white/10 dark:bg-[#101816]" />}>
+        <SellNavbar backLabel="Explorar" backHref="/explorar" />
+      </Suspense>
+      <div className="mx-auto max-w-3xl px-5 py-10">
+        <header>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent-700 dark:text-accent-100">
+            Carrito
+          </p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground">
+            Tu carrito
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Los materiales se agrupan por vendedor. Cada vendedor se paga por separado, de
+            forma segura con Mercado Pago.
+          </p>
+        </header>
 
-      <header className="mt-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-700 dark:text-accent-200/90">
-          Carrito
-        </p>
-        <h1 className="mt-1.5 font-serif text-4xl text-foreground">Tu carrito</h1>
-        <p className="mt-2 max-w-prose text-sm text-gray-500 dark:text-sand-300/75">
-          Los materiales se agrupan por vendedor. Cada vendedor se paga por separado, de
-          forma segura con Mercado Pago.
-        </p>
-      </header>
-
-      <div className="mt-8">
-        <CartWorkspace initialGroups={groups} />
+        <div className="mt-8">
+          <CartWorkspace initialGroups={groups} />
+        </div>
       </div>
     </div>
   );

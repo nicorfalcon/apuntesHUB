@@ -110,6 +110,11 @@ export function ResumeActionsMenu({ resumeId, resumeTitle, aiStatus, onIngest }:
     router.push(`/sell/${resumeId}/edit`);
   }
 
+  function handlePrice() {
+    setOpen(false);
+    router.push(`/sell/${resumeId}/price`);
+  }
+
   function handleIngestClick() {
     setOpen(false);
     onIngest?.();
@@ -176,9 +181,19 @@ export function ResumeActionsMenu({ resumeId, resumeTitle, aiStatus, onIngest }:
           >
             Editar apunte
           </button>
+          <button
+            ref={(el) => { itemRefs.current[1] = el; }}
+            role="menuitem"
+            type="button"
+            tabIndex={-1}
+            onClick={handlePrice}
+            className="flex w-full items-center px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 focus:bg-gray-50 focus:outline-none dark:text-sand-100 dark:hover:bg-white/10 dark:focus:bg-accent-300/10"
+          >
+            Precio y descuento
+          </button>
           {onIngest && (
             <button
-              ref={(el) => { itemRefs.current[1] = el; }}
+              ref={(el) => { itemRefs.current[2] = el; }}
               role="menuitem"
               type="button"
               tabIndex={-1}
@@ -196,7 +211,7 @@ export function ResumeActionsMenu({ resumeId, resumeTitle, aiStatus, onIngest }:
             </button>
           )}
           <button
-            ref={(el) => { itemRefs.current[onIngest ? 2 : 1] = el; }}
+            ref={(el) => { itemRefs.current[onIngest ? 3 : 2] = el; }}
             role="menuitem"
             type="button"
             tabIndex={-1}

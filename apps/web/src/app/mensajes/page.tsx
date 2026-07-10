@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { MessageCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { SellNavbar } from "@/components/layout/sell-navbar";
 import { MessagesWorkspace } from "@/components/messages/messages-workspace";
 import type {
   Profile,
@@ -100,7 +102,11 @@ export default async function MensajesPage({
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 md:py-8">
+    <div className="min-h-screen bg-background">
+      <Suspense fallback={<div className="h-14 border-b border-gray-200 bg-white dark:border-white/10 dark:bg-[#101816]" />}>
+        <SellNavbar backLabel="Inicio" backHref="/" />
+      </Suspense>
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 md:py-8">
       <header className="mb-6 border-b border-gray-200/80 pb-5 dark:border-white/10">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent-700 dark:text-accent-100">
           Tutorías
@@ -127,7 +133,8 @@ export default async function MensajesPage({
         messages={messages}
         selectedBookingId={selectedBooking.id}
       />
-    </main>
+      </main>
+    </div>
   );
 }
 
@@ -152,7 +159,11 @@ function EmptyMessagesState({
   unavailableSelectedBooking?: boolean;
 }) {
   return (
-    <main className="mx-auto flex min-h-[72vh] w-full max-w-4xl flex-col items-center justify-center px-4 py-16 text-center">
+    <div className="min-h-screen bg-background">
+      <Suspense fallback={<div className="h-14 border-b border-gray-200 bg-white dark:border-white/10 dark:bg-[#101816]" />}>
+        <SellNavbar backLabel="Inicio" backHref="/" />
+      </Suspense>
+      <main className="mx-auto flex min-h-[72vh] w-full max-w-4xl flex-col items-center justify-center px-4 py-16 text-center">
       <div className="w-full rounded-[22px] border border-gray-200 bg-white p-8 shadow-[0_18px_46px_rgba(38,56,51,0.06)] dark:border-white/10 dark:bg-[#0f1e1a] dark:shadow-black/25 sm:p-10">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-700 ring-1 ring-accent-100 dark:bg-accent-300/15 dark:text-accent-100 dark:ring-accent-300/20">
           <MessageCircle className="h-6 w-6" aria-hidden="true" />
@@ -177,6 +188,7 @@ function EmptyMessagesState({
           Explorar profesores
         </Link>
       </div>
-    </main>
+      </main>
+    </div>
   );
 }

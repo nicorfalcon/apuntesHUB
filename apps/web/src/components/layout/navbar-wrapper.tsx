@@ -18,5 +18,11 @@ export function NavbarWrapper() {
   if (/^\/sell\/.+\/price$/.test(pathname)) return null;
   if (/^\/sell\/.+\/rename$/.test(pathname)) return null;
   if (/^\/sell\/.+\/photos$/.test(pathname)) return null;
+  // Vistas con navegación contextual propia (SellNavbar): no corresponden a
+  // ninguna pestaña principal, así que no mostramos la topbar con tabs.
+  if (pathname === "/sell/bundles") return null;
+  if (pathname === "/sell/coupons") return null;
+  if (pathname === "/carrito") return null;
+  if (pathname === "/mensajes") return null;
   return <Navbar />;
 }
