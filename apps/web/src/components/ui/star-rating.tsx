@@ -8,6 +8,20 @@ export function StarRating({ rating, count, size = "sm" }: StarRatingProps) {
   const stars = [1, 2, 3, 4, 5];
   const iconSize = size === "sm" ? "h-3.5 w-3.5" : "h-5 w-5";
 
+  // Sin reseñas: no mostramos 5 estrellas vacías (se lee como "mal valorado").
+  // Solo cuando el llamador pasa count === 0 de forma explícita.
+  if (count === 0) {
+    return (
+      <span
+        className={`text-gray-400 dark:text-sand-300/60 ${
+          size === "sm" ? "text-xs" : "text-sm"
+        }`}
+      >
+        Sin reseñas
+      </span>
+    );
+  }
+
   return (
     <div className="flex items-center gap-1">
       <div className="flex items-center">

@@ -49,7 +49,7 @@ export function OrderStatusPoller({ orderId }: OrderStatusPollerProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h1 className="font-serif text-2xl text-foreground">Pago confirmado</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Pago confirmado</h1>
         <p className="mt-2 text-sm text-gray-500">Te llevamos a tu biblioteca…</p>
       </div>
     );
@@ -58,7 +58,7 @@ export function OrderStatusPoller({ orderId }: OrderStatusPollerProps) {
   if (status === "failed") {
     return (
       <div className="text-center">
-        <h1 className="font-serif text-2xl text-foreground">El pago no se completó</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">El pago no se completó</h1>
         <p className="mt-2 text-sm text-gray-500">
           No se realizó ningún cobro. Podés intentarlo de nuevo desde tu carrito.
         </p>
@@ -78,7 +78,7 @@ export function OrderStatusPoller({ orderId }: OrderStatusPollerProps) {
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
       </svg>
-      <h1 className="font-serif text-2xl text-foreground">Confirmando el pago…</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-foreground">Confirmando el pago…</h1>
       <p className="mt-2 text-sm text-gray-500">
         Esto puede tardar unos segundos.
         {elapsed > 8 && (

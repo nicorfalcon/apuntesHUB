@@ -4,7 +4,7 @@ export default function OrderCheckoutFailurePage() {
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4">
       <div className="w-full max-w-md text-center">
-        <h1 className="font-serif text-2xl text-foreground">El pago no se completó</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">El pago no se completó</h1>
         <p className="mt-2 text-sm text-gray-500">
           No se realizó ningún cobro. Podés intentarlo de nuevo desde tu carrito.
         </p>

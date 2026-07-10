@@ -94,7 +94,7 @@ export function CartWorkspace({ initialGroups }: CartWorkspaceProps) {
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-700 dark:bg-accent-300/10 dark:text-accent-100">
           <ShoppingBag className="h-6 w-6" strokeWidth={1.7} />
         </div>
-        <p className="mt-5 font-serif text-2xl text-foreground">Tu carrito está vacío</p>
+        <p className="mt-5 text-2xl font-bold tracking-tight text-foreground">Tu carrito está vacío</p>
         <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
           Cuando agregues apuntes o paquetes, se van a agrupar acá por vendedor.
         </p>

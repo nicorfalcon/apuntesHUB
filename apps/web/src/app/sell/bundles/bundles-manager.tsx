@@ -331,7 +331,7 @@ export function BundlesManager({
 
       {bundles.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-200 py-14 text-center dark:border-white/10">
-          <p className="font-serif text-2xl text-foreground">
+          <p className="text-2xl font-bold tracking-tight text-foreground">
             Todavía no armaste ningún paquete
           </p>
           <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">

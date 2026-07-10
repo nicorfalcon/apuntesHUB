@@ -8,6 +8,8 @@ interface PurchaseButtonProps {
   isLoggedIn: boolean;
   sellerHasMp: boolean;
   hasPendingPurchase: boolean;
+  /** El apunte es gratis (precio efectivo 0): sin cupón, sin línea de pago. */
+  isFree?: boolean;
 }
 
 interface CouponResult {
@@ -24,6 +26,7 @@ export function PurchaseButton({
   isLoggedIn,
   sellerHasMp,
   hasPendingPurchase,
+  isFree = false,
 }: PurchaseButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -120,8 +123,8 @@ export function PurchaseButton({
 
   return (
     <div className="mt-4 space-y-2.5">
-      {/* Cupón de descuento */}
-      {isLoggedIn && (
+      {/* Cupón de descuento — no aplica a apuntes gratis */}
+      {isLoggedIn && !isFree && (
         <div className="text-sm">
           {!couponOpen && !coupon?.valid ? (
             <button
@@ -216,15 +219,18 @@ export function PurchaseButton({
             Redirigiendo a Mercado Pago…
           </span>
         ) : !isLoggedIn ? (
-          "Iniciar sesión para comprar"
+          isFree ? "Iniciar sesión para obtenerlo" : "Iniciar sesión para comprar"
         ) : hasPendingPurchase ? (
           "Continuar con el pago"
+        ) : isFree ? (
+          "Obtener gratis"
         ) : (
           "Comprar apunte"
         )}
       </button>
 
-      {/* Texto de seguridad */}
+      {/* Texto de seguridad — solo cuando hay un pago real de por medio */}
+      {!isFree && (
       <p className="flex items-center justify-center gap-1.5 text-[11px] text-gray-400">
         <svg
           className="h-3 w-3"
@@ -239,6 +245,7 @@ export function PurchaseButton({
         </svg>
         Pagá de forma segura con Mercado Pago
       </p>
+      )}
 
       {error && (
         <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600">

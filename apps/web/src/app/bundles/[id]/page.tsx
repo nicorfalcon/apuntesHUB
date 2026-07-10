@@ -87,7 +87,7 @@ export default async function BundlePage({
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent-700 dark:text-accent-100">
             Paquete{bundle.subject ? ` · ${bundle.subject}` : ""}
           </p>
-          <h1 className="mt-2 font-serif text-3xl text-foreground">{bundle.title}</h1>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground">{bundle.title}</h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-sand-300/75">
             por {seller?.display_name ?? "Vendedor"}
           </p>

@@ -156,6 +156,7 @@ export function SellNavbar({ backLabel: propLabel, backHref: propHref }: SellNav
                   <Link href="/my-purchases" onClick={() => setDropdownOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-sand-100 dark:hover:bg-white/10">Mi biblioteca</Link>
                   <Link href="/sell/dashboard" onClick={() => setDropdownOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-sand-100 dark:hover:bg-white/10">Panel de ventas</Link>
                   <Link href="/reputation" onClick={() => setDropdownOpen(false)} className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-sand-100 dark:hover:bg-white/10">Reputación</Link>
+                  <Link href="/ayuda" onClick={() => setDropdownOpen(false)} className="block border-t border-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:text-sand-100 dark:hover:bg-white/10">Centro de ayuda</Link>
                   <button onClick={handleSignOut} className="w-full border-t border-gray-100 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:border-white/10 dark:text-red-300 dark:hover:bg-red-500/10">
                     Cerrar sesión
                   </button>

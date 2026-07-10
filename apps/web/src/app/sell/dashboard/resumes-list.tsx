@@ -29,16 +29,16 @@ function aiErrorMessage(code: string | null | undefined): string {
 }
 
 const AI_BADGE: Record<IngestionStatus, { label: string; class: string }> = {
-  done:       { label: "IA ✓",       class: "bg-green-100 text-green-700" },
-  processing: { label: "IA ...",     class: "bg-blue-100 text-blue-600 animate-pulse" },
-  pending:    { label: "IA ...",     class: "bg-blue-100 text-blue-600 animate-pulse" },
-  failed:     { label: "IA error",   class: "bg-red-100 text-red-600" },
+  done:       { label: "IA ✓",       class: "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300" },
+  processing: { label: "IA ...",     class: "bg-blue-100 text-blue-600 animate-pulse dark:bg-blue-400/15 dark:text-blue-300" },
+  pending:    { label: "IA ...",     class: "bg-blue-100 text-blue-600 animate-pulse dark:bg-blue-400/15 dark:text-blue-300" },
+  failed:     { label: "IA error",   class: "bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300" },
 };
 
 const STATUS_LABELS: Record<Resume["status"], { label: string; class: string }> = {
-  published: { label: "Publicado", class: "bg-green-100 text-green-700" },
-  draft: { label: "Borrador", class: "bg-gray-100 text-gray-600" },
-  archived: { label: "Archivado", class: "bg-yellow-100 text-yellow-700" },
+  published: { label: "Publicado", class: "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300" },
+  draft: { label: "Borrador", class: "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-sand-300/75" },
+  archived: { label: "Archivado", class: "bg-yellow-100 text-yellow-700 dark:bg-yellow-400/15 dark:text-yellow-200" },
 };
 
 const FILTERS: { id: Filter; label: string }[] = [
@@ -219,9 +219,11 @@ export function ResumesList({ resumes, ventasPorResume, ingresosPorResume, inges
                     </h3>
                   </div>
                   {aiErrorText && (
-                    <p className="mt-1 text-xs text-red-600" role="status">
+                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-300/90" role="status">
                       {aiErrorText}
-                      {aiError?.retryable === false && " (no reintentable)"}
+                      {aiError?.retryable === false
+                        ? " (no reintentable)"
+                        : " · Reprocesá desde el menú ⋮"}
                     </p>
                   )}
                   <p className="mt-0.5 text-xs text-gray-400">

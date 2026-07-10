@@ -36,6 +36,11 @@ export default async function ResumePage({
 
   const resumeWithSeller = resume as ResumeWithSeller;
   const { profiles: seller } = resumeWithSeller;
+  const effectivePrice = discountedPrice(
+    resumeWithSeller.price,
+    resumeWithSeller.discount_percent
+  );
+  const isFree = effectivePrice === 0;
 
   // Verificar si el usuario ya compró o tiene compra pendiente
   let alreadyPurchased = false;
@@ -127,16 +132,16 @@ export default async function ResumePage({
         <div className="flex-1 space-y-8">
           {/* Preview */}
           {resumeWithSeller.preview_url ? (
-            <div className="relative h-80 w-full overflow-hidden rounded-xl border border-gray-200">
+            <div className="relative h-80 w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 dark:border-white/10 dark:bg-white/[0.04]">
               <Image
                 src={resumeWithSeller.preview_url}
                 alt={`Preview de ${resumeWithSeller.title}`}
                 fill
-                className="object-cover"
+                className="object-contain"
               />
             </div>
           ) : (
-            <div className="flex h-48 w-full items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50">
+            <div className="flex h-48 w-full items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 dark:border-white/15 dark:bg-white/[0.03]">
               <p className="text-sm text-gray-400">Sin preview disponible</p>
             </div>
           )}
@@ -268,6 +273,10 @@ export default async function ResumePage({
                     ${resumeWithSeller.price.toLocaleString("es-AR")}
                   </span>
                 </div>
+              ) : isFree ? (
+                <div className="text-2xl font-bold text-accent-700 dark:text-accent-100">
+                  Gratis
+                </div>
               ) : (
                 <div className="text-2xl font-bold text-accent-700 dark:text-accent-100">
                   ${resumeWithSeller.price.toLocaleString("es-AR")}{" "}
@@ -288,6 +297,7 @@ export default async function ResumePage({
                   isLoggedIn={!!user}
                   sellerHasMp={sellerHasMp}
                   hasPendingPurchase={true}
+                  isFree={isFree}
                 />
               ) : alreadyPurchased ? (
                 <Link
@@ -306,6 +316,7 @@ export default async function ResumePage({
                     isLoggedIn={!!user}
                     sellerHasMp={sellerHasMp}
                     hasPendingPurchase={false}
+                    isFree={isFree}
                   />
                   {sellerHasMp && !isOwnResume && (
                     <div className="mt-2.5">

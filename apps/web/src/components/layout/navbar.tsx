@@ -304,6 +304,13 @@ export function Navbar() {
                     >
                       Reputación
                     </Link>
+                    <Link
+                      href="/ayuda"
+                      onClick={() => setDropdownOpen(false)}
+                      className="block border-t border-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-500/35 dark:border-white/10 dark:text-sand-100 dark:hover:bg-white/10"
+                    >
+                      Centro de ayuda
+                    </Link>
                     <button
                       type="button"
                       onClick={handleSignOut}
@@ -396,6 +403,7 @@ export function Navbar() {
                   <Link href="/profile/profesor" onClick={() => setMenuOpen(false)} className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${pathname === "/profile/profesor" ? "bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-100" : "text-gray-600 hover:bg-gray-50 dark:text-sand-300/75 dark:hover:bg-white/10"}`}><GraduationCap className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />Perfil de profesor</Link>
                   <Link href="/sell/dashboard" onClick={() => setMenuOpen(false)} className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${pathname === "/sell/dashboard" ? "bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-100" : "text-gray-600 hover:bg-gray-50 dark:text-sand-300/75 dark:hover:bg-white/10"}`}>Panel de ventas</Link>
                   <Link href="/reputation" onClick={() => setMenuOpen(false)} className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${pathname === "/reputation" ? "bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-100" : "text-gray-600 hover:bg-gray-50 dark:text-sand-300/75 dark:hover:bg-white/10"}`}>Reputación</Link>
+                  <Link href="/ayuda" onClick={() => setMenuOpen(false)} className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 ${pathname === "/ayuda" ? "bg-accent-50 text-accent-700 dark:bg-accent-300/15 dark:text-accent-100" : "text-gray-600 hover:bg-gray-50 dark:text-sand-300/75 dark:hover:bg-white/10"}`}>Centro de ayuda</Link>
                   <button
                     type="button"
                     onClick={() => { setMenuOpen(false); handleSignOut(); }}

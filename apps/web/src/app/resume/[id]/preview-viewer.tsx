@@ -26,6 +26,7 @@ interface PreviewViewerProps {
 export function PreviewViewer({ resumeId, unlocked = false }: PreviewViewerProps) {
   const [data, setData] = useState<PreviewResponse | null>(null);
   const [error, setError] = useState(false);
+  const [failedPages, setFailedPages] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -95,16 +96,23 @@ export function PreviewViewer({ resumeId, unlocked = false }: PreviewViewerProps
               // Reserva el espacio antes de que cargue la imagen (evita layout shift).
               style={p.w && p.h ? { aspectRatio: `${p.w} / ${p.h}` } : undefined}
             >
-              {p.url ? (
+              {p.url && !failedPages.has(p.page) ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={p.url}
                   alt={`Página ${p.page}`}
                   draggable={false}
+                  onError={() =>
+                    setFailedPages((prev) => new Set(prev).add(p.page))
+                  }
                   className={`h-full w-full object-contain ${showLock ? "blur-md scale-105" : ""}`}
                 />
               ) : (
-                <div className="aspect-[3/4] w-full bg-gray-100 dark:bg-white/[0.04]" />
+                // Sin URL o la imagen falló al cargar: placeholder etiquetado en vez
+                // del ícono de imagen rota + alt suelto.
+                <div className="flex aspect-[3/4] w-full items-center justify-center bg-gray-100 dark:bg-white/[0.04]">
+                  <span className="text-xs text-gray-400">Página {p.page}</span>
+                </div>
               )}
 
               {showLock && (
