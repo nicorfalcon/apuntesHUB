@@ -41,6 +41,9 @@
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 72px;
+  /* Pintar el fondo del tema también en <html> evita el flash blanco
+     durante navegaciones/cargas, cuando <body> todavía no pintó. */
+  background: hsl(var(--background));
 }
 
 body {

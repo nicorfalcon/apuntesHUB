@@ -114,7 +114,7 @@ export function ContactForm() {
         <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-100 text-accent-700 dark:bg-accent-300/20 dark:text-accent-200">
           <CheckCircle2 className="h-6 w-6" strokeWidth={1.8} aria-hidden="true" />
         </span>
-        <h3 className="text-balance font-display text-2xl italic text-foreground">
+        <h3 className="text-balance text-xl font-bold tracking-tight text-foreground">
           Recibimos tu mensaje.
         </h3>
         <p className="max-w-md text-pretty text-sm leading-6 text-muted-foreground">

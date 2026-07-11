@@ -286,7 +286,7 @@ function HowToItem({ item }: { item: HowTo }) {
         <ol className="space-y-2.5">
           {item.steps.map((step, i) => (
             <li key={i} className="flex gap-3 text-sm leading-6 text-muted-foreground">
-              <span className="mt-px font-display text-base italic leading-6 text-accent-600 dark:text-accent-300">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-50 text-[11px] font-bold tabular-nums text-accent-700 dark:bg-accent-300/15 dark:text-accent-200">
                 {i + 1}
               </span>
               <span>{step}</span>
@@ -295,7 +295,7 @@ function HowToItem({ item }: { item: HowTo }) {
         </ol>
         {item.tip && (
           <p className="mt-4 text-xs leading-5 text-muted-foreground">
-            <span className="font-display text-sm italic text-accent-700 dark:text-accent-200">
+            <span className="font-semibold text-accent-700 dark:text-accent-200">
               Tip:
             </span>{" "}
             {item.tip}
@@ -324,7 +324,7 @@ export default function AyudaPage() {
           </span>
           <div className="h-px flex-1 bg-gray-200 dark:bg-white/10" />
         </div>
-        <h1 className="mt-5 text-balance font-display text-4xl italic leading-tight text-foreground md:text-5xl">
+        <h1 className="mt-3 text-balance text-3xl font-bold tracking-tight text-foreground md:text-4xl">
           ¿Qué querés hacer?
         </h1>
         <p className="mt-4 text-pretty text-[15px] leading-7 text-muted-foreground">
@@ -381,7 +381,7 @@ export default function AyudaPage() {
                   </span>
                   <div className="h-px flex-1 bg-gray-200 dark:bg-white/10" />
                 </div>
-                <h2 className="mt-4 text-balance font-display text-3xl italic text-foreground">
+                <h2 className="mt-4 text-balance text-2xl font-bold tracking-tight text-foreground">
                   {section.title}
                 </h2>
                 <p className="mt-3 max-w-2xl text-pretty text-sm leading-6 text-muted-foreground">
@@ -411,7 +411,7 @@ export default function AyudaPage() {
               </span>
               <div className="h-px flex-1 bg-gray-200 dark:bg-white/10" />
             </div>
-            <h2 className="mt-4 text-balance font-display text-3xl italic text-foreground">
+            <h2 className="mt-4 text-balance text-2xl font-bold tracking-tight text-foreground">
               Escribinos y te ayudamos.
             </h2>
             <p className="mt-3 max-w-2xl text-pretty text-sm leading-6 text-muted-foreground">
