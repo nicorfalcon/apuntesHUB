@@ -18,8 +18,10 @@ import {
   Wallet,
   BarChart3,
   MessageSquare,
+  ArrowLeft,
   type LucideIcon,
 } from "lucide-react";
+import { ContactForm } from "./contact-form";
 
 export const metadata = {
   title: "Centro de ayuda · apuntesHUB",
@@ -260,29 +262,31 @@ const MP_SECTION: HowTo = {
 function HowToItem({ item }: { item: HowTo }) {
   const Icon = item.icon;
   return (
-    <details className="group rounded-2xl border border-gray-200 bg-white transition-colors open:border-accent-300 hover:border-accent-300 dark:border-white/10 dark:bg-[#0f1e1a] dark:open:border-accent-300/35 dark:hover:border-accent-300/30">
-      <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3.5">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-700 ring-1 ring-accent-100 dark:bg-accent-300/12 dark:text-accent-200 dark:ring-accent-300/20">
-          <Icon className="h-[18px] w-[18px]" strokeWidth={1.9} />
-        </span>
-        <span className="flex-1 text-sm font-semibold text-foreground">
+    <details className="group border-b border-gray-200/80 last:border-b-0 dark:border-white/10">
+      <summary className="flex cursor-pointer list-none items-center gap-3.5 rounded-lg py-4 transition-colors [touch-action:manipulation] hover:text-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300/40 dark:hover:text-accent-100">
+        <Icon
+          className="h-[18px] w-[18px] shrink-0 text-accent-600 dark:text-accent-300"
+          strokeWidth={1.8}
+        />
+        <span className="flex-1 text-[15px] font-semibold text-foreground transition-colors group-hover:text-accent-700 dark:group-hover:text-accent-100">
           {item.q}
         </span>
         <svg
-          className="h-4 w-4 shrink-0 text-gray-400 transition-transform group-open:rotate-180"
+          className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none"
           viewBox="0 0 20 20"
           fill="none"
           stroke="currentColor"
           strokeWidth="1.8"
+          aria-hidden="true"
         >
           <path d="M6 8l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </summary>
-      <div className="border-t border-gray-100 px-4 py-4 pl-16 dark:border-white/10">
-        <ol className="space-y-2">
+      <div className="pb-5 pl-[31px]">
+        <ol className="space-y-2.5">
           {item.steps.map((step, i) => (
             <li key={i} className="flex gap-3 text-sm leading-6 text-muted-foreground">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-bold text-gray-500 dark:bg-white/10 dark:text-sand-300/80">
+              <span className="mt-px font-display text-base italic leading-6 text-accent-600 dark:text-accent-300">
                 {i + 1}
               </span>
               <span>{step}</span>
@@ -290,8 +294,11 @@ function HowToItem({ item }: { item: HowTo }) {
           ))}
         </ol>
         {item.tip && (
-          <p className="mt-3 rounded-xl bg-accent-50/70 px-3 py-2 text-xs leading-5 text-accent-800 dark:bg-accent-300/10 dark:text-accent-100">
-            <span className="font-semibold">Tip:</span> {item.tip}
+          <p className="mt-4 text-xs leading-5 text-muted-foreground">
+            <span className="font-display text-sm italic text-accent-700 dark:text-accent-200">
+              Tip:
+            </span>{" "}
+            {item.tip}
           </p>
         )}
       </div>
@@ -301,42 +308,63 @@ function HowToItem({ item }: { item: HowTo }) {
 
 export default function AyudaPage() {
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 md:py-14">
-      <header className="mb-10">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent-700 dark:text-accent-100">
-          Ayuda
-        </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-          Centro de ayuda
+    <div className="mx-auto max-w-5xl px-4 py-8 md:py-12">
+      <Link
+        href="/"
+        className="inline-flex items-center gap-2 rounded text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      >
+        <ArrowLeft className="h-4 w-4" strokeWidth={1.9} />
+        Volver al inicio
+      </Link>
+
+      <header className="mt-6 mb-12 max-w-2xl">
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-medium uppercase tracking-[0.22em] text-accent-700 dark:text-accent-200">
+            Centro de ayuda
+          </span>
+          <div className="h-px flex-1 bg-gray-200 dark:bg-white/10" />
+        </div>
+        <h1 className="mt-5 text-balance font-display text-4xl italic leading-tight text-foreground md:text-5xl">
+          ¿Qué querés hacer?
         </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Guías paso a paso, organizadas por lo que querés hacer. Elegí tu rol y
-          desplegá la acción que necesitás.
+        <p className="mt-4 text-pretty text-[15px] leading-7 text-muted-foreground">
+          Guías paso a paso, organizadas por rol. Elegí una acción y desplegá el
+          instructivo. Si no encontrás lo que buscás, escribinos al final.
         </p>
       </header>
 
-      <div className="grid gap-10 lg:grid-cols-[200px_minmax(0,1fr)]">
+      <div className="grid gap-x-12 gap-y-10 lg:grid-cols-[190px_minmax(0,1fr)]">
         {/* Índice lateral */}
         <aside className="hidden lg:block">
-          <nav className="sticky top-24 space-y-1">
+          <nav className="sticky top-24 space-y-0.5">
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
+              Secciones
+            </p>
             {SECTIONS.map((s) => {
               const Icon = s.icon;
               return (
                 <a
                   key={s.id}
                   href={`#${s.id}`}
-                  className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-gray-50 hover:text-foreground dark:hover:bg-white/5"
+                  className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent-50 hover:text-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300/50 dark:hover:bg-white/5 dark:hover:text-accent-100"
                 >
-                  <Icon className="h-4 w-4" strokeWidth={1.9} />
+                  <Icon className="h-4 w-4 shrink-0" strokeWidth={1.8} />
                   {s.label}
                 </a>
               );
             })}
+            <a
+              href="#contacto"
+              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent-50 hover:text-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300/50 dark:hover:bg-white/5 dark:hover:text-accent-100"
+            >
+              <MessageSquare className="h-4 w-4 shrink-0" strokeWidth={1.8} />
+              Escribinos
+            </a>
           </nav>
         </aside>
 
         {/* Contenido */}
-        <div className="space-y-14">
+        <div className="space-y-16">
           {SECTIONS.map((section) => {
             const Icon = section.icon;
             const isSeller = section.id === "vendedores";
@@ -344,23 +372,23 @@ export default function AyudaPage() {
             return (
               <section key={section.id} id={section.id} className="scroll-mt-24">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-accent-100 text-accent-700 ring-1 ring-accent-200/70 dark:bg-accent-300/18 dark:text-accent-200 dark:ring-accent-300/25">
-                    <Icon className="h-5 w-5" strokeWidth={1.9} />
+                  <Icon
+                    className="h-4 w-4 text-accent-600 dark:text-accent-300"
+                    strokeWidth={1.9}
+                  />
+                  <span className="text-xs font-medium uppercase tracking-[0.2em] text-accent-700 dark:text-accent-200">
+                    {section.eyebrow}
                   </span>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent-700 dark:text-accent-100">
-                      {section.eyebrow}
-                    </p>
-                    <h2 className="text-2xl font-bold tracking-tight text-foreground">
-                      {section.title}
-                    </h2>
-                  </div>
+                  <div className="h-px flex-1 bg-gray-200 dark:bg-white/10" />
                 </div>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+                <h2 className="mt-4 text-balance font-display text-3xl italic text-foreground">
+                  {section.title}
+                </h2>
+                <p className="mt-3 max-w-2xl text-pretty text-sm leading-6 text-muted-foreground">
                   {section.intro}
                 </p>
 
-                <div className="mt-5 space-y-3">
+                <div className="mt-4 border-t border-gray-200/80 dark:border-white/10">
                   {section.items.map((item) => (
                     <HowToItem key={item.q} item={item} />
                   ))}
@@ -371,17 +399,30 @@ export default function AyudaPage() {
             );
           })}
 
-          <div className="rounded-2xl border border-dashed border-gray-200 px-6 py-8 text-center dark:border-white/10">
-            <p className="text-sm text-muted-foreground">
-              ¿No encontraste lo que buscabas?
+          {/* Contacto: formulario que envía un mail al equipo */}
+          <section id="contacto" className="scroll-mt-24">
+            <div className="flex items-center gap-3">
+              <MessageSquare
+                className="h-4 w-4 text-accent-600 dark:text-accent-300"
+                strokeWidth={1.9}
+              />
+              <span className="text-xs font-medium uppercase tracking-[0.2em] text-accent-700 dark:text-accent-200">
+                ¿Seguís con dudas?
+              </span>
+              <div className="h-px flex-1 bg-gray-200 dark:bg-white/10" />
+            </div>
+            <h2 className="mt-4 text-balance font-display text-3xl italic text-foreground">
+              Escribinos y te ayudamos.
+            </h2>
+            <p className="mt-3 max-w-2xl text-pretty text-sm leading-6 text-muted-foreground">
+              Contanos qué te pasó o qué estabas buscando y dejanos tu email. Te
+              respondemos ahí mismo, lo antes posible.
             </p>
-            <Link
-              href="/mensajes"
-              className="mt-2 inline-block text-sm font-semibold text-accent-700 hover:underline dark:text-accent-100"
-            >
-              Escribinos desde Mensajes
-            </Link>
-          </div>
+
+            <div className="mt-5">
+              <ContactForm />
+            </div>
+          </section>
         </div>
       </div>
     </div>

@@ -413,22 +413,22 @@ export function Navbar() {
                   </button>
                 </>
               ) : (
-                <>
+                <div className="mt-2 grid gap-2 border-t border-gray-100 pt-3 dark:border-white/10">
                   <Link
                     href="/login"
                     onClick={() => setMenuOpen(false)}
-                    className="rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 dark:text-sand-300/75 dark:hover:bg-white/10"
+                    className="block rounded-xl border border-gray-300 px-4 py-2.5 text-center text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 dark:border-white/25 dark:text-sand-100 dark:hover:bg-white/10"
                   >
                     Iniciar sesión
                   </Link>
                   <Link
                     href="/register"
                     onClick={() => setMenuOpen(false)}
-                    className="mt-2 block rounded-xl bg-accent-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 dark:bg-accent-300 dark:text-[#071713]"
+                    className="block rounded-xl bg-accent-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/35 dark:bg-accent-300 dark:text-[#071713]"
                   >
                     Registrarse
                   </Link>
-                </>
+                </div>
               )}
             </div>
           </div>

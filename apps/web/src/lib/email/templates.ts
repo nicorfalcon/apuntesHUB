@@ -567,3 +567,91 @@ export function buildBuyerMaterialQuestionAnsweredEmail(
 
   return { subject, html, text };
 }
+
+interface SupportRequestEmailInput {
+  fromName?: string | null;
+  fromEmail: string;
+  topicLabel: string;
+  message: string;
+  userId?: string | null;
+}
+
+export function buildSupportRequestEmail(input: SupportRequestEmailInput) {
+  const name = input.fromName?.trim() || "Alguien";
+  const subject = `[Ayuda] ${input.topicLabel} — ${input.fromEmail}`;
+  const category = "CENTRO DE AYUDA";
+
+  const messageHtml = escapeHtml(input.message).replace(/\n/g, "<br />");
+  const identityRow = input.userId
+    ? summaryRow("Usuario", input.userId)
+    : summaryRow("Usuario", "Sin sesión iniciada");
+
+  const html = `
+    <!doctype html>
+    <html>
+      <body style="margin:0;background:#eaf1f7;padding:32px 16px;font-family:Inter,Arial,sans-serif;color:#111b3a;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="520" cellspacing="0" cellpadding="0" style="width:100%;max-width:520px;border-collapse:collapse;background:#ffffff;border:1px solid #dbe4ef;">
+                <tr>
+                  <td align="center" style="background:#091735;padding:44px 24px;">
+                    <div style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#ffffff;">
+                      apuntes<span style="color:#08d6ad;">HUB</span><span style="color:#08d6ad;">.</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:34px 32px 28px;">
+                    <p style="margin:0 0 24px;color:#60708a;font-size:13px;letter-spacing:0.14em;">${category}</p>
+                    <h1 style="margin:0 0 18px;font-size:24px;line-height:1.25;color:#111b3a;">
+                      ${escapeHtml(name)} necesita una mano
+                    </h1>
+                    <p style="margin:0 0 22px;color:#43536d;font-size:15px;line-height:1.65;">
+                      Respondé directo a este correo para contactar a la persona.
+                    </p>
+
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:8px 0 24px;">
+                      ${summaryRow("Tema", input.topicLabel)}
+                      ${summaryRow("Email de contacto", input.fromEmail)}
+                      ${identityRow}
+                    </table>
+
+                    <div style="background:#f4f7fb;border:1px solid #e6ebf2;border-radius:8px;padding:18px 20px;">
+                      <p style="margin:0 0 8px;color:#60708a;font-size:12px;letter-spacing:0.1em;">MENSAJE</p>
+                      <p style="margin:0;color:#111b3a;font-size:15px;line-height:1.7;">${messageHtml}</p>
+                    </div>
+
+                    <div style="text-align:center;margin:26px 0 6px;">
+                      <a href="mailto:${escapeHtml(input.fromEmail)}" style="display:inline-block;background:#08d6ad;color:#071713;text-decoration:none;font-size:14px;font-weight:800;padding:15px 34px;border-radius:7px;">
+                        Responder a ${escapeHtml(input.fromEmail)}
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:22px 32px;border-top:1px solid #e6ebf2;color:#8a99b1;font-size:12px;line-height:1.55;">
+                    Enviado desde el Centro de ayuda de apuntesHUB.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+
+  const text = [
+    subject,
+    "",
+    `Tema: ${input.topicLabel}`,
+    `Email de contacto: ${input.fromEmail}`,
+    input.userId ? `Usuario: ${input.userId}` : "Usuario: sin sesión iniciada",
+    "",
+    "Mensaje:",
+    input.message,
+  ].join("\n");
+
+  return { subject, html, text };
+}

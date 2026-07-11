@@ -4,6 +4,7 @@ interface SendEmailInput {
   html: string;
   text: string;
   idempotencyKey: string;
+  replyTo?: string;
 }
 
 const RESEND_EMAILS_URL = "https://api.resend.com/emails";
@@ -15,6 +16,7 @@ export async function sendTransactionalEmail({
   html,
   text,
   idempotencyKey,
+  replyTo,
 }: SendEmailInput) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM ?? DEFAULT_FROM;
@@ -37,6 +39,7 @@ export async function sendTransactionalEmail({
       subject,
       html,
       text,
+      ...(replyTo ? { reply_to: replyTo } : {}),
     }),
   });
 
