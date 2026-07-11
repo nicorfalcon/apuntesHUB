@@ -218,18 +218,24 @@ export function CartWorkspace({ initialGroups }: CartWorkspaceProps) {
     <div className="space-y-6">
       {/* Cupón: un solo código para todo el carrito. Se aplica a los apuntes del vendedor
           que lo emitió; el resto queda igual. */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-[#0f1e1a]">
+      <section
+        className={
+          coupon
+            ? "rounded-2xl border border-emerald-300 bg-emerald-50/70 p-5 dark:border-emerald-400/30 dark:bg-emerald-400/10"
+            : "rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-[#0f1e1a]"
+        }
+      >
         {coupon ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-50 text-green-700 dark:bg-green-400/12 dark:text-green-300">
-                <Tag className="h-4 w-4" strokeWidth={1.8} />
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-white dark:bg-emerald-300 dark:text-emerald-950">
+                <Tag className="h-4 w-4" strokeWidth={2} />
               </span>
               <div className="text-sm">
-                <p className="font-semibold text-foreground">
+                <p className="font-semibold text-emerald-900 dark:text-emerald-100">
                   {coupon.code} aplicado
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-emerald-800/80 dark:text-emerald-100/75">
                   Descuenta {formatArs(coupon.totalDiscount)} en{" "}
                   {Object.values(coupon.bySeller).reduce(
                     (n, s) => n + Object.keys(s.byResume).length,
@@ -249,7 +255,7 @@ export function CartWorkspace({ initialGroups }: CartWorkspaceProps) {
             <button
               type="button"
               onClick={removeCoupon}
-              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600 dark:hover:bg-white/5"
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-emerald-800/80 transition-colors hover:bg-emerald-600/10 hover:text-emerald-900 dark:text-emerald-100/75 dark:hover:bg-emerald-300/10 dark:hover:text-emerald-100"
             >
               <X className="h-3.5 w-3.5" />
               Quitar
@@ -344,7 +350,7 @@ export function CartWorkspace({ initialGroups }: CartWorkspaceProps) {
                           </span>
                         )}
                         {couponOff > 0 && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-bold text-green-700 dark:bg-green-400/12 dark:text-green-300">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-600/20 bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-900 dark:border-emerald-300/25 dark:bg-emerald-300/15 dark:text-emerald-100">
                             <Tag className="h-3 w-3" strokeWidth={2} />
                             {coupon!.code} −{formatArs(couponOff)}
                           </span>

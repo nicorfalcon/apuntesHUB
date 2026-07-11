@@ -72,6 +72,9 @@ export function AddToCartButton({
 
     setInCart(true);
     window.dispatchEvent(new Event("cart-updated"));
+    // Sin esto, /carrito se sirve desde el Router Cache y el ítem recién agregado no
+    // aparece hasta un F5 (la página es un Server Component: no alcanza con el evento).
+    router.refresh();
     toast.success("Agregado al carrito.");
   }
 
