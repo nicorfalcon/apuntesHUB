@@ -18,6 +18,7 @@ import {
   Wallet,
   BarChart3,
   MessageSquare,
+  Bell,
   ArrowLeft,
   type LucideIcon,
 } from "lucide-react";
@@ -118,6 +119,16 @@ const SECTIONS: Section[] = [
         ],
       },
       {
+        icon: Bell,
+        q: "Elegir qué avisos por mail recibís",
+        steps: [
+          "Andá a tu Perfil y abrí la sección “Notificaciones”.",
+          "Activá o desactivá cada tipo de aviso: Ventas, Consultas sobre tu material, Respuestas a tus consultas y Clases particulares.",
+          "Los cambios se guardan solos: no hay botón de guardar.",
+        ],
+        tip: "Por defecto recibís todos. Los mails de tu cuenta (verificación y recuperación de contraseña) se mandan siempre.",
+      },
+      {
         icon: KeyRound,
         q: "Conectar tu API key personal para la IA",
         steps: [
@@ -205,6 +216,17 @@ const SECTIONS: Section[] = [
           "El Panel de ventas muestra ingresos estimados, publicaciones, ventas y estado de tus tutorías.",
           "En Inventario cambiás entre Apuntes, Cursos grabados, Consultas y Clases sin scrollear listas largas.",
         ],
+        tip: "Desde Vender podés entrar directo con “Ir al panel de ventas”.",
+      },
+      {
+        icon: Bell,
+        q: "Recibir un mail cada vez que te compran",
+        steps: [
+          "Está activado por defecto: cuando alguien compra un apunte, un paquete o un curso tuyo, te llega un mail con el detalle del cobro (monto, comisión y lo que cobrás).",
+          "Si no querés recibirlos, entrá a Perfil → Notificaciones y desactivá “Ventas”.",
+          "Lo mismo con “Consultas sobre tu material”: el aviso de cada consulta nueva de un comprador.",
+        ],
+        tip: "Desactivar el aviso no afecta la venta: siempre podés ver todo en el Panel de ventas.",
       },
     ],
   },

@@ -13,13 +13,19 @@ export default async function ProfilePage() {
 
   // Fetch profile y credenciales MP en paralelo
   const admin = createAdminClient();
-  const [{ data: profile }, { data: mpCreds }] = await Promise.all([
+  const [{ data: profile }, { data: mpCreds }, { data: notifPrefs }] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.id).single(),
     admin
       .from("seller_mp_credentials")
       .select("connected_at")
       .eq("id", user.id)
       .single(),
+    // Sin fila = todo activado (la fila se crea recién al tocar un toggle).
+    supabase
+      .from("notification_preferences")
+      .select("email_sales, email_material_questions, email_question_answers, email_tutoring")
+      .eq("user_id", user.id)
+      .maybeSingle(),
   ]);
 
   const oauthUrl = `https://auth.mercadopago.com.ar/authorization?client_id=${process.env.MP_APP_ID}&response_type=code&platform_id=mp&redirect_uri=${encodeURIComponent(`${process.env.NEXT_PUBLIC_APP_URL}/api/mercadopago/oauth/callback`)}`;
@@ -43,6 +49,7 @@ export default async function ProfilePage() {
         hasMpConnected={!!mpCreds}
         connectedAt={mpCreds?.connected_at ?? null}
         oauthUrl={oauthUrl}
+        notificationPrefs={notifPrefs ?? null}
       />
     </div>
   );

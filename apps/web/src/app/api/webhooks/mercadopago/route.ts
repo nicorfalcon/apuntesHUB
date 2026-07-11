@@ -6,6 +6,7 @@ import { parseExternalReference } from "@/lib/mercadopago/external-reference";
 import { resolvePaymentAction } from "@/lib/mercadopago/payment-action";
 import {
   sendCourseSaleNotification,
+  sendOrderSaleNotification,
   sendResumeSaleNotification,
 } from "@/lib/email/sale-notifications";
 
@@ -225,12 +226,13 @@ async function processPaymentNotification(paymentId: string) {
   // purchases, course_enrollments u orders (bundle / grupo de carrito)
   await admin.rpc(action.rpc, rpcArgs);
 
-  // Emails de venta solo para apunte suelto y curso. Para 'order' (bundle/carrito)
-  // todavía no hay notificación por email (queda como mejora); no rompe el flujo.
-  if (action.shouldNotify && kind !== "order") {
+  // Email de venta al vendedor (respeta su preferencia de notificaciones).
+  if (action.shouldNotify) {
     try {
       if (kind === "course") {
         await sendCourseSaleNotification(admin, targetId, paymentId);
+      } else if (kind === "order") {
+        await sendOrderSaleNotification(admin, targetId, paymentId);
       } else {
         await sendResumeSaleNotification(admin, targetId, paymentId);
       }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
+  BarChart3,
   BookOpen,
   ChevronRight,
   PlayCircle,
@@ -195,17 +196,26 @@ export function SellNewShell({
   if (!selectedType || (!selectedItem && selectedType !== "profesores")) {
     return (
       <div className="space-y-8">
-        <header className="max-w-3xl">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent-700 dark:text-accent-100">
-            Vender
-          </p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-            ¿Qué querés publicar?
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Publicá material de estudio o cursos grabados para compartirlos con la
-            comunidad.
-          </p>
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent-700 dark:text-accent-100">
+              Vender
+            </p>
+            <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground md:text-4xl">
+              ¿Qué querés publicar?
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+              Publicá material de estudio o cursos grabados para compartirlos con la
+              comunidad.
+            </p>
+          </div>
+          <Link
+            href="/sell/dashboard"
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-accent-600 px-4 py-2.5 text-sm font-semibold text-accent-700 transition-colors hover:bg-accent-50 dark:border-accent-300/35 dark:text-accent-100 dark:hover:bg-accent-300/10"
+          >
+            <BarChart3 className="h-4 w-4" strokeWidth={1.8} />
+            Ir al panel de ventas
+          </Link>
         </header>
 
         <section

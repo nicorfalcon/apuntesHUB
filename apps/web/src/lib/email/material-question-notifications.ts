@@ -1,5 +1,6 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { sendTransactionalEmail } from "./resend";
+import { wantsEmail } from "./preferences";
 import {
   buildBuyerMaterialQuestionAnsweredEmail,
   buildOwnerNewMaterialQuestionEmail,
@@ -163,6 +164,8 @@ export async function notifyOwnerOfNewMaterialQuestion(
   const ctx = await loadQuestionContext(admin, questionId);
   if (!ctx) return;
 
+  if (!(await wantsEmail(admin, ctx.materialOwnerId, "material_questions"))) return;
+
   const ownerEmail = await getUserEmail(admin, ctx.materialOwnerId);
   if (!ownerEmail) return;
 
@@ -214,7 +217,9 @@ export async function notifyBuyersOfMaterialQuestionAnswer(
   if (!viewUrl) return;
 
   // 1. Email al autor original de la pregunta.
-  const authorEmail = await getUserEmail(admin, ctx.questionAuthorId);
+  const authorEmail = (await wantsEmail(admin, ctx.questionAuthorId, "question_answers"))
+    ? await getUserEmail(admin, ctx.questionAuthorId)
+    : null;
   if (authorEmail) {
     const authorName = await getProfileName(admin, ctx.questionAuthorId, "Estudiante");
     const email = buildBuyerMaterialQuestionAnsweredEmail({
@@ -278,6 +283,7 @@ export async function notifyBuyersOfMaterialQuestionAnswer(
 
   await Promise.allSettled(
     validUserIds.map(async (userId) => {
+      if (!(await wantsEmail(admin, userId, "question_answers"))) return;
       const email = await getUserEmail(admin, userId);
       if (!email) return;
       const name = await getProfileName(admin, userId, "Estudiante");

@@ -18,6 +18,10 @@ import { ProfileForm } from "./profile-form";
 import { MpConnectSection } from "./mp-connect-section";
 import { SecuritySection } from "./security-section";
 import { ModelosIASection } from "./modelos-ia-section";
+import {
+  NotificationsSection,
+  type NotificationPrefs,
+} from "./notifications-section";
 import type { Profile } from "@/lib/database.types";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -37,6 +41,8 @@ interface ProfileSettingsShellProps {
   hasMpConnected: boolean;
   connectedAt: string | null;
   oauthUrl: string;
+  /** null = el usuario nunca tocó un toggle: recibe todo. */
+  notificationPrefs: NotificationPrefs | null;
 }
 
 const sections = [
@@ -78,31 +84,6 @@ const sections = [
   },
 ] as const;
 
-function ComingSoonPanel({
-  title,
-  description,
-  backendNote,
-}: {
-  title: string;
-  description: string;
-  backendNote: string;
-}) {
-  return (
-    <section className="rounded-2xl border border-gray-200/80 bg-white p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:border-white/10 dark:bg-[#0f1e1a]">
-      <div className="max-w-xl">
-        <p className="inline-flex rounded-full bg-accent-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-accent-700">
-          Próximamente
-        </p>
-        <h2 className="mt-4 text-xl font-bold tracking-tight text-foreground">{title}</h2>
-        <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-sand-300/75">{description}</p>
-        <div className="mt-6 rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 dark:border-white/15 dark:bg-white/5">
-          <p className="text-sm text-gray-500 dark:text-sand-300/75">{backendNote}</p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function AccessibilityPanel() {
   return (
     <section className="rounded-2xl border border-gray-200/80 bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:border-white/10 dark:bg-[#0f1e1a]">
@@ -142,6 +123,7 @@ export function ProfileSettingsShell({
   hasMpConnected,
   connectedAt,
   oauthUrl,
+  notificationPrefs,
 }: ProfileSettingsShellProps) {
   const [activeSection, setActiveSection] = useState<ProfileSection>("profile");
 
@@ -209,11 +191,7 @@ export function ProfileSettingsShell({
         )}
 
         {activeSection === "notifications" && (
-          <ComingSoonPanel
-            title="Notificaciones"
-            description="Acá irían avisos sobre compras, ventas, reseñas nuevas, pagos y actividad importante dentro del marketplace."
-            backendNote="Por ahora queda como sección visual: todavía no tenemos backend de notificaciones."
-          />
+          <NotificationsSection userId={userId} initialPrefs={notificationPrefs} />
         )}
       </div>
     </div>

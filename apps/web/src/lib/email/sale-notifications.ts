@@ -1,6 +1,7 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { generateGoogleCalendarUrl } from "@/lib/calendar";
 import { sendTransactionalEmail } from "./resend";
+import { wantsEmail } from "./preferences";
 import { buildSellerSaleEmail } from "./templates";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -42,6 +43,8 @@ export async function sendResumeSaleNotification(
     .maybeSingle();
 
   if (!purchase) return;
+
+  if (!(await wantsEmail(admin, purchase.seller_id, "sales"))) return;
 
   const resume = (purchase as Record<string, unknown>).resumes as
     | { title: string; subject: string; university: string }
@@ -103,6 +106,8 @@ export async function sendCourseSaleNotification(
     | null;
   if (!course) return;
 
+  if (!(await wantsEmail(admin, course.author_id, "sales"))) return;
+
   const sellerEmail = await getUserEmail(admin, course.author_id);
   if (!sellerEmail) return;
 
@@ -133,6 +138,75 @@ export async function sendCourseSaleNotification(
     html: email.html,
     text: email.text,
     idempotencyKey: `seller-sale-course-${enrollmentId}-${paymentId}`,
+  });
+}
+
+/**
+ * Venta de una orden: un pago con varios ítems del mismo vendedor (grupo del carrito o
+ * paquete). Hasta ahora estas ventas no avisaban por mail, aunque son el camino normal
+ * cuando el comprador usa el carrito.
+ */
+export async function sendOrderSaleNotification(
+  admin: AdminClient,
+  orderId: string,
+  paymentId: string
+) {
+  const { data: order } = await admin
+    .from("orders")
+    .select("id, seller_id, buyer_id, amount, platform_fee, seller_amount")
+    .eq("id", orderId)
+    .eq("payment_id", paymentId)
+    .eq("status", "completed")
+    .maybeSingle();
+
+  if (!order) return;
+
+  if (!(await wantsEmail(admin, order.seller_id, "sales"))) return;
+
+  const sellerEmail = await getUserEmail(admin, order.seller_id);
+  if (!sellerEmail) return;
+
+  const { data: items } = await admin
+    .from("order_items")
+    .select("item_type, resumes(title), bundles(title)")
+    .eq("order_id", orderId);
+
+  const titles = ((items ?? []) as Record<string, unknown>[]).map((row) => {
+    const resume = row.resumes as { title: string } | null;
+    const bundle = row.bundles as { title: string } | null;
+    return row.item_type === "bundle"
+      ? `Paquete: ${bundle?.title ?? "Pack de apuntes"}`
+      : (resume?.title ?? "Apunte");
+  });
+
+  const [sellerName, buyerName] = await Promise.all([
+    getProfileName(admin, order.seller_id, "vendedor"),
+    getProfileName(admin, order.buyer_id, "Comprador"),
+  ]);
+
+  const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://apunteshub.com"}/sell/dashboard`;
+  const email = buildSellerSaleEmail({
+    kind: "resume",
+    sellerName,
+    buyerName,
+    productTitle:
+      titles.length === 1
+        ? titles[0]
+        : `${titles.length} ítems en un solo pago`,
+    productContext: titles.length > 1 ? titles.join(" · ") : "",
+    amount: Number(order.amount),
+    platformFee: Number(order.platform_fee),
+    sellerAmount: Number(order.seller_amount),
+    paymentId,
+    dashboardUrl,
+  });
+
+  await sendTransactionalEmail({
+    to: sellerEmail,
+    subject: email.subject,
+    html: email.html,
+    text: email.text,
+    idempotencyKey: `seller-sale-order-${orderId}-${paymentId}`,
   });
 }
 
@@ -168,6 +242,16 @@ export async function sendTutoringBookingNotifications(
   ]);
 
   if (!tutorEmail && !studentEmail) return;
+
+  // La preferencia se chequea por destinatario: el profe puede querer el aviso y el
+  // alumno no (o al revés). Ojo: es "a quién le mando", no "qué datos muestro" — el mail
+  // del profe incluye el contacto del alumno aunque el alumno no reciba el suyo.
+  const [tutorWantsEmail, studentWantsEmail] = await Promise.all([
+    wantsEmail(admin, booking.tutor_id, "tutoring"),
+    wantsEmail(admin, booking.student_id, "tutoring"),
+  ]);
+
+  if (!tutorWantsEmail && !studentWantsEmail) return;
 
   const [tutorName, studentName] = await Promise.all([
     getProfileName(admin, booking.tutor_id, "Profesor"),
@@ -215,7 +299,7 @@ export async function sendTutoringBookingNotifications(
   const sendPromises: Promise<unknown>[] = [];
 
   // 1. Send Email to Tutor
-  if (tutorEmail) {
+  if (tutorEmail && tutorWantsEmail) {
     const { buildTutorBookingEmail } = await import("./templates");
     const tutorEmailContent = buildTutorBookingEmail({
       tutorName,
@@ -243,7 +327,7 @@ export async function sendTutoringBookingNotifications(
   }
 
   // 2. Send Email to Student
-  if (studentEmail) {
+  if (studentEmail && studentWantsEmail) {
     const { buildStudentBookingEmail } = await import("./templates");
     const studentEmailContent = buildStudentBookingEmail({
       studentName,
