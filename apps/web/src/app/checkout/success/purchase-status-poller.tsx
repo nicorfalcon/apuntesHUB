@@ -5,9 +5,14 @@ import Link from "next/link";
 
 interface PurchaseStatusPollerProps {
   purchaseId: string;
+  /** payment_id que devuelve MP al volver: permite acreditar sin esperar al webhook. */
+  paymentId?: string | null;
 }
 
-export function PurchaseStatusPoller({ purchaseId }: PurchaseStatusPollerProps) {
+export function PurchaseStatusPoller({
+  purchaseId,
+  paymentId,
+}: PurchaseStatusPollerProps) {
   const [status, setStatus] = useState<string>("pending");
   const [attempts, setAttempts] = useState(0);
   const maxAttempts = 20; // 20 * 3s = 60s máximo de polling
@@ -17,7 +22,11 @@ export function PurchaseStatusPoller({ purchaseId }: PurchaseStatusPollerProps) 
 
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/purchases/${purchaseId}/status`);
+        const res = await fetch(
+          `/api/purchases/${purchaseId}/status${
+            paymentId ? `?payment_id=${encodeURIComponent(paymentId)}` : ""
+          }`
+        );
         if (res.ok) {
           const data = await res.json();
           setStatus(data.status);
@@ -29,7 +38,7 @@ export function PurchaseStatusPoller({ purchaseId }: PurchaseStatusPollerProps) 
     }, 3000);
 
     return () => clearTimeout(timer);
-  }, [purchaseId, status, attempts, maxAttempts]);
+  }, [purchaseId, paymentId, status, attempts, maxAttempts]);
 
   if (status === "completed") {
     return (

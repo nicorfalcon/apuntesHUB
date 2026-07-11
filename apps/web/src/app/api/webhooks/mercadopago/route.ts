@@ -11,6 +11,17 @@ import {
 } from "@/lib/email/sale-notifications";
 
 /**
+ * El pago está aprobado pero la RPC que lo acredita falló. Es el único error que amerita
+ * pedirle a MP que reintente: hay plata cobrada sin material entregado.
+ */
+class CompletionFailedError extends Error {
+  constructor(message: string, readonly cause: unknown) {
+    super(message);
+    this.name = "CompletionFailedError";
+  }
+}
+
+/**
  * POST /api/webhooks/mercadopago
  * Recibe notificaciones de pago de Mercado Pago.
  * Valida la firma HMAC-SHA256, consulta el pago, y actualiza el estado de la compra.
@@ -49,9 +60,16 @@ export async function POST(request: NextRequest) {
   try {
     await processPaymentNotification(paymentId);
   } catch (err) {
+    if (err instanceof CompletionFailedError) {
+      // El pago está aprobado pero no pudimos acreditarlo: devolvemos 500 para que MP
+      // reintente la notificación. Contestar 200 acá dejaba la compra 'pending' para
+      // siempre, con la plata ya cobrada.
+      console.error("Error acreditando el pago (se pide reintento a MP):", err.cause);
+      return NextResponse.json({ error: "completion_failed" }, { status: 500 });
+    }
+
     console.error("Error procesando notificación de pago:", err);
-    // Retornamos 200 igualmente para que MP no reintente indefinidamente
-    // si es un error de lógica (ej: compra no encontrada)
+    // Errores de lógica (ej: compra no encontrada): 200 para que MP no reintente al pedo.
   }
 
   return NextResponse.json({ received: true });
@@ -205,7 +223,7 @@ async function processPaymentNotification(paymentId: string) {
       const { data: didConfirm, error } = await admin.rpc(action.rpc, rpcArgs);
 
       if (error) {
-        console.error("Error confirmando reserva:", error);
+        throw new CompletionFailedError("No se pudo confirmar la reserva", error);
       } else if (didConfirm === true) {
         try {
           const { sendTutoringBookingNotifications } = await import(
@@ -228,11 +246,10 @@ async function processPaymentNotification(paymentId: string) {
   if (rpcError) {
     // Silenciarlo dejaba al comprador pagando sin recibir el material y sin rastro en los
     // logs: el pago quedaba aprobado en MP y la compra 'pending' para siempre.
-    console.error(
-      `Webhook: ${action.rpc} falló para ${kind} ${targetId} (pago ${paymentId}):`,
+    throw new CompletionFailedError(
+      `${action.rpc} falló para ${kind} ${targetId} (pago ${paymentId})`,
       rpcError
     );
-    return;
   }
 
   // Email de venta al vendedor (respeta su preferencia de notificaciones).

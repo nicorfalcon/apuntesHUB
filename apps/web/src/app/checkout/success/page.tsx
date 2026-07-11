@@ -5,9 +5,15 @@ import { PurchaseStatusPoller } from "./purchase-status-poller";
 export default async function CheckoutSuccessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ purchase_id?: string }>;
+  searchParams: Promise<{
+    purchase_id?: string;
+    payment_id?: string;
+    collection_id?: string;
+  }>;
 }) {
-  const { purchase_id } = await searchParams;
+  // MP vuelve con payment_id (collection_id es su alias histórico): se lo pasamos al poller
+  // para acreditar la compra sin depender de que llegue el webhook.
+  const { purchase_id, payment_id, collection_id } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -30,7 +36,10 @@ export default async function CheckoutSuccessPage({
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4">
       <div className="w-full max-w-md">
-        <PurchaseStatusPoller purchaseId={purchase.id} />
+        <PurchaseStatusPoller
+          purchaseId={purchase.id}
+          paymentId={payment_id ?? collection_id ?? null}
+        />
       </div>
     </div>
   );
