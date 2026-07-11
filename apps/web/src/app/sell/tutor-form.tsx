@@ -17,6 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type { Profile } from "@/lib/database.types";
+import { PLATFORM_FEE_PERCENT, formatPercent } from "@/lib/fees";
 
 type Modality = "online" | "presencial" | "ambas";
 
@@ -193,6 +194,35 @@ function SectionTitle({
         </p>
       </div>
     </div>
+  );
+}
+
+/**
+ * Deja claro, en el mismo lugar donde el profe pone su tarifa, cuánto le queda: la comisión
+ * de la plataforma en clases es del 2,5%.
+ */
+function TutorEarningsHint({ hourlyRate }: { hourlyRate: string }) {
+  const rate = Number(hourlyRate);
+  const fee = PLATFORM_FEE_PERCENT.tutoring;
+
+  if (!Number.isFinite(rate) || rate <= 0) {
+    return (
+      <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
+        Nos quedamos con el {formatPercent(fee)}% de cada clase.
+      </p>
+    );
+  }
+
+  const net = Math.round(rate * (1 - fee / 100));
+
+  return (
+    <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
+      Cobrás{" "}
+      <span className="font-semibold text-foreground">
+        ${net.toLocaleString("es-AR")}
+      </span>{" "}
+      por hora: nos quedamos con el {formatPercent(fee)}% de comisión.
+    </p>
   );
 }
 
@@ -566,6 +596,7 @@ export function TutorForm({
                     className={inputClass}
                     placeholder="12000"
                   />
+                  <TutorEarningsHint hourlyRate={subject.hourlyRate} />
                 </div>
                 <div>
                   <FieldLabel htmlFor={`subject-university-${subject.localId}`}>

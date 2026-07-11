@@ -7,6 +7,7 @@ import { HowItWorks } from "@/components/landing/how-it-works";
 import { Categories } from "@/components/landing/categories";
 import { Payments } from "@/components/landing/payments";
 import { Sellers } from "@/components/landing/sellers";
+import { Tutors } from "@/components/landing/tutors";
 import { Testimonials } from "@/components/landing/testimonials";
 import { FAQ } from "@/components/landing/faq";
 import { FinalCTA } from "@/components/landing/final-cta";
@@ -43,16 +44,19 @@ export default async function LandingPage() {
       {/* 7. Para vendedores + calculadora */}
       <Sellers />
 
-      {/* 8. Testimonios */}
+      {/* 8. Clases particulares: tomarlas o darlas */}
+      <Tutors />
+
+      {/* 9. Testimonios */}
       <Testimonials />
 
-      {/* 9. FAQ  */}
+      {/* 10. FAQ  */}
       <FAQ />
 
-      {/* 10. CTA final */}
+      {/* 11. CTA final */}
       <FinalCTA />
 
-      {/* 11. Footer editorial */}
+      {/* 12. Footer editorial */}
       <Footer />
     </div>
   );

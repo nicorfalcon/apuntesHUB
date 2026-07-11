@@ -247,6 +247,7 @@ const SECTIONS: Section[] = [
           "Completá tu bio, las materias que enseñás, la tarifa por hora y la modalidad.",
           "Cargá tu disponibilidad horaria para que los alumnos puedan reservar.",
         ],
+        tip: "La comisión de las clases es del 2,5%: te quedás con el 97,5% de tu tarifa. Al cargar el precio por hora te mostramos cuánto cobrás por cada clase.",
       },
       {
         icon: CalendarCheck,

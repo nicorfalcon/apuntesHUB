@@ -24,6 +24,14 @@ export const FAQS = [
     a: "Cobramos una comision del 10% por cada venta. El 90% restante va directo a tu cuenta de Mercado Pago. No hay costos fijos ni cuotas mensuales para vender.",
   },
   {
+    q: "¿Puedo dar clases particulares en Apuntes Hub?",
+    a: "Si. Publicas las materias que ensenas, ponés tu tarifa por hora y cargás tus horarios disponibles. Los alumnos reservan y pagan por la plataforma, y vos coordinás los detalles por mensajes. La comision es de solo 2,5% por clase: te quedas con el 97,5%.",
+  },
+  {
+    q: "¿Como reservo una clase con un profesor?",
+    a: "Entra a Explorar y abri la pestana de profesores particulares. Filtras por materia, modalidad (online o presencial), disponibilidad y tarifa, elegis un horario libre y pagas la clase con Mercado Pago. Cuando queda confirmada, coordinas los detalles con el profe por Mensajes.",
+  },
+  {
     q: "¿En que universidades estan disponibles?",
     a: "Tenemos apuntes de mas de 50 universidades argentinas, incluyendo UBA, UTN, ITBA, UADE, UCA, UNLP, UNC, UNR y muchas mas. Si tu universidad no aparece, podes ser el primero en subir material.",
   },
