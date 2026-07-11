@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 
 interface OrderStatusPollerProps {
   orderId: string;
+  /** payment_id que devuelve MP al volver: permite confirmar sin esperar al webhook. */
+  paymentId?: string | null;
 }
 
 /**
@@ -13,7 +15,7 @@ interface OrderStatusPollerProps {
  * Mientras tanto muestra "confirmando el pago". Al completarse, redirige a la
  * biblioteca donde ya aparecen los apuntes del pedido.
  */
-export function OrderStatusPoller({ orderId }: OrderStatusPollerProps) {
+export function OrderStatusPoller({ orderId, paymentId }: OrderStatusPollerProps) {
   const router = useRouter();
   const [status, setStatus] = useState<string>("pending");
   const [elapsed, setElapsed] = useState(0);
@@ -25,9 +27,13 @@ export function OrderStatusPoller({ orderId }: OrderStatusPollerProps) {
     }
     if (status === "failed") return;
 
+    const statusUrl = `/api/orders/${orderId}/status${
+      paymentId ? `?payment_id=${encodeURIComponent(paymentId)}` : ""
+    }`;
+
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/orders/${orderId}/status`);
+        const res = await fetch(statusUrl);
         if (res.ok) {
           const data = await res.json();
           setStatus(data.status);
@@ -39,7 +45,7 @@ export function OrderStatusPoller({ orderId }: OrderStatusPollerProps) {
     }, 2500);
 
     return () => clearInterval(interval);
-  }, [orderId, status, router]);
+  }, [orderId, paymentId, status, router]);
 
   if (status === "completed") {
     return (

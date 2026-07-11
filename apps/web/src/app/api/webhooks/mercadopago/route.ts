@@ -224,7 +224,16 @@ async function processPaymentNotification(paymentId: string) {
   }
 
   // purchases, course_enrollments u orders (bundle / grupo de carrito)
-  await admin.rpc(action.rpc, rpcArgs);
+  const { error: rpcError } = await admin.rpc(action.rpc, rpcArgs);
+  if (rpcError) {
+    // Silenciarlo dejaba al comprador pagando sin recibir el material y sin rastro en los
+    // logs: el pago quedaba aprobado en MP y la compra 'pending' para siempre.
+    console.error(
+      `Webhook: ${action.rpc} falló para ${kind} ${targetId} (pago ${paymentId}):`,
+      rpcError
+    );
+    return;
+  }
 
   // Email de venta al vendedor (respeta su preferencia de notificaciones).
   if (action.shouldNotify) {
