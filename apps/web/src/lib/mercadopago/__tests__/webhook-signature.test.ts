@@ -57,6 +57,35 @@ describe("validateSignature", () => {
     expect(validateSignature(xSignature, REQUEST_ID, "otro-id")).toBe(false);
   });
 
+  it("acepta el id venga del query o del body (probamos los candidatos)", () => {
+    // given: MP firmó con el data.id, pero solo lo mandó en el body
+    const xSignature = firmaValida(DATA_ID, REQUEST_ID, TS);
+
+    // when / then
+    expect(validateSignature(xSignature, REQUEST_ID, [null, DATA_ID])).toBe(true);
+  });
+
+  it("acepta el id en mayúsculas: el manifest de MP lo usa en minúscula", () => {
+    // given: firma calculada con el id en minúscula, como hace MP
+    const xSignature = firmaValida("abc-123", REQUEST_ID, TS);
+
+    // when / then
+    expect(validateSignature(xSignature, REQUEST_ID, "ABC-123")).toBe(true);
+  });
+
+  it("acepta la notificación sin data.id: MP omite el segmento del manifest", () => {
+    // given: manifest sin el segmento id (MP no mandó el valor en ningún lado)
+    const manifest = `request-id:${REQUEST_ID};ts:${TS};`;
+    const hash = crypto.createHmac("sha256", SECRET).update(manifest).digest("hex");
+
+    // when / then
+    expect(validateSignature(`ts=${TS},v1=${hash}`, REQUEST_ID, [])).toBe(true);
+  });
+
+  it("rechaza un hash que no es hex de 32 bytes (largo distinto)", () => {
+    expect(validateSignature(`ts=${TS},v1=abcd`, REQUEST_ID, DATA_ID)).toBe(false);
+  });
+
   it("rechaza cuando el secreto no está configurado", () => {
     // given
     vi.stubEnv("MP_WEBHOOK_SECRET", "");

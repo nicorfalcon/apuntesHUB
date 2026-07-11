@@ -27,27 +27,31 @@ class CompletionFailedError extends Error {
  * Valida la firma HMAC-SHA256, consulta el pago, y actualiza el estado de la compra.
  */
 export async function POST(request: NextRequest) {
-  // 1. Validar firma HMAC-SHA256
   const xSignature = request.headers.get("x-signature");
   const xRequestId = request.headers.get("x-request-id");
-  const dataId = request.nextUrl.searchParams.get("data.id");
 
   if (!xSignature || !xRequestId) {
     return NextResponse.json({ error: "Missing signature headers" }, { status: 401 });
   }
 
-  const signatureValid = validateSignature(xSignature, xRequestId, dataId);
-  if (!signatureValid) {
-    console.error("Webhook HMAC validation failed");
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-  }
-
-  // 2. Parsear el body
+  // 1. Parsear el body ANTES de firmar: el id que entra en el manifest puede venir en el
+  // query (`data.id` o `id`) o solo en el body, según cómo notifique MP.
   let body: { type?: string; action?: string; data?: { id?: string } };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  }
+
+  // 2. Validar firma HMAC-SHA256
+  const signatureValid = validateSignature(xSignature, xRequestId, [
+    request.nextUrl.searchParams.get("data.id"),
+    request.nextUrl.searchParams.get("id"),
+    body.data?.id,
+  ]);
+  if (!signatureValid) {
+    console.error("Webhook HMAC validation failed");
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
   // Solo procesar notificaciones de pago
