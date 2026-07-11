@@ -46,11 +46,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { purchase_id: purchaseId } = purchaseData as {
+  const { purchase_id: purchaseId, free } = purchaseData as {
     purchase_id: string;
     status: string;
-    reused: boolean;
+    free?: boolean;
   };
+
+  // Gratis (precio 0, -100% o cupón que cubre todo): la RPC ya la completó. Mercado Pago
+  // rechaza una preferencia con unit_price 0, así que no hay pasarela que crear.
+  if (free) {
+    return NextResponse.json({ free: true, purchaseId, redirectUrl: "/my-purchases" });
+  }
 
   // Obtener datos del resume para la preferencia
   const admin = createAdminClient();

@@ -112,6 +112,44 @@ describe("POST /api/orders/checkout", () => {
     expect(prefArg.items[0].title).toContain("Paquete");
   });
 
+  it("pasa el cupón a la RPC (que lo re-valida server-side)", async () => {
+    h.getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
+    h.rpc.mockResolvedValue({ data: { order_id: "o1", amount: 800, status: "pending" }, error: null });
+    h.orderSingle.mockResolvedValue({ data: { amount: 800, platform_fee: 160, seller_id: "s1" }, error: null });
+    h.orderItems.mockResolvedValue({
+      data: [{ item_type: "resume", unit_price: 800, resumes: { title: "Apunte" }, bundles: null }],
+      error: null,
+    });
+    h.getValidAccessToken.mockResolvedValue("token-123");
+    h.preferenceCreate.mockResolvedValue({ id: "pref-1", init_point: "https://mp/pay" });
+    h.updateEq.mockResolvedValue({ error: null });
+
+    await POST(
+      makeReq({ sellerId: "s1", items: [{ type: "resume", id: "r1" }], couponCode: "PROMO10" })
+    );
+
+    expect(h.rpc).toHaveBeenCalledWith("purchase_order", {
+      p_seller_id: "s1",
+      p_items: [{ type: "resume", id: "r1" }],
+      p_coupon_code: "PROMO10",
+    });
+  });
+
+  it("orden gratis: no crea preferencia de MP (rechaza montos en 0)", async () => {
+    h.getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
+    h.rpc.mockResolvedValue({
+      data: { order_id: "o1", amount: 0, status: "completed", free: true },
+      error: null,
+    });
+
+    const res = await POST(makeReq({ sellerId: "s1", items: [{ type: "resume", id: "r1" }] }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.free).toBe(true);
+    expect(body.redirectUrl).toBe("/my-purchases");
+    expect(h.preferenceCreate).not.toHaveBeenCalled();
+  });
+
   it("400 si el vendedor no tiene MP", async () => {
     h.getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
     h.rpc.mockResolvedValue({ data: { order_id: "o1" }, error: null });

@@ -31,9 +31,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  const { sellerId, items } = (await request.json()) as {
+  const { sellerId, items, couponCode } = (await request.json()) as {
     sellerId?: string;
     items?: OrderItemInput[];
+    couponCode?: string;
   };
 
   if (!sellerId || !Array.isArray(items) || items.length === 0) {
@@ -43,21 +44,33 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Crear la orden pendiente (valida todo server-side y calcula montos).
+  // Crear la orden pendiente (valida todo server-side y calcula montos, cupón incluido:
+  // el código se re-valida contra los cupones del vendedor, no se confía en el cliente).
   const { data: orderData, error: orderError } = await supabase.rpc(
     "purchase_order",
-    { p_seller_id: sellerId, p_items: items }
+    {
+      p_seller_id: sellerId,
+      p_items: items,
+      ...(couponCode ? { p_coupon_code: couponCode } : {}),
+    }
   );
 
   if (orderError) {
     return NextResponse.json({ error: orderError.message }, { status: 400 });
   }
 
-  const { order_id: orderId } = orderData as {
+  const { order_id: orderId, free } = orderData as {
     order_id: string;
     amount: number;
     status: string;
+    free?: boolean;
   };
+
+  // Total 0 (material gratis o cupón que cubre todo): la RPC ya completó la orden y
+  // otorgó los apuntes. Mercado Pago no admite preferencias con monto 0.
+  if (free) {
+    return NextResponse.json({ free: true, orderId, redirectUrl: "/my-purchases" });
+  }
 
   const admin = createAdminClient();
 

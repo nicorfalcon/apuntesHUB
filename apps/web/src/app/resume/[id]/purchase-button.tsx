@@ -96,6 +96,14 @@ export function PurchaseButton({
         return;
       }
 
+      // Gratis (precio 0, -100% o cupón que cubre todo): no hay pasarela, el apunte ya
+      // quedó en la biblioteca. Mercado Pago no admite pagos de $0.
+      if (data.free) {
+        router.push(data.redirectUrl ?? "/my-purchases");
+        router.refresh();
+        return;
+      }
+
       if (data.initPoint) {
         window.location.href = data.initPoint;
         return; // Mantener loading=true mientras redirige
@@ -109,8 +117,8 @@ export function PurchaseButton({
     setLoading(false);
   }
 
-  // Vendedor sin MP conectado
-  if (!sellerHasMp) {
+  // Vendedor sin MP conectado. Un apunte gratis no necesita pasarela: se puede obtener igual.
+  if (!sellerHasMp && !isFree) {
     return (
       <div className="mt-4 rounded-xl bg-amber-50/60 border border-amber-200/60 px-4 py-3">
         <p className="text-xs text-amber-700">
@@ -216,7 +224,7 @@ export function PurchaseButton({
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
               />
             </svg>
-            Redirigiendo a Mercado Pago…
+            {isFree ? "Agregando a tu biblioteca…" : "Redirigiendo a Mercado Pago…"}
           </span>
         ) : !isLoggedIn ? (
           isFree ? "Iniciar sesión para obtenerlo" : "Iniciar sesión para comprar"

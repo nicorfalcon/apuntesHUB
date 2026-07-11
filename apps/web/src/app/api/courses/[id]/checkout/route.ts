@@ -36,11 +36,21 @@ export async function POST(
     return NextResponse.json({ error: rpcError.message }, { status: 400 });
   }
 
-  const { enrollment_id: enrollmentId } = rpcData as {
+  const { enrollment_id: enrollmentId, free } = rpcData as {
     enrollment_id: string;
     status: string;
-    reused: boolean;
+    free?: boolean;
   };
+
+  // Curso gratis (precio 0 o -100%): la RPC ya completó la inscripción. Mercado Pago
+  // rechaza una preferencia con unit_price 0, así que no hay pasarela que crear.
+  if (free) {
+    return NextResponse.json({
+      free: true,
+      enrollmentId,
+      redirectUrl: `/cursos/${courseId}`,
+    });
+  }
 
   const admin = createAdminClient();
   const { data: enrollment } = await admin

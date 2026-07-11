@@ -154,4 +154,20 @@ describe("POST /api/courses/[id]/checkout", () => {
     expect(res.status).toBe(400);
     expect((await res.json()).error).toMatch(/Mercado Pago/);
   });
+
+  it("dado un curso gratis, entonces inscribe sin crear preferencia (MP rechaza montos en 0)", async () => {
+    h.getUser.mockResolvedValue({ data: { user: { id: "u-1" } } });
+    h.rpc.mockResolvedValue({
+      data: { enrollment_id: "e-1", status: "completed", free: true },
+      error: null,
+    });
+
+    const [req, ctx] = makeRequest("c-1");
+    const res = await POST(req, ctx);
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.free).toBe(true);
+    expect(body.redirectUrl).toBe("/cursos/c-1");
+    expect(h.preferenceCreate).not.toHaveBeenCalled();
+  });
 });

@@ -8,9 +8,15 @@ interface EnrollButtonProps {
   courseId: string;
   /** Si no hay sesión, mandamos a login con redirect al curso. */
   isAuthenticated: boolean;
+  /** El curso es gratis (precio efectivo 0): se inscribe en el acto, sin pasarela. */
+  isFree?: boolean;
 }
 
-export function EnrollButton({ courseId, isAuthenticated }: EnrollButtonProps) {
+export function EnrollButton({
+  courseId,
+  isAuthenticated,
+  isFree = false,
+}: EnrollButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +40,14 @@ export function EnrollButton({ courseId, isAuthenticated }: EnrollButtonProps) {
       if (!res.ok) {
         setError(data?.error ?? "No pudimos iniciar la inscripción.");
         setLoading(false);
+        return;
+      }
+
+      // Curso gratis: la inscripción ya quedó hecha, no hay pago que hacer (MP no admite
+      // preferencias de $0).
+      if (data.free) {
+        router.push((data.redirectUrl as string) ?? `/cursos/${courseId}`);
+        router.refresh();
         return;
       }
 
@@ -61,11 +75,11 @@ export function EnrollButton({ courseId, isAuthenticated }: EnrollButtonProps) {
         {loading ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
-            Redirigiendo a Mercado Pago…
+            {isFree ? "Inscribiéndote…" : "Redirigiendo a Mercado Pago…"}
           </>
         ) : (
           <>
-            Inscribirme
+            {isFree ? "Inscribirme gratis" : "Inscribirme"}
             <ShoppingCart className="h-4 w-4" />
           </>
         )}

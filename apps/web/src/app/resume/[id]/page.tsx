@@ -291,14 +291,6 @@ export default async function ResumePage({
                 >
                   Editar apunte
                 </Link>
-              ) : hasPendingPurchase && !alreadyPurchased ? (
-                <PurchaseButton
-                  resumeId={resumeWithSeller.id}
-                  isLoggedIn={!!user}
-                  sellerHasMp={sellerHasMp}
-                  hasPendingPurchase={true}
-                  isFree={isFree}
-                />
               ) : alreadyPurchased ? (
                 <Link
                   href={`/my-purchases`}
@@ -315,10 +307,13 @@ export default async function ResumePage({
                     resumeId={resumeWithSeller.id}
                     isLoggedIn={!!user}
                     sellerHasMp={sellerHasMp}
-                    hasPendingPurchase={false}
+                    hasPendingPurchase={hasPendingPurchase}
                     isFree={isFree}
                   />
-                  {sellerHasMp && !isOwnResume && (
+                  {/* El carrito sigue disponible aunque haya una compra pendiente: si el
+                      comprador arrancó el pago individual y se arrepintió, no queda
+                      obligado a pagarlo suelto. */}
+                  {(sellerHasMp || isFree) && !isOwnResume && (
                     <div className="mt-2.5">
                       <AddToCartButton
                         itemType="resume"

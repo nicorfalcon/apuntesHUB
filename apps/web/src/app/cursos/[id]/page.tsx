@@ -466,6 +466,9 @@ export default async function CoursePage({
                   <EnrollButton
                     courseId={course.id}
                     isAuthenticated={Boolean(user)}
+                    isFree={
+                      discountedPrice(course.price_ars, course.discount_percent) === 0
+                    }
                   />
                 )}
                 <p className="mt-3 text-center text-xs leading-5 text-muted-foreground">

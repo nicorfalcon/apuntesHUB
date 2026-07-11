@@ -176,4 +176,19 @@ describe("POST /api/mercadopago/create-preference", () => {
     expect(res.status).toBe(500);
     expect(body.detail).toBe("mp boom");
   });
+
+  it("dado un apunte gratis, entonces no crea preferencia (MP rechaza montos en 0)", async () => {
+    h.getUser.mockResolvedValue({ data: { user: { id: "u-1" } } });
+    h.rpc.mockResolvedValue({
+      data: { purchase_id: "p-1", status: "completed", free: true },
+      error: null,
+    });
+
+    const res = await POST(makeRequest({ resumeId: "r-1" }));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.free).toBe(true);
+    expect(body.redirectUrl).toBe("/my-purchases");
+    expect(h.preferenceCreate).not.toHaveBeenCalled();
+  });
 });
