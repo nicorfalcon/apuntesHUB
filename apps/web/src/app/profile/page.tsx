@@ -11,18 +11,25 @@ export default async function ProfilePage() {
 
   if (!user) redirect("/login?redirect=/profile");
 
-  // Fetch profile y credenciales MP en paralelo
+  // Fetch profile y credenciales de cobro (MP y PayPal) en paralelo
   const admin = createAdminClient();
-  const [{ data: profile }, { data: mpCreds }] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", user.id).single(),
-    admin
-      .from("seller_mp_credentials")
-      .select("connected_at")
-      .eq("id", user.id)
-      .single(),
-  ]);
+  const [{ data: profile }, { data: mpCreds }, { data: paypalCreds }] =
+    await Promise.all([
+      supabase.from("profiles").select("*").eq("id", user.id).single(),
+      admin
+        .from("seller_mp_credentials")
+        .select("connected_at")
+        .eq("id", user.id)
+        .maybeSingle(),
+      admin
+        .from("seller_paypal_credentials")
+        .select("connected_at, payout_currency, payments_receivable")
+        .eq("id", user.id)
+        .maybeSingle(),
+    ]);
 
   const oauthUrl = `https://auth.mercadopago.com.ar/authorization?client_id=${process.env.MP_APP_ID}&response_type=code&platform_id=mp&redirect_uri=${encodeURIComponent(`${process.env.NEXT_PUBLIC_APP_URL}/api/mercadopago/oauth/callback`)}`;
+  const paypalOnboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/paypal/onboard`;
 
   const hasPassword = (user.identities ?? []).some((i) => i.provider === "email");
 
@@ -43,6 +50,17 @@ export default async function ProfilePage() {
         hasMpConnected={!!mpCreds}
         connectedAt={mpCreds?.connected_at ?? null}
         oauthUrl={oauthUrl}
+        hasPaypalConnected={!!paypalCreds}
+        paypalConnectedAt={paypalCreds?.connected_at ?? null}
+        payoutCurrency={paypalCreds?.payout_currency ?? "USD"}
+        paymentsReceivable={paypalCreds?.payments_receivable ?? false}
+        paypalOnboardUrl={paypalOnboardUrl}
+        preferredProvider={
+          (profile?.preferred_payment_provider as
+            | "mercadopago"
+            | "paypal"
+            | null) ?? null
+        }
       />
     </div>
   );

@@ -208,7 +208,13 @@ export default async function DashboardPage({
       .eq("status", "completed"),
   ]);
 
-  const hasMpConnected = !!mpCreds;
+  // El vendedor puede cobrar si tiene MP o PayPal conectado.
+  const { data: paypalCreds } = await admin
+    .from("seller_paypal_credentials")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+  const hasMpConnected = !!mpCreds || !!paypalCreds;
 
   const ventasPaquetes = orders?.length ?? 0;
   const ingresosPaquetes =

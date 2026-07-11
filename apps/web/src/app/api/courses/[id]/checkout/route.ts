@@ -3,6 +3,8 @@ import { MercadoPagoConfig, Preference } from "mercadopago";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getValidAccessToken } from "@/lib/mercadopago/refresh-token";
+import { resolveSellerProvider } from "@/lib/payments/resolve-provider";
+import { startPayPalCheckout } from "@/lib/paypal/checkout";
 
 /**
  * POST /api/courses/[id]/checkout
@@ -68,6 +70,37 @@ export async function POST(
     return NextResponse.json({ error: "Curso no encontrado" }, { status: 404 });
   }
 
+  // Prefijo para que el webhook detecte que es un enrollment, no una purchase de apunte.
+  const externalReference = `course_enrollment:${enrollmentId}`;
+
+  // Resolver proveedor del autor (MP o PayPal).
+  const { provider, paypal } = await resolveSellerProvider(admin, course.author_id);
+
+  if (provider === "paypal" && paypal) {
+    try {
+      const { orderId, redirectUrl } = await startPayPalCheckout({
+        paypal,
+        items: [{ name: course.title ?? "Curso grabado", amount: Number(enrollment.amount) }],
+        customId: externalReference,
+        platformFee: Number(enrollment.platform_fee),
+        description: course.title ?? "Curso grabado",
+        cancelPath: `/cursos/${courseId}`,
+      });
+      await admin
+        .from("course_enrollments")
+        .update({ paypal_order_id: orderId })
+        .eq("id", enrollmentId);
+      return NextResponse.json({ enrollmentId, redirectUrl });
+    } catch (err) {
+      console.error("Error al crear la orden de PayPal:", err);
+      const detail = err instanceof Error ? err.message : JSON.stringify(err);
+      return NextResponse.json(
+        { error: "Error al crear la orden de pago", detail },
+        { status: 500 }
+      );
+    }
+  }
+
   let accessToken: string;
   try {
     accessToken = await getValidAccessToken(course.author_id);
@@ -82,9 +115,6 @@ export async function POST(
   const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
   const client = new MercadoPagoConfig({ accessToken });
   const preference = new Preference(client);
-
-  // Prefijo para que el webhook detecte que es un enrollment, no una purchase de apunte.
-  const externalReference = `course_enrollment:${enrollmentId}`;
 
   try {
     const mpPreference = await preference.create({

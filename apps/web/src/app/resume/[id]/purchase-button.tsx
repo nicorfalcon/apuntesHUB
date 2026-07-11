@@ -96,8 +96,9 @@ export function PurchaseButton({
         return;
       }
 
-      if (data.initPoint) {
-        window.location.href = data.initPoint;
+      const target = data.redirectUrl ?? data.initPoint;
+      if (target) {
+        window.location.href = target;
         return; // Mantener loading=true mientras redirige
       }
 

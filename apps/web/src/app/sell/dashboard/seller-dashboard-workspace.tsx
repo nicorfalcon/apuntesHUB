@@ -245,7 +245,7 @@ export function SellerDashboardWorkspace({
           </span>
           <div>
             <p className="text-sm font-bold text-yellow-900 dark:text-yellow-100">
-              Conectá Mercado Pago para recibir pagos
+              Conectá un método de cobro para recibir pagos
             </p>
             <p className="mt-1 text-xs leading-5 text-yellow-800 dark:text-yellow-100/75">
               Tus apuntes, cursos y tutorías no podrán cobrarse hasta que lo

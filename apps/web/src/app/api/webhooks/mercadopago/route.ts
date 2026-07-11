@@ -2,12 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getValidAccessToken } from "@/lib/mercadopago/refresh-token";
 import { validateSignature } from "@/lib/mercadopago/webhook-signature";
-import { parseExternalReference } from "@/lib/mercadopago/external-reference";
-import { resolvePaymentAction } from "@/lib/mercadopago/payment-action";
-import {
-  sendCourseSaleNotification,
-  sendResumeSaleNotification,
-} from "@/lib/email/sale-notifications";
+import { applyPaymentAction } from "@/lib/payments/apply-payment";
 
 /**
  * POST /api/webhooks/mercadopago
@@ -188,54 +183,11 @@ async function processPaymentNotification(paymentId: string) {
     return;
   }
 
-  // Determinar tipo de transacción e id del recurso desde el external_reference.
-  const { kind, id: targetId } = parseExternalReference(externalReference);
-
-  // Mapear el estado del pago a la acción de DB (o null si es pending/in_process).
-  const action = resolvePaymentAction(paymentData.status, kind);
-  if (!action) return;
-
-  const rpcArgs = { [action.idArg]: targetId, p_payment_id: paymentId };
-
-  if (kind === "tutoring") {
-    if (action.shouldNotify) {
-      // approved: confirmar la reserva y, si efectivamente cambió de estado,
-      // disparar los emails de notificación.
-      const { data: didConfirm, error } = await admin.rpc(action.rpc, rpcArgs);
-
-      if (error) {
-        console.error("Error confirmando reserva:", error);
-      } else if (didConfirm === true) {
-        try {
-          const { sendTutoringBookingNotifications } = await import(
-            "@/lib/email/sale-notifications"
-          );
-          await sendTutoringBookingNotifications(admin, targetId, paymentId);
-        } catch (emailError) {
-          console.error("No se pudo enviar emails de tutoring:", emailError);
-        }
-      }
-    } else {
-      // rejected / cancelled
-      await admin.rpc(action.rpc, rpcArgs);
-    }
-    return;
-  }
-
-  // purchases, course_enrollments u orders (bundle / grupo de carrito)
-  await admin.rpc(action.rpc, rpcArgs);
-
-  // Emails de venta solo para apunte suelto y curso. Para 'order' (bundle/carrito)
-  // todavía no hay notificación por email (queda como mejora); no rompe el flujo.
-  if (action.shouldNotify && kind !== "order") {
-    try {
-      if (kind === "course") {
-        await sendCourseSaleNotification(admin, targetId, paymentId);
-      } else {
-        await sendResumeSaleNotification(admin, targetId, paymentId);
-      }
-    } catch (emailError) {
-      console.error("No se pudo enviar email de venta:", emailError);
-    }
-  }
+  // Fulfillment agnóstico del proveedor (compartido con el webhook de PayPal).
+  await applyPaymentAction({
+    admin,
+    externalReference,
+    paymentId,
+    status: paymentData.status,
+  });
 }

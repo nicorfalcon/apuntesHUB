@@ -106,15 +106,15 @@ export function BookTutorDialog({
         return;
       }
 
-      if (!res.ok || !data.initPoint) {
+      const target = data.redirectUrl ?? data.initPoint;
+      if (!res.ok || !target) {
         setError(data.error ?? "No se pudo crear la reserva.");
         setLoading(false);
         return;
       }
 
-      toast.success("Redirigiendo a Mercado Pago...");
-      // Redirect to MercadoPago Checkout Pro
-      window.location.href = data.initPoint;
+      toast.success("Redirigiendo al pago...");
+      window.location.href = target;
     } catch {
       setError("Error de conexión. Intentá de nuevo.");
       setLoading(false);

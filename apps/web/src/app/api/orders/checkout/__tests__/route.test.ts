@@ -29,8 +29,16 @@ vi.mock("@/lib/supabase/admin", () => ({
           update: () => ({ eq: h.updateEq }),
         };
       }
-      // order_items
-      return { select: () => ({ eq: h.orderItems }) };
+      if (table === "order_items") {
+        return { select: () => ({ eq: h.orderItems }) };
+      }
+      // resolveSellerProvider: seller_mp_credentials / seller_paypal_credentials / profiles.
+      // Sin credenciales → provider null → cae al camino de MP.
+      return {
+        select: () => ({
+          eq: () => ({ maybeSingle: () => Promise.resolve({ data: null }) }),
+        }),
+      };
     },
   }),
 }));

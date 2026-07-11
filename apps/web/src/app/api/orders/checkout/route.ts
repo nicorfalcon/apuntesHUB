@@ -3,6 +3,8 @@ import { MercadoPagoConfig, Preference } from "mercadopago";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getValidAccessToken } from "@/lib/mercadopago/refresh-token";
+import { resolveSellerProvider } from "@/lib/payments/resolve-provider";
+import { startPayPalCheckout } from "@/lib/paypal/checkout";
 
 interface OrderItemInput {
   type: "resume" | "bundle";
@@ -74,6 +76,46 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Orden no encontrada" }, { status: 404 });
   }
 
+  const itemTitle = (it: NonNullable<typeof orderItems>[number]): string => {
+    const row = it as Record<string, unknown>;
+    const resume = row.resumes as { title: string } | null;
+    const bundle = row.bundles as { title: string } | null;
+    return it.item_type === "bundle"
+      ? `Paquete: ${bundle?.title ?? "Pack de apuntes"}`
+      : (resume?.title ?? "Apunte");
+  };
+
+  // Resolver proveedor del vendedor (MP o PayPal).
+  const { provider, paypal } = await resolveSellerProvider(admin, order.seller_id);
+
+  if (provider === "paypal" && paypal) {
+    try {
+      const { orderId: ppOrderId, redirectUrl } = await startPayPalCheckout({
+        paypal,
+        items: (orderItems ?? []).map((it) => ({
+          name: itemTitle(it),
+          amount: Number(it.unit_price),
+        })),
+        customId: `order:${orderId}`,
+        platformFee: Number(order.platform_fee),
+        description: "Compra en apuntesHUB",
+        cancelPath: "/carrito",
+      });
+      await admin
+        .from("orders")
+        .update({ paypal_order_id: ppOrderId })
+        .eq("id", orderId);
+      return NextResponse.json({ orderId, redirectUrl });
+    } catch (err) {
+      console.error("Error al crear la orden de PayPal:", err);
+      const detail = err instanceof Error ? err.message : JSON.stringify(err);
+      return NextResponse.json(
+        { error: "Error al crear la orden de pago", detail },
+        { status: 500 }
+      );
+    }
+  }
+
   let accessToken: string;
   try {
     accessToken = await getValidAccessToken(order.seller_id);
@@ -85,22 +127,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const mpItems = (orderItems ?? []).map((it, idx) => {
-    const row = it as Record<string, unknown>;
-    const resume = row.resumes as { title: string } | null;
-    const bundle = row.bundles as { title: string } | null;
-    const title =
-      it.item_type === "bundle"
-        ? `Paquete: ${bundle?.title ?? "Pack de apuntes"}`
-        : (resume?.title ?? "Apunte");
-    return {
-      id: `${orderId}-${idx}`,
-      title,
-      quantity: 1,
-      unit_price: Number(it.unit_price),
-      currency_id: "ARS",
-    };
-  });
+  const mpItems = (orderItems ?? []).map((it, idx) => ({
+    id: `${orderId}-${idx}`,
+    title: itemTitle(it),
+    quantity: 1,
+    unit_price: Number(it.unit_price),
+    currency_id: "ARS",
+  }));
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
   const client = new MercadoPagoConfig({ accessToken });

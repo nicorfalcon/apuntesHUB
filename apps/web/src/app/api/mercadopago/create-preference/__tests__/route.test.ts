@@ -23,7 +23,13 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: () => ({
-      select: () => ({ eq: () => ({ single: h.adminSingle }) }),
+      select: () => ({
+        eq: () => ({
+          single: h.adminSingle,
+          // resolveSellerProvider: sin credenciales → cae al camino de MP.
+          maybeSingle: () => Promise.resolve({ data: null }),
+        }),
+      }),
       update: () => ({ eq: h.adminUpdateEq }),
     }),
   }),

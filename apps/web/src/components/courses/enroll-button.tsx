@@ -37,12 +37,13 @@ export function EnrollButton({ courseId, isAuthenticated }: EnrollButtonProps) {
         return;
       }
 
-      if (data.initPoint) {
-        window.location.href = data.initPoint as string;
+      const target = (data.redirectUrl ?? data.initPoint) as string | undefined;
+      if (target) {
+        window.location.href = target;
         return;
       }
 
-      setError("Mercado Pago no devolvió un link de pago.");
+      setError("No se obtuvo un link de pago.");
       setLoading(false);
     } catch {
       setError("Error de red. Probá de nuevo.");

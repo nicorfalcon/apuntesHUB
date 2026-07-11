@@ -25,6 +25,8 @@ vi.mock("@/lib/supabase/admin", () => ({
       select: () => ({
         eq: () => ({
           eq: () => ({ single: h.adminSingle }),
+          // resolveSellerProvider: sin credenciales → cae al camino de MP.
+          maybeSingle: () => Promise.resolve({ data: null }),
         }),
       }),
       update: () => ({ eq: h.adminUpdateEq }),

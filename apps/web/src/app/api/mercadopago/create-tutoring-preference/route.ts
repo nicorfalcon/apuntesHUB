@@ -3,6 +3,8 @@ import { MercadoPagoConfig, Preference } from "mercadopago";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getValidAccessToken } from "@/lib/mercadopago/refresh-token";
+import { resolveSellerProvider } from "@/lib/payments/resolve-provider";
+import { startPayPalCheckout } from "@/lib/paypal/checkout";
 
 /**
  * POST /api/mercadopago/create-tutoring-preference
@@ -109,8 +111,46 @@ export async function POST(request: NextRequest) {
       | { name: string }
       | null;
   const itemTitle = `Clase particular: ${subjectName?.name ?? "Materia"} (${duration_minutes} min)`;
+  const externalReference = `tutoring_booking:${bookingId}`;
 
-  // ── 3. Obtener access_token del tutor ──
+  // ── 3. Resolver proveedor del tutor (MP o PayPal) ──
+  const { provider, paypal } = await resolveSellerProvider(admin, tutor_id);
+
+  if (provider === "paypal" && paypal) {
+    try {
+      const { orderId, redirectUrl } = await startPayPalCheckout({
+        paypal,
+        items: [{ name: itemTitle, amount: Number(amount) }],
+        customId: externalReference,
+        platformFee: Number(platformFee),
+        description: itemTitle,
+        cancelPath: `/tutores/${tutor_id}`,
+      });
+      await admin
+        .from("tutor_bookings")
+        .update({ paypal_order_id: orderId })
+        .eq("id", bookingId);
+      return NextResponse.json({
+        bookingId,
+        redirectUrl,
+        amount,
+        expiresAt: bookingData.payment_expires_at,
+      });
+    } catch (err) {
+      console.error("Error al crear la orden de PayPal de tutoría:", err);
+      await admin
+        .from("tutor_bookings")
+        .update({ status: "failed" })
+        .eq("id", bookingId);
+      const detail = err instanceof Error ? err.message : JSON.stringify(err);
+      return NextResponse.json(
+        { error: "Error al crear la orden de pago", detail },
+        { status: 500 }
+      );
+    }
+  }
+
+  // ── 3b. Obtener access_token del tutor (Mercado Pago) ──
   let accessToken: string;
   try {
     accessToken = await getValidAccessToken(tutor_id);
@@ -131,8 +171,6 @@ export async function POST(request: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
   const client = new MercadoPagoConfig({ accessToken });
   const preference = new Preference(client);
-
-  const externalReference = `tutoring_booking:${bookingId}`;
 
   try {
     const mpPreference = await preference.create({

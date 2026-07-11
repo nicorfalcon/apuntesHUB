@@ -16,6 +16,8 @@ function AccessibilityNewIcon({ className }: { className?: string }) {
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { ProfileForm } from "./profile-form";
 import { MpConnectSection } from "./mp-connect-section";
+import { PaypalConnectSection } from "./paypal-connect-section";
+import { PaymentPreferenceCard } from "./payment-preference-card";
 import { SecuritySection } from "./security-section";
 import { ModelosIASection } from "./modelos-ia-section";
 import type { Profile } from "@/lib/database.types";
@@ -36,6 +38,12 @@ interface ProfileSettingsShellProps {
   hasMpConnected: boolean;
   connectedAt: string | null;
   oauthUrl: string;
+  hasPaypalConnected: boolean;
+  paypalConnectedAt: string | null;
+  payoutCurrency: string;
+  paymentsReceivable: boolean;
+  paypalOnboardUrl: string;
+  preferredProvider: "mercadopago" | "paypal" | null;
 }
 
 const sections = [
@@ -60,7 +68,7 @@ const sections = [
   {
     id: "payments",
     label: "Pagos",
-    description: "Cobros y Mercado Pago",
+    description: "Cobros: MP y PayPal",
     icon: CreditCard,
   },
   {
@@ -141,6 +149,12 @@ export function ProfileSettingsShell({
   hasMpConnected,
   connectedAt,
   oauthUrl,
+  hasPaypalConnected,
+  paypalConnectedAt,
+  payoutCurrency,
+  paymentsReceivable,
+  paypalOnboardUrl,
+  preferredProvider,
 }: ProfileSettingsShellProps) {
   const [activeSection, setActiveSection] = useState<ProfileSection>("profile");
 
@@ -192,12 +206,25 @@ export function ProfileSettingsShell({
         {activeSection === "ai-models" && <ModelosIASection />}
 
         {activeSection === "payments" && (
-          <section>
+          <section className="space-y-6">
             <Suspense fallback={<div className="h-36 animate-pulse rounded-2xl border border-gray-200/80 bg-white dark:border-white/10 dark:bg-[#0f1e1a]" />}>
+              {/* Selector de preferencia: solo si tiene ambos conectados */}
+              {hasMpConnected && hasPaypalConnected && (
+                <PaymentPreferenceCard initialPreferred={preferredProvider} />
+              )}
+
               <MpConnectSection
                 hasMpConnected={hasMpConnected}
                 connectedAt={connectedAt}
                 oauthUrl={oauthUrl}
+              />
+
+              <PaypalConnectSection
+                hasPaypalConnected={hasPaypalConnected}
+                connectedAt={paypalConnectedAt}
+                payoutCurrency={payoutCurrency}
+                paymentsReceivable={paymentsReceivable}
+                onboardUrl={paypalOnboardUrl}
               />
             </Suspense>
           </section>

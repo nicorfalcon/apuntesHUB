@@ -3,6 +3,8 @@ import { MercadoPagoConfig, Preference } from "mercadopago";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getValidAccessToken } from "@/lib/mercadopago/refresh-token";
+import { resolveSellerProvider } from "@/lib/payments/resolve-provider";
+import { startPayPalCheckout } from "@/lib/paypal/checkout";
 
 /**
  * POST /api/mercadopago/create-preference
@@ -70,7 +72,35 @@ export async function POST(request: NextRequest) {
   const resume = (purchase as Record<string, unknown>).resumes as { title: string } | null;
   const sellerId = purchase.seller_id;
 
-  // Obtener access token vigente del vendedor
+  // Resolver el proveedor de cobro del vendedor (MP o PayPal).
+  const { provider, paypal } = await resolveSellerProvider(admin, sellerId);
+
+  if (provider === "paypal" && paypal) {
+    try {
+      const { orderId, redirectUrl } = await startPayPalCheckout({
+        paypal,
+        items: [{ name: resume?.title ?? "Apunte", amount: Number(purchase.amount) }],
+        customId: purchaseId, // apunte suelto: external_reference sin prefijo
+        platformFee: Number(purchase.platform_fee),
+        description: resume?.title ?? "Apunte",
+        cancelPath: `/resume/${resumeId}`,
+      });
+      await admin
+        .from("purchases")
+        .update({ paypal_order_id: orderId })
+        .eq("id", purchaseId);
+      return NextResponse.json({ redirectUrl });
+    } catch (err) {
+      console.error("Error al crear la orden de PayPal:", err);
+      const detail = err instanceof Error ? err.message : JSON.stringify(err);
+      return NextResponse.json(
+        { error: "Error al crear la orden de pago", detail },
+        { status: 500 }
+      );
+    }
+  }
+
+  // Obtener access token vigente del vendedor (Mercado Pago)
   let accessToken: string;
   try {
     accessToken = await getValidAccessToken(sellerId);

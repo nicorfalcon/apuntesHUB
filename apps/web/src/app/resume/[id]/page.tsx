@@ -8,6 +8,7 @@ import { ResumeTopicsSection } from "@/components/resume/resume-topics";
 import { PurchaseButton } from "./purchase-button";
 import { PreviewViewer } from "./preview-viewer";
 import { AddToCartButton } from "@/components/cart/add-to-cart-button";
+import { sellerAcceptsPayments } from "@/lib/payments/resolve-provider";
 import { discountedPrice, hasDiscount } from "@/lib/discounts/direct";
 import type { ResumeWithSeller, Review, Profile } from "@/lib/database.types";
 
@@ -57,14 +58,9 @@ export default async function ResumePage({
     hasPendingPurchase = purchases?.some((p) => p.status === "pending") ?? false;
   }
 
-  // Verificar si el vendedor tiene MP conectado (via admin para bypasear RLS)
+  // Verificar si el vendedor puede recibir pagos (MP o PayPal; via admin para bypasear RLS)
   const admin = createAdminClient();
-  const { data: mpCreds } = await admin
-    .from("seller_mp_credentials")
-    .select("id")
-    .eq("id", resumeWithSeller.seller_id)
-    .single();
-  const sellerHasMp = !!mpCreds;
+  const sellerHasMp = await sellerAcceptsPayments(admin, resumeWithSeller.seller_id);
 
   // Paquetes publicados que incluyen este apunte (descubrimiento) + estado de carrito.
   const { data: bundleLinks } = await supabase

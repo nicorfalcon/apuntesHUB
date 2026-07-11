@@ -247,16 +247,16 @@ const SECTIONS: Section[] = [
   },
 ];
 
-// Sección compartida (aplica a vendedores y profesores): cobrar con Mercado Pago.
+// Sección compartida (aplica a vendedores y profesores): cobrar con Mercado Pago o PayPal.
 const MP_SECTION: HowTo = {
   icon: Wallet,
-  q: "Conectar tu cuenta de Mercado Pago para cobrar",
+  q: "Conectar tu cuenta para cobrar (Mercado Pago o PayPal)",
   steps: [
     "Andá a tu Perfil y abrí la sección “Pagos”.",
-    "Tocá “Conectar Mercado Pago” y autorizá el acceso con tu cuenta.",
+    "Elegí tu método: “Conectar Mercado Pago” (ideal para Argentina) o “Conectar PayPal” (ideal si cobrás desde el exterior, como México) y autorizá el acceso.",
     "Una vez conectada, tus apuntes, cursos y clases quedan disponibles para la venta y los cobros llegan directo a tu cuenta.",
   ],
-  tip: "Sin Mercado Pago conectado, tu material aparece pero no se puede comprar. Podés desconectarlo cuando quieras.",
+  tip: "Si conectás ambos, podés elegir con cuál cobrar por defecto. Con PayPal, recordá que no procesa pesos argentinos: elegí tu moneda y cargá los precios en ella. Sin ningún método conectado, tu material aparece pero no se puede comprar.",
 };
 
 function HowToItem({ item }: { item: HowTo }) {

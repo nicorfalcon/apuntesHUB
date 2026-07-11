@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { AddToCartButton } from "@/components/cart/add-to-cart-button";
 import { BundleBuyButton } from "./bundle-buy-button";
 import { sumResumePrices, bundleSavings, bundleSavingsPercent } from "@/lib/bundles/pricing";
+import { sellerAcceptsPayments } from "@/lib/payments/resolve-provider";
 
 export default async function BundlePage({
   params,
@@ -57,9 +59,10 @@ export default async function BundlePage({
 
   const isOwner = user?.id === bundle.seller_id;
 
-  // ¿El vendedor tiene Mercado Pago? ¿Ya está en el carrito?
-  const [{ data: mp }, { data: inCartRow }] = await Promise.all([
-    supabase.from("seller_mp_credentials").select("id").eq("id", bundle.seller_id).maybeSingle(),
+  // ¿El vendedor puede recibir pagos (MP o PayPal)? ¿Ya está en el carrito?
+  const admin = createAdminClient();
+  const [sellerHasMp, { data: inCartRow }] = await Promise.all([
+    sellerAcceptsPayments(admin, bundle.seller_id),
     user
       ? supabase
           .from("cart_items")
@@ -69,7 +72,6 @@ export default async function BundlePage({
           .maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
-  const sellerHasMp = !!mp;
   const inCart = !!inCartRow;
 
   return (

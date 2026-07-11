@@ -77,8 +77,9 @@ export function CartWorkspace({ initialGroups }: CartWorkspaceProps) {
         setPayingSeller(null);
         return;
       }
-      if (data.initPoint) {
-        window.location.href = data.initPoint;
+      const target = data.redirectUrl ?? data.initPoint;
+      if (target) {
+        window.location.href = target;
         return; // mantener estado mientras redirige
       }
       toast.error("No se obtuvo el enlace de pago.");

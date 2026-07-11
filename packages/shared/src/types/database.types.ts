@@ -20,6 +20,7 @@ export type Database = {
           course_id: string
           id: string
           mp_preference_id: string | null
+          paypal_order_id: string | null
           payment_id: string | null
           platform_fee: number
           purchased_at: string
@@ -32,6 +33,7 @@ export type Database = {
           course_id: string
           id?: string
           mp_preference_id?: string | null
+          paypal_order_id?: string | null
           payment_id?: string | null
           platform_fee?: number
           purchased_at?: string
@@ -44,6 +46,7 @@ export type Database = {
           course_id?: string
           id?: string
           mp_preference_id?: string | null
+          paypal_order_id?: string | null
           payment_id?: string | null
           platform_fee?: number
           purchased_at?: string
@@ -724,6 +727,7 @@ export type Database = {
           display_name: string
           id: string
           is_tutor: boolean
+          preferred_payment_provider: string | null
           role: string
           seller_rating_avg: number | null
           seller_rating_count: number | null
@@ -742,6 +746,7 @@ export type Database = {
           display_name?: string
           id: string
           is_tutor?: boolean
+          preferred_payment_provider?: string | null
           role?: string
           seller_rating_avg?: number | null
           seller_rating_count?: number | null
@@ -760,6 +765,7 @@ export type Database = {
           display_name?: string
           id?: string
           is_tutor?: boolean
+          preferred_payment_provider?: string | null
           role?: string
           seller_rating_avg?: number | null
           seller_rating_count?: number | null
@@ -951,6 +957,7 @@ export type Database = {
           created_at: string
           id: string
           mp_preference_id: string | null
+          paypal_order_id: string | null
           payment_id: string | null
           platform_fee: number
           seller_amount: number
@@ -963,6 +970,7 @@ export type Database = {
           created_at?: string
           id?: string
           mp_preference_id?: string | null
+          paypal_order_id?: string | null
           payment_id?: string | null
           platform_fee?: number
           seller_amount?: number
@@ -975,6 +983,7 @@ export type Database = {
           created_at?: string
           id?: string
           mp_preference_id?: string | null
+          paypal_order_id?: string | null
           payment_id?: string | null
           platform_fee?: number
           seller_amount?: number
@@ -1072,6 +1081,7 @@ export type Database = {
           discount_amount: number
           id: string
           mp_preference_id: string | null
+          paypal_order_id: string | null
           order_id: string | null
           payment_id: string | null
           platform_fee: number
@@ -1088,6 +1098,7 @@ export type Database = {
           discount_amount?: number
           id?: string
           mp_preference_id?: string | null
+          paypal_order_id?: string | null
           order_id?: string | null
           payment_id?: string | null
           platform_fee?: number
@@ -1104,6 +1115,7 @@ export type Database = {
           discount_amount?: number
           id?: string
           mp_preference_id?: string | null
+          paypal_order_id?: string | null
           order_id?: string | null
           payment_id?: string | null
           platform_fee?: number
@@ -1447,6 +1459,47 @@ export type Database = {
           },
         ]
       }
+      seller_paypal_credentials: {
+        Row: {
+          connected_at: string
+          id: string
+          paypal_merchant_id: string
+          paypal_tracking_id: string | null
+          payments_receivable: boolean
+          payout_currency: string
+          primary_email_confirmed: boolean
+          updated_at: string
+        }
+        Insert: {
+          connected_at?: string
+          id: string
+          paypal_merchant_id: string
+          paypal_tracking_id?: string | null
+          payments_receivable?: boolean
+          payout_currency?: string
+          primary_email_confirmed?: boolean
+          updated_at?: string
+        }
+        Update: {
+          connected_at?: string
+          id?: string
+          paypal_merchant_id?: string
+          paypal_tracking_id?: string | null
+          payments_receivable?: boolean
+          payout_currency?: string
+          primary_email_confirmed?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_paypal_credentials_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subjects: {
         Row: {
           career: string | null
@@ -1558,6 +1611,7 @@ export type Database = {
           initial_message: string | null
           modality: string
           mp_preference_id: string | null
+          paypal_order_id: string | null
           payment_expires_at: string | null
           payment_id: string | null
           platform_fee: number
@@ -1579,6 +1633,7 @@ export type Database = {
           initial_message?: string | null
           modality?: string
           mp_preference_id?: string | null
+          paypal_order_id?: string | null
           payment_expires_at?: string | null
           payment_id?: string | null
           platform_fee?: number
@@ -1600,6 +1655,7 @@ export type Database = {
           initial_message?: string | null
           modality?: string
           mp_preference_id?: string | null
+          paypal_order_id?: string | null
           payment_expires_at?: string | null
           payment_id?: string | null
           platform_fee?: number

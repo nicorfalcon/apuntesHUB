@@ -43,8 +43,9 @@ export function BundleBuyButton({
         setLoading(false);
         return;
       }
-      if (data.initPoint) {
-        window.location.href = data.initPoint;
+      const target = data.redirectUrl ?? data.initPoint;
+      if (target) {
+        window.location.href = target;
         return;
       }
       toast.error("No se obtuvo el enlace de pago.");
