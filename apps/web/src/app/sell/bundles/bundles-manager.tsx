@@ -8,6 +8,7 @@ import {
   bundleSavings,
   validateBundleForm,
 } from "@/lib/bundles/pricing";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export interface SellerResume {
   id: string;
@@ -330,14 +331,10 @@ export function BundlesManager({
       )}
 
       {bundles.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-200 py-14 text-center dark:border-white/10">
-          <p className="text-2xl font-bold tracking-tight text-foreground">
-            Todavía no armaste ningún paquete
-          </p>
-          <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
-            Combiná dos o más apuntes en un solo precio para que se vendan juntos.
-          </p>
-        </div>
+        <EmptyState
+          title="Todavía no armaste ningún paquete"
+          description="Combiná dos o más apuntes en un solo precio para que se vendan juntos."
+        />
       ) : (
         <div className="grid gap-3">
           {bundles.map((b) => {

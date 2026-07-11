@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useE2EHydrationReady } from "@/lib/e2e/use-e2e-hydration-ready";
+import { AuthPanel } from "@/components/auth/auth-panel";
 
 export default function ForgotPasswordPage() {
   useE2EHydrationReady();
@@ -117,22 +118,7 @@ export default function ForgotPasswordPage() {
         </div>
       </div>
 
-      <div className="relative hidden lg:block lg:w-1/2">
-        <img
-          src="/images/login-photo.jpg"
-          alt="Estudiantes colaborando"
-          className="h-full w-full object-cover"
-        />
-        <div className="absolute inset-0 bg-[#2D6A4F]/70" />
-        <div className="absolute inset-0 flex flex-col justify-end p-12">
-          <h2 className="text-3xl font-bold text-white">
-            Compartí y descubrí apuntes
-          </h2>
-          <p className="mt-3 max-w-md text-lg text-white/90">
-            La comunidad universitaria que te ayuda a estudiar mejor
-          </p>
-        </div>
-      </div>
+      <AuthPanel image="/images/login-photo.jpg" />
     </div>
   );
 }

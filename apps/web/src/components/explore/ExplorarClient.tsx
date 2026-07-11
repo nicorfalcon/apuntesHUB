@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { ResumeCard } from "@/components/resume/resume-card";
 import type { ResumeWithSeller } from "@/lib/database.types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ExplorarClientProps {
   resumes: ResumeWithSeller[];
@@ -430,10 +431,7 @@ export default function ExplorarClient({
             {aiSearchLoading ? (
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-[220px] animate-pulse rounded-2xl bg-gray-100 dark:bg-white/5"
-                  />
+                  <Skeleton key={i} tone="soft" className="h-[220px] rounded-2xl" />
                 ))}
               </div>
             ) : filteredResumes.length === 0 ? (

@@ -267,6 +267,39 @@ select {
 .animate-fade-rise-delay-3 { animation: fade-rise 0.8s ease-out 0.6s both; }
 .animate-fade-rise-delay-4 { animation: fade-rise 0.8s ease-out 0.8s both; }
 
+/* ── Auth panel: Ken Burns + brillo ───────────────────────── */
+@keyframes ken-burns {
+  0%   { transform: scale(1)    translate3d(0, 0, 0); }
+  50%  { transform: scale(1.12) translate3d(-1.5%, -1.5%, 0); }
+  100% { transform: scale(1)    translate3d(0, 0, 0); }
+}
+.animate-ken-burns {
+  animation: ken-burns 24s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes auth-sheen {
+  0%   { transform: translateX(-120%) skewX(-18deg); opacity: 0; }
+  12%  { opacity: 0.35; }
+  30%  { transform: translateX(220%) skewX(-18deg); opacity: 0; }
+  100% { transform: translateX(220%) skewX(-18deg); opacity: 0; }
+}
+.animate-auth-sheen {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.18) 50%,
+    transparent 100%
+  );
+  animation: auth-sheen 9s ease-in-out infinite;
+  pointer-events: none;
+}
+
 /* ── Background overlays using palette variable ───────────── */
 .bg-background-40 { background-color: rgba(var(--background-rgb), 0.4); }
 .bg-background-55 { background-color: rgba(var(--background-rgb), 0.55); }
@@ -310,6 +343,14 @@ select {
   .animate-marquee,
   .animate-marquee-reverse {
     animation-play-state: paused;
+  }
+  .animate-ken-burns,
+  .animate-auth-sheen {
+    animation: none;
+    transform: none;
+  }
+  .animate-auth-sheen {
+    display: none;
   }
 }
 

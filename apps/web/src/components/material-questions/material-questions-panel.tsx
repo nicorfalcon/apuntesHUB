@@ -10,6 +10,7 @@ import type {
   MaterialQuestionsPagination,
   MaterialTargetType,
 } from "./types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const PAGE_SIZE = 20;
 
@@ -312,10 +313,7 @@ export function MaterialQuestionsPanel({
       {isLoading ? (
         <div className="mt-4 space-y-2.5">
           {[0, 1, 2].map((item) => (
-            <div
-              key={item}
-              className="h-20 animate-pulse rounded-xl bg-gray-100 dark:bg-white/[0.06]"
-            />
+            <Skeleton key={item} tone="none" className="h-20 rounded-xl bg-gray-100 dark:bg-white/[0.06]" />
           ))}
         </div>
       ) : questions.length === 0 ? (

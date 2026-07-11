@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Lock } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface PreviewPage {
   page: number;
@@ -59,7 +60,7 @@ export function PreviewViewer({ resumeId, unlocked = false }: PreviewViewerProps
   // Loading
   if (!data) {
     return (
-      <div className="h-40 w-full animate-pulse rounded-xl border border-gray-200 bg-gray-100 dark:border-white/10 dark:bg-white/[0.04]" />
+      <Skeleton tone="none" className="h-40 w-full rounded-xl border border-gray-200 bg-gray-100 dark:border-white/10 dark:bg-white/[0.04]" />
     );
   }
 

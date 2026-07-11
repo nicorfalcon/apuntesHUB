@@ -10,6 +10,7 @@ import { AiChatPanel } from "@/components/ui/ai-chat-panel";
 import { MaterialQuestionsPanel } from "@/components/material-questions";
 import { ResumeTopicsSection } from "@/components/resume/resume-topics";
 import type { TocItem } from "@/components/ui/pdf-viewer";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Dynamic import — react-pdf solo funciona en el cliente
 const PdfViewer = dynamic(
@@ -506,9 +507,10 @@ export function ViewerLayout({
               {outlineLoading && (
                 <div className="space-y-1.5 px-2 pt-1">
                   {[80, 60, 70, 55, 65].map((w, i) => (
-                    <div
+                    <Skeleton
                       key={i}
-                      className="h-3 animate-pulse rounded bg-gray-100"
+                      tone="soft"
+                      className="h-3 rounded"
                       style={{ width: `${w}%` }}
                     />
                   ))}

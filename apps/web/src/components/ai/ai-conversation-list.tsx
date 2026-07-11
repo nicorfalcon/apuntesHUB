@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { MessageSquare, Plus, Trash2 } from "lucide-react";
 import type { AiConversationSummary } from "@/lib/ai/conversations";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function formatConversationDate(value: string): string {
   const date = new Date(value);
@@ -91,9 +92,10 @@ export function AiConversationList({
       {loading ? (
         <div className="space-y-2">
           {[70, 88, 62].map((width, index) => (
-            <div
+            <Skeleton
               key={index}
-              className="h-14 animate-pulse rounded-xl bg-gray-100 dark:bg-white/[0.06]"
+              tone="none"
+              className="h-14 rounded-xl bg-gray-100 dark:bg-white/[0.06]"
               style={{ width: `${width}%` }}
             />
           ))}

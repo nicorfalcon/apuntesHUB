@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { ShoppingBag, Store, Trash2 } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 
@@ -90,21 +90,13 @@ export function CartWorkspace({ initialGroups }: CartWorkspaceProps) {
 
   if (groups.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-gray-200 py-16 text-center dark:border-white/10">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-700 dark:bg-accent-300/10 dark:text-accent-100">
-          <ShoppingBag className="h-6 w-6" strokeWidth={1.7} />
-        </div>
-        <p className="mt-5 text-2xl font-bold tracking-tight text-foreground">Tu carrito está vacío</p>
-        <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
-          Cuando agregues apuntes o paquetes, se van a agrupar acá por vendedor.
-        </p>
-        <Link
-          href="/explorar"
-          className="mt-6 inline-flex items-center rounded-full bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-700 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
-        >
-          Explorar apuntes
-        </Link>
-      </div>
+      <EmptyState
+        icon={ShoppingBag}
+        title="Tu carrito está vacío"
+        description="Cuando agregues apuntes o paquetes, se van a agrupar acá por vendedor."
+        href="/explorar"
+        action="Explorar apuntes"
+      />
     );
   }
 

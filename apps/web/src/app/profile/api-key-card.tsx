@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AddKeyForm } from "./add-key-form";
 import type { UserApiKey } from "./modelos-ia-section";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const KNOWN_PROVIDERS = [
   { id: "openai", name: "OpenAI", shortLabel: "GPT" },
@@ -63,7 +64,7 @@ export function ApiKeyCard({ userKeys, loading, onDelete, onAdd }: Props) {
       {loading ? (
         <div className="space-y-3">
           {[1, 2].map((i) => (
-            <div key={i} className="h-16 animate-pulse rounded-xl bg-gray-100 dark:bg-white/5" />
+            <Skeleton key={i} tone="soft" className="h-16 rounded-xl" />
           ))}
         </div>
       ) : (

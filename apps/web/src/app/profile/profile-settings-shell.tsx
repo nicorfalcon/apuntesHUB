@@ -19,6 +19,7 @@ import { MpConnectSection } from "./mp-connect-section";
 import { SecuritySection } from "./security-section";
 import { ModelosIASection } from "./modelos-ia-section";
 import type { Profile } from "@/lib/database.types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type ProfileSection =
   | "profile"
@@ -193,7 +194,7 @@ export function ProfileSettingsShell({
 
         {activeSection === "payments" && (
           <section>
-            <Suspense fallback={<div className="h-36 animate-pulse rounded-2xl border border-gray-200/80 bg-white dark:border-white/10 dark:bg-[#0f1e1a]" />}>
+            <Suspense fallback={<Skeleton tone="none" className="h-36 rounded-2xl border border-gray-200/80 bg-white dark:border-white/10 dark:bg-[#0f1e1a]" />}>
               <MpConnectSection
                 hasMpConnected={hasMpConnected}
                 connectedAt={connectedAt}

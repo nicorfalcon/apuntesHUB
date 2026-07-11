@@ -14,6 +14,7 @@ import { EnrolledCourseCard } from "./enrolled-course-card";
 import { FolderCard } from "./folder-card";
 import { PurchaseCard } from "./purchase-card";
 import type { FolderWithItems, PurchaseWithResume } from "@/lib/database.types";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export interface EnrolledCourseRow {
   id: string;
@@ -106,38 +107,6 @@ function StatTile({
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
       {content}
-    </div>
-  );
-}
-
-function EmptyState({
-  icon: Icon,
-  title,
-  description,
-  href,
-  action,
-}: {
-  icon: typeof BookOpen;
-  title: string;
-  description: string;
-  href: string;
-  action: string;
-}) {
-  return (
-    <div className="flex min-h-[340px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 px-6 py-12 text-center dark:border-white/15">
-      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-700 dark:bg-accent-300/10 dark:text-accent-100">
-        <Icon className="h-7 w-7" strokeWidth={1.6} />
-      </span>
-      <h3 className="mt-5 text-lg font-bold text-foreground">{title}</h3>
-      <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-        {description}
-      </p>
-      <Link
-        href={href}
-        className="mt-6 inline-flex items-center justify-center rounded-xl bg-accent-600 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-accent-700 dark:bg-accent-300 dark:text-[#071713] dark:hover:bg-accent-200"
-      >
-        {action}
-      </Link>
     </div>
   );
 }

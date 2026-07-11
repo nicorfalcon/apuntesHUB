@@ -44,6 +44,8 @@ import { formatCourseType } from "@/components/courses/format";
 import type { RecordedCourseItem } from "@/components/courses/types";
 import { closeOtherExploreDropdowns } from "./dropdown-utils";
 import { useE2EHydrationReady } from "@/lib/e2e/use-e2e-hydration-ready";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export type ExploreTab = "apuntes" | "particulares" | "grabadas";
 
@@ -223,34 +225,6 @@ function matchesCourseDuration(
     return totalSeconds > 2 * 60 * 60 && totalSeconds <= 6 * 60 * 60;
   }
   return totalSeconds > 6 * 60 * 60;
-}
-
-function EmptyState({
-  icon,
-  title,
-  description,
-}: {
-  icon: "tutors" | "courses";
-  title: string;
-  description: string;
-}) {
-  const Icon = icon === "tutors" ? GraduationCap : PlayCircle;
-
-  return (
-    <div className="flex min-h-[360px] items-center justify-center rounded-[28px] border border-dashed border-gray-200 bg-white/70 px-6 text-center dark:border-white/10 dark:bg-white/[0.03]">
-      <div className="max-w-md">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-50 text-accent-700 ring-1 ring-accent-100 dark:bg-accent-300/10 dark:text-accent-200 dark:ring-accent-300/15">
-          <Icon className="h-7 w-7" strokeWidth={1.7} />
-        </div>
-        <p className="mt-6 text-3xl font-bold leading-tight text-foreground md:text-4xl">
-          {title}
-        </p>
-        <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
-          {description}
-        </p>
-      </div>
-    </div>
-  );
 }
 
 export function ExploreTabs({
@@ -877,7 +851,7 @@ export function ExploreTabs({
             aiSearchLoading ? (
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="h-[220px] animate-pulse rounded-2xl bg-gray-100 dark:bg-white/5" />
+                  <Skeleton key={i} tone="soft" className="h-[220px] rounded-2xl" />
                 ))}
               </div>
             ) : filteredResumes.length === 0 ? (
@@ -964,7 +938,8 @@ export function ExploreTabs({
               </div>
             ) : (
               <EmptyState
-                icon="tutors"
+                icon={GraduationCap}
+                size="lg"
                 title="Todavía no hay profesores particulares"
                 description="Cuando los primeros profesores publiquen sus materias, van a aparecer acá con filtros por modalidad, disponibilidad y tarifa."
               />
@@ -998,7 +973,8 @@ export function ExploreTabs({
               </div>
             ) : (
               <EmptyState
-                icon="courses"
+                icon={PlayCircle}
+                size="lg"
                 title="Todavía no hay cursos grabados"
                 description="Cuando los primeros autores publiquen cursos con módulos, van a aparecer acá con filtros por tipo, duración y materia."
               />
