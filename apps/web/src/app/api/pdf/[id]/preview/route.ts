@@ -2,7 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const PREVIEWS_BUCKET = "resume-previews";
-const SIGNED_URL_TTL_SECONDS = 120;
+
+// 1 hora. Antes eran 120s, y las imágenes se rompían solas: el navegador vuelve a pedir
+// la imagen (scroll, bfcache al volver atrás, pestaña en segundo plano) mucho después
+// del fetch inicial, la firma ya había vencido y el visor caía al placeholder gris.
+// Debe ser holgadamente mayor que el max-age de esta respuesta (ver abajo): si no, una
+// respuesta servida desde caché puede traer URLs ya muertas.
+const SIGNED_URL_TTL_SECONDS = 3600;
+
+// Cuánto puede cachear el browser esta respuesta. Muy por debajo del TTL de las firmas
+// para que ninguna URL cacheada llegue vencida al <img>.
+const CACHE_MAX_AGE_SECONDS = 60;
 
 /**
  * GET /api/pdf/[id]/preview
@@ -93,6 +103,10 @@ export async function GET(
       pageCount: resume.preview_page_count ?? result.length,
       pages: result,
     },
-    { headers: { "Cache-Control": "private, max-age=60" } }
+    {
+      headers: {
+        "Cache-Control": `private, max-age=${CACHE_MAX_AGE_SECONDS}`,
+      },
+    }
   );
 }

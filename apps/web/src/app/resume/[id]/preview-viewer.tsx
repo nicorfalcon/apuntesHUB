@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Lock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+
+/** Mientras la preview se está generando (el cron corre cada 10 min), reconsultamos
+ * para que la página se actualice sola en vez de exigir un refresh manual. */
+const POLL_INTERVAL_MS = 15_000;
+const MAX_POLLS = 40; // ~10 minutos; después dejamos de insistir.
 
 interface PreviewPage {
   page: number;
@@ -29,20 +34,72 @@ export function PreviewViewer({ resumeId, unlocked = false }: PreviewViewerProps
   const [error, setError] = useState(false);
   const [failedPages, setFailedPages] = useState<Set<number>>(new Set());
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/pdf/${resumeId}/preview`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
-      .then((json: PreviewResponse) => {
-        if (!cancelled) setData(json);
-      })
-      .catch(() => {
-        if (!cancelled) setError(true);
+  // Las URLs de las páginas son firmadas y vencen. Si una imagen falla al cargar,
+  // lo más probable es que la firma haya expirado (pestaña abierta un buen rato),
+  // así que pedimos URLs frescas una vez antes de darla por perdida.
+  const cancelledRef = useRef(false);
+  const retriedSignaturesRef = useRef(false);
+
+  const load = useCallback(async (): Promise<PreviewResponse | null> => {
+    try {
+      const res = await fetch(`/api/pdf/${resumeId}/preview`, {
+        cache: "no-store",
       });
-    return () => {
-      cancelled = true;
-    };
+      if (!res.ok) throw new Error(String(res.status));
+      const json: PreviewResponse = await res.json();
+      if (!cancelledRef.current) {
+        setData(json);
+        setError(false);
+      }
+      return json;
+    } catch {
+      if (!cancelledRef.current) setError(true);
+      return null;
+    }
   }, [resumeId]);
+
+  useEffect(() => {
+    cancelledRef.current = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let polls = 0;
+
+    const tick = async () => {
+      const json = await load();
+      if (cancelledRef.current) return;
+      // Solo seguimos consultando mientras el worker todavía la está generando.
+      const stillWorking =
+        json?.status === "pending" || json?.status === "processing";
+      if (stillWorking && polls < MAX_POLLS) {
+        polls += 1;
+        timer = setTimeout(tick, POLL_INTERVAL_MS);
+      }
+    };
+
+    void tick();
+
+    return () => {
+      cancelledRef.current = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [load]);
+
+  const handleImageError = useCallback(
+    async (page: number) => {
+      if (!retriedSignaturesRef.current) {
+        retriedSignaturesRef.current = true;
+        const json = await load();
+        // Con URLs nuevas, limpiamos los fallos para que los <img> reintenten.
+        if (json && !cancelledRef.current) {
+          setFailedPages(new Set());
+          return;
+        }
+      }
+      if (!cancelledRef.current) {
+        setFailedPages((prev) => new Set(prev).add(page));
+      }
+    },
+    [load]
+  );
 
   // Sin preview lista todavía: placeholder sobrio.
   if (error || (data && data.status !== "ready") || (data && data.pages.length === 0)) {
@@ -103,9 +160,7 @@ export function PreviewViewer({ resumeId, unlocked = false }: PreviewViewerProps
                   src={p.url}
                   alt={`Página ${p.page}`}
                   draggable={false}
-                  onError={() =>
-                    setFailedPages((prev) => new Set(prev).add(p.page))
-                  }
+                  onError={() => void handleImageError(p.page)}
                   className={`h-full w-full object-contain ${showLock ? "blur-md scale-105" : ""}`}
                 />
               ) : (

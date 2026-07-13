@@ -1,0 +1,64 @@
+# Genera las vistas previas protegidas (estilo Scribd) de los apuntes pendientes.
+#
+# Sin esto, un apunte recién publicado queda con preview_status = 'pending' para
+# siempre y la ficha muestra "Vista previa en preparación…" indefinidamente: el
+# estado lo escribe sell/resume-form al publicar, pero nadie lo procesaba.
+#
+# Se corre acá y no como cron de Vercel porque el plan Hobby solo permite crons
+# diarios (inservible: un apunte publicado a las 14:00 no tendría preview hasta el
+# día siguiente) y porque rasterizar 20 páginas puede pasarse del tope de duración
+# de una función. En Actions no hay ninguno de los dos límites.
+#
+# Disparadores:
+#   - schedule: cada 10 minutos (cron en UTC). GitHub lo corre "best-effort": si
+#     está cargado puede demorarse unos minutos más, lo cual es aceptable acá.
+#   - workflow_dispatch: a mano desde la UI de Actions o con
+#     `gh workflow run process-pending-previews.yml`.
+#
+# Secrets requeridos (Settings → Secrets and variables → Actions):
+#   - SUPABASE_SERVICE_ROLE_KEY    (service role; nunca exponer al cliente)
+#   - NEXT_PUBLIC_SUPABASE_URL
+#
+# El worker (`npm run preview:process-pending`) reclama apuntes 'pending' vía el RPC
+# claim_resume_preview_job (FIFO y atómico, y rescata los 'processing' que quedaron
+# colgados), rasteriza las páginas con pdfjs + @napi-rs/canvas, sube al bucket privado
+# 'resume-previews' y marca 'ready' (o 'failed' con preview_error). Si no hay
+# pendientes, termina OK sin hacer nada.
+#
+# Importante: no imprimir secrets. El worker solo loguea ids y conteos.
+
+name: process-pending-previews
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/10 * * * *"
+
+# Sin solapamiento: dos corridas a la vez no romperían nada (el claim es atómico),
+# pero no tiene sentido pagar el doble de minutos.
+concurrency:
+  group: process-pending-previews
+  cancel-in-progress: false
+
+jobs:
+  run-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Process pending previews
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        run: npm run preview:process-pending -- --limit 10
