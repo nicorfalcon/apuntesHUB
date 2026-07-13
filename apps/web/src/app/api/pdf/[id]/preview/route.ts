@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+// La ruta no usa cookies ni lee el request, así que Next la trataría como estática y
+// hornearía la respuesta (y las lecturas a la base) en build time. El estado de la
+// preview cambia cuando el worker la procesa: siempre hay que resolverla en vivo.
+export const dynamic = "force-dynamic";
+
 const PREVIEWS_BUCKET = "resume-previews";
 
 // 1 hora. Antes eran 120s, y las imágenes se rompían solas: el navegador vuelve a pedir
