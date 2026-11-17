@@ -94,6 +94,10 @@ export function Footer() {
             ))}
           </div>
         </div>
+
+        <p className="mt-8 text-center text-[10px] font-medium uppercase tracking-[0.2em] text-sand-600">
+          Proyecto universitario en etapa beta
+        </p>
       </div>
     </footer>
   );
